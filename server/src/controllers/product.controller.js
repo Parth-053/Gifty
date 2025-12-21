@@ -66,16 +66,53 @@ export const getSellerProducts = async (req, res) => {
 };
 
 /* =========================
-   USER: GET ALL APPROVED PRODUCTS
+   USER: GET ALL APPROVED PRODUCTS (SAFE + FILTERED)
    ========================= */
 export const getApprovedProducts = async (req, res) => {
   try {
-    const products = await Product.find({ isApproved: true });
-    res.json(products);
+    const { category, sort, rating, customizable } = req.query;
+
+    const query = { isApproved: true };
+
+    // 🔹 CATEGORY FILTER (existing logic – unchanged)
+    if (category && category !== "All") {
+      query.category = category;
+    }
+
+    // 🔹 RATING FILTER (works for All & category)
+    if (rating) {
+      query.rating = { $gte: Number(rating) };
+    }
+
+    // 🔹 CUSTOMIZABLE FILTER
+    if (customizable === "true") {
+      query["customization.isCustomizable"] = true;
+    }
+
+    // 🔹 SORTING
+    let sortOption = {};
+    if (sort === "price_asc") sortOption.price = 1;
+    if (sort === "price_desc") sortOption.price = -1;
+    if (sort === "rating") sortOption.rating = -1;
+    if (sort === "newest") sortOption.createdAt = -1;
+
+    // 🔹 QUERY DB
+    let products = await Product.find(query).sort(sortOption);
+
+    // 🔹 RANDOM SHUFFLE (only if no sort applied)
+    if (!sort) {
+      products = products.sort(() => Math.random() - 0.5);
+    }
+
+    res.status(200).json(products);
   } catch (error) {
+    console.error("Get products error:", error);
     res.status(500).json({ message: error.message });
   }
 };
+
+
+
 
 /* =========================
    USER: PRODUCT DETAIL

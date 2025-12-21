@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ProductCard from "./ProductCard";
+import ProductCard from "./categories/ProductCard";
 import API_URL from "../config/api";
 
 const ProductsGrid = ({ selectedCategory }) => {
