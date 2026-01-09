@@ -1,25 +1,28 @@
-import express from "express";
-import {
-  register,
-  sellerRegister,
-  verifyEmailOTP,
-  resendOTP,
-  login,
-  getMe,
-} from "../controllers/auth.controller.js";
-import { protect } from "../middleware/auth.middleware.js";
+import { Router } from "express";
+import { 
+  register, 
+  login, 
+  logout, 
+  refresh, 
+  getCurrentUser 
+} from "../controllers/auth/auth.controller.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import validate from "../middlewares/validate.middleware.js";
+import { 
+  registerSchema, 
+  loginSchema, 
+  refreshTokenSchema 
+} from "../validations/auth.validation.js";
 
-const router = express.Router();
+const router = Router();
 
-router.post("/register", register);
-router.post("/seller/register", sellerRegister);
+// 🔓 Public Routes
+router.post("/register", validate(registerSchema), register);
+router.post("/login", validate(loginSchema), login);
+router.post("/refresh-token", validate(refreshTokenSchema), refresh);
 
-/* AUTH */
-router.post("/login", login);
-router.post("/verify-otp", verifyEmailOTP);
-router.post("/resend-otp", resendOTP);
-
-/* PROFILE */
-router.get("/me", protect, getMe);
+// 🔒 Protected Routes
+router.post("/logout", verifyJWT, logout);
+router.get("/me", verifyJWT, getCurrentUser);
 
 export default router;

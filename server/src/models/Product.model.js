@@ -1,105 +1,133 @@
 import mongoose from "mongoose";
 
-/**
- * Customization sub-schema
- */
-const customizationSchema = new mongoose.Schema(
-  {
-    isCustomizable: {
-      type: Boolean,
-      default: false,
-    },
-
-    mandatoryUploads: {
-      images: {
-        type: Boolean,
-        default: false,
-      },
-      text: {
-        type: Boolean,
-        default: false,
-      },
-    },
-
-    uploadLimits: {
-      minImages: {
-        type: Number,
-        default: 0,
-      },
-      maxImages: {
-        type: Number,
-        default: 0,
-      },
-    },
-
-    allowRandomize: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  { _id: false }
-);
-
-/**
- * Product schema
- */
 const productSchema = new mongoose.Schema(
   {
-    title: {
+    sellerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Seller",
+      required: true,
+      index: true
+    },
+
+    name: {
       type: String,
       required: true,
       trim: true,
+      maxlength: 150
+    },
+
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      index: true
     },
 
     description: {
       type: String,
+      required: true,
+      trim: true
+    },
+
+    shortDescription: {
+      type: String,
       trim: true,
+      maxlength: 300
     },
 
     price: {
       type: Number,
       required: true,
-      min: 0,
+      min: 0
     },
 
-    images: {
-      type: [String],
-      required: true,
-      validate: {
-        validator: (arr) => arr.length > 0,
-        message: "At least one product image is required",
-      },
-    },
-
-    category: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    sellerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
-    customization: customizationSchema,
-
-    rating: {
+    discountPrice: {
       type: Number,
       min: 0,
-      max: 5,
-      default: 0,
+      validate: {
+        validator: function (value) {
+          // Only validate if discountPrice is set
+          if (value === undefined || value === null) return true;
+          return value < this.price;
+        },
+        message: "Discount price ({VALUE}) must be strictly less than the original price."
+      }
     },
 
-    isApproved: {
-      type: Boolean,
-      default: false,
+    images: [
+      {
+        url: { type: String, required: true },
+        publicId: { type: String, required: true }
+      }
+    ],
+
+    categoryIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category",
+        index: true
+      }
+    ],
+
+    tags: [{ type: String, trim: true, lowercase: true }],
+
+    // 📦 Inventory Management
+    stock: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0
     },
+
+    // Stock currently held in active checkouts but not yet paid
+    reservedStock: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
+
+    isCustomizable: {
+      type: Boolean,
+      default: false
+    },
+
+    ratingAvg: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+
+    ratingCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+
+    visibility: {
+      type: String,
+      enum: ["public", "hidden"],
+      default: "public",
+      index: true
+    }
   },
   {
-    timestamps: true, 
+    timestamps: true,
+    toJSON: { virtuals: true }, // Ensure virtuals are included in JSON response
+    toObject: { virtuals: true }
   }
 );
 
-export default mongoose.model("Product", productSchema);
+// 🔥 Virtual: Calculate actually sellable stock
+productSchema.virtual("availableStock").get(function () {
+  return Math.max(0, this.stock - this.reservedStock);
+});
+
+// Indexes
+productSchema.index({ name: "text", description: "text", tags: "text" });
+productSchema.index({ sellerId: 1, visibility: 1 });
+
+const Product = mongoose.model("Product", productSchema);
+
+export default Product;

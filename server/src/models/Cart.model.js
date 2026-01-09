@@ -5,16 +5,20 @@ const cartItemSchema = new mongoose.Schema(
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
-      required: true,
+      required: true
     },
-    quantity: { type: Number, default: 1 },
 
-    // 🔥 CUSTOMIZATION DATA (VERY IMPORTANT)
-    customizationData: {
-      text: String,
-      image: String,
-      color: String,
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 1
     },
+
+    selectedCustomizations: {
+      type: Object,
+      default: {}
+    }
   },
   { _id: false }
 );
@@ -24,11 +28,18 @@ const cartSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
       unique: true,
+      index: true // ✅ यह काफी है, नीचे अलग से लिखने की ज़रूरत नहीं
     },
-    items: [cartItemSchema],
+
+    items: [cartItemSchema]
   },
-  { timestamps: true }
+  {
+    timestamps: { createdAt: false, updatedAt: true }
+  }
 );
 
-export default mongoose.model("Cart", cartSchema);
+const Cart = mongoose.model("Cart", cartSchema);
+
+export default Cart;

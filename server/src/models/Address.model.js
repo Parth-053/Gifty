@@ -6,19 +6,69 @@ const addressSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true
     },
-    name: String,
-    phone: String,
-    street: String,
-    city: String,
-    state: String,
-    pincode: String,
+
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100
+    },
+
+    phone: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    street: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    city: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    state: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    pincode: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    country: {
+      type: String,
+      required: true,
+      trim: true,
+      default: "India"
+    },
+
     isDefault: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
-  { timestamps: true }
+  {
+    timestamps: { createdAt: true, updatedAt: false }
+  }
 );
 
-export default mongoose.model("Address", addressSchema);
+// Ensure only ONE default address per user
+addressSchema.index(
+  { userId: 1, isDefault: 1 },
+  { unique: true, partialFilterExpression: { isDefault: true } }
+);
+
+const Address = mongoose.model("Address", addressSchema);
+
+export default Address;

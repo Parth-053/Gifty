@@ -2,47 +2,54 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    name: String,
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 2,
+      maxlength: 100
+    },
 
     email: {
       type: String,
-      unique: true,
       required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true
     },
 
-    phone: String,
-    password: String,
+    phone: {
+      type: String,
+      trim: true,
+      sparse: true
+    },
+
+    passwordHash: {
+      type: String,
+      required: true,
+      select: false  
+    },
 
     role: {
       type: String,
-      enum: ["user", "seller", "admin"],
-      default: "user",
+      enum: ["user", "seller", "admin"], 
+      default: "user"
     },
 
-    /* ========= SELLER FIELDS ========= */
-    storeName: {
-      type: String,
-    },
-
-    businessCategory: {
-      type: String,
-    },
-
-    isApproved: {
+    isVerified: {
       type: Boolean,
-      default: false, 
+      default: false
     },
-
-    /* ========= EMAIL VERIFICATION ========= */
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
-    },
-
-    emailOTP: String,
-    otpExpiresAt: Date,
+    
+    resetPasswordToken: String,
+    resetPasswordExpire: Date
   },
-  { timestamps: true }
+  {
+    timestamps: true  
+  }
 );
 
-export default mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+
+export default User;

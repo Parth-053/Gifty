@@ -1,77 +1,92 @@
-import { Routes, Route } from "react-router-dom";
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 
-/* Core Pages */
-import Home from "./pages/Home";
-import Categories from "./pages/Categories";
-import ProductDetail from "./pages/ProductDetail";
-import Customize from "./pages/Customize";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
+// 1. Providers (Global State)
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+import { WishlistProvider } from './context/WishlistContext';
 
-/* Search & Wishlist */
-import Search from "./pages/Search";
-import SearchResults from "./pages/SearchResults";
-import Wishlist from "./pages/Wishlist";
+// 2. Layout (Bottom Navbar)
+import AppLayout from './components/layout/AppLayout';
 
-/* Account & Profile */
-import Account from "./pages/Account";
-import EditProfile from "./pages/EditProfile";
-import Addresses from "./pages/Addresses";
+// 3. Pages - Main Tabs (Bottom Nav wale pages)
+import Home from './pages/Main/Home';
+import Categories from './pages/Main/Categories';
+import Customize from './pages/Main/Customize';
+import MyOrders from './pages/Main/MyOrders';
+import Account from './pages/Main/Account';
 
-/* Orders */
-import Orders from "./pages/Orders";
-import OrderDetail from "./pages/OrderDetail";
+// 4. Pages - Full Screen (Product & Search)
+import Search from './pages/Product/Search';
+import ProductDetails from './pages/Product/ProductDetails';
+import Wishlist from './pages/Main/Wishlist'; // Wishlist ko alag page rakha hai
 
-/* Info Pages */
-import Help from "./pages/Help";
-import About from "./pages/About";
-import Notifications from "./pages/Notifications";
+// 5. Pages - Checkout Flow
+import Cart from './pages/Checkout/Cart';
+import CheckoutAddress from './pages/Checkout/CheckoutAddress';
+import Payment from './pages/Checkout/Payment';
+import OrderSuccess from './pages/Checkout/OrderSuccess';
 
-/* Auth Pages */
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import VerifyOtp from "./pages/VerifyOtp";
+// 6. Pages - User Sub-pages
+import EditProfile from './pages/User/EditProfile';
+import OrderDetails from './pages/User/OrderDetails';
+import SavedAddresses from './pages/User/SavedAddresses';
+import PaymentMethods from './pages/User/PaymentMethods';
+import Notifications from './pages/User/Notifications';
+import Settings from './pages/User/Settings';
+import Privacy from './pages/User/Privacy';
+import MyCoupons from './pages/User/MyCoupons';
+
+// 7. Pages - Legal
+import Help from './pages/Legal/Help';
 
 function App() {
   return (
-    <Routes>
-      {/* Home & Discovery */}
-      <Route path="/" element={<Home />} />
-      <Route path="/categories" element={<Categories />} />
-      <Route path="/product/:id" element={<ProductDetail />} />
-      <Route path="/customize" element={<Customize />} />
+    <AuthProvider>
+      <WishlistProvider>
+        <CartProvider>
+          
+          <Routes>
+            {/* ✅ GROUP 1: Pages with Bottom Navbar */}
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/customize" element={<Customize />} />
+              <Route path="/orders" element={<MyOrders />} /> {/* Tab Link */}
+              <Route path="/account" element={<Account />} />
+            </Route>
 
-      {/* Search */}
-      <Route path="/search" element={<Search />} />
-      <Route path="/search/results" element={<SearchResults />} />
+            {/* ✅ GROUP 2: Full Screen Pages (No Bottom Navbar) */}
+            
+            {/* Product Discovery */}
+            <Route path="/search" element={<Search />} />
+            <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/product/:productId" element={<ProductDetails />} />
 
-      {/* Cart & Checkout */}
-      <Route path="/cart" element={<Cart />} />
-      <Route path="/checkout" element={<Checkout />} />
+            {/* Checkout System */}
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout/address" element={<CheckoutAddress />} />
+            <Route path="/checkout/payment" element={<Payment />} />
+            <Route path="/checkout/success" element={<OrderSuccess />} />
 
-      {/* Wishlist */}
-      <Route path="/wishlist" element={<Wishlist />} />
+            {/* Account Details */}
+            <Route path="/account/edit-profile" element={<EditProfile />} />
+            <Route path="/account/orders/:orderId" element={<OrderDetails />} /> {/* Deep Link */}
+            <Route path="/account/addresses" element={<SavedAddresses />} />
+            <Route path="/account/payments" element={<PaymentMethods />} />
+            <Route path="/account/notifications" element={<Notifications />} />
+            <Route path="/account/coupons" element={<MyCoupons />} />
+            
+            {/* Settings & Help */}
+            <Route path="/account/settings" element={<Settings />} />
+            <Route path="/account/privacy" element={<Privacy />} />
+            <Route path="/account/help" element={<Help />} />
 
-      {/* Account */}
-      <Route path="/account" element={<Account />} />
-      <Route path="/edit-profile" element={<EditProfile />} />
-      <Route path="/addresses" element={<Addresses />} />
+          </Routes>
 
-      {/* Orders */}
-      <Route path="/orders" element={<Orders />} />
-      <Route path="/order/:id" element={<OrderDetail />} />
-
-      {/* Support & Info */}
-      <Route path="/help" element={<Help />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/notifications" element={<Notifications />} />
-
-      {/* Login & Signup */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/verify-otp" element={<VerifyOtp />} />
-
-    </Routes>
+        </CartProvider>
+      </WishlistProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,18 +1,21 @@
-import express from "express";
-import {
-  addToCart,
-  getCart,
-  removeFromCart,
-  clearCart,
-} from "../controllers/cart.controller.js";
+import { Router } from "express";
+import { 
+  getUserCart, 
+  addItemToCart, 
+  updateItemQuantity, 
+  removeItem, 
+  clearUserCart 
+} from "../controllers/user/cart.controller.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
-import { protect } from "../middleware/auth.middleware.js";
+const router = Router();
 
-const router = express.Router();
+router.use(verifyJWT);
 
-router.post("/", protect, addToCart);
-router.get("/", protect, getCart);
-router.delete("/:productId", protect, removeFromCart);
-router.delete("/", protect, clearCart);
+router.get("/", getUserCart);
+router.post("/add", addItemToCart);
+router.patch("/update", updateItemQuantity);
+router.delete("/remove", removeItem); // Using body in DELETE is allowed in modern specs
+router.delete("/clear", clearUserCart);
 
 export default router;

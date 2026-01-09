@@ -1,106 +1,82 @@
-import express from "express";
-import { protect, authorize } from "../middleware/auth.middleware.js";
-import upload from "../middleware/upload.middleware.js";
+import { Router } from "express";
+import { verifyJWT, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
+import validate from "../middlewares/validate.middleware.js";
+import { UserRoles } from "../utils/constants.js";
+import { createProductSchema, updateProductSchema } from "../validations/product.validation.js";
 
-import {
-  getSellerDashboard,
-  getSellerAnalytics,
-  getSellerProducts,
-  addSellerProduct,
-  updateSellerProduct,
-  deleteSellerProduct,
-  getSellerOrders,
-  updateOrderStatus,
-  getSellerProfile,
-  updateSellerProfile,
-} from "../controllers/seller.controller.js";
+// Controllers
+import { 
+  registerNewSeller, 
+  getMySellerProfile, 
+  updateStoreDetails 
+} from "../controllers/seller/sellerProfile.controller.js";
+import { 
+  addProduct, 
+  getMyProducts, 
+  updateProductDetails, 
+  removeProduct 
+} from "../controllers/seller/sellerProduct.controller.js";
+import { 
+  getSellerOrders, 
+  updateOrderProcessStatus 
+} from "../controllers/seller/sellerOrder.controller.js";
+import { 
+  getSellerDashboardStats,
+  getSellerGraphData 
+} from "../controllers/seller/sellerAnalytics.controller.js";
 
-const router = express.Router();
+const router = Router();
 
-/* =========================
-   DASHBOARD
-   ========================= */
-router.get(
-  "/dashboard",
-  protect,
-  authorize("seller"),
-  getSellerDashboard
+// 🔒 Require Login
+router.use(verifyJWT);
+
+// --- Onboarding (User -> Seller) ---
+router.post("/onboard", 
+  upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "banner", maxCount: 1 }
+  ]), 
+  registerNewSeller
 );
 
-/* =========================
-   SELLER PRODUCTS
-   ========================= */
-router.get(
-  "/products",
-  protect,
-  authorize("seller"),
-  getSellerProducts
-);
+// 🔒 STRICT: Only Sellers allowed below
+router.use(authorizeRoles(UserRoles.SELLER));
 
-router.post(
-  "/products",
-  protect,
-  authorize("seller"),
-  upload.array("images", 5),
-  addSellerProduct
-);
+// --- Profile ---
+router.route("/profile")
+  .get(getMySellerProfile)
+  .patch(
+    upload.fields([
+      { name: "logo", maxCount: 1 },
+      { name: "banner", maxCount: 1 }
+    ]),
+    updateStoreDetails
+  );
 
-router.put(
-  "/products/:id",
-  protect,
-  authorize("seller"),
-  updateSellerProduct
-);
+// --- Products Management ---
+router.route("/products")
+  .get(getMyProducts)
+  .post(
+    upload.array("images", 5), // Allow up to 5 images
+    validate(createProductSchema), // Validate text fields
+    addProduct
+  );
 
-router.delete(
-  "/products/:id",
-  protect,
-  authorize("seller"),
-  deleteSellerProduct
-);
+router.route("/products/:productId")
+  .patch(
+    upload.array("images", 5),
+    validate(updateProductSchema),
+    updateProductDetails
+  )
+  .delete(removeProduct);
 
-/* =========================
-   SELLER ORDERS
-   ========================= */
-router.get(
-  "/orders",
-  protect,
-  authorize("seller"),
-  getSellerOrders
-);
+// --- Order Management ---
+router.get("/orders", getSellerOrders);
+router.patch("/orders/:orderId/status", updateOrderProcessStatus);
 
-router.put(
-  "/orders/:id/status",
-  protect,
-  authorize("seller"),
-  updateOrderStatus
-);
-
-/* =========================
-   ANALYTICS
-   ========================= */
-router.get(
-  "/analytics",
-  protect,
-  authorize("seller"),
-  getSellerAnalytics
-);
-
-/* =========================
-   PROFILE
-   ========================= */
-router.get(
-  "/profile",
-  protect,
-  authorize("seller"),
-  getSellerProfile
-);
-
-router.put(
-  "/profile",
-  protect,
-  authorize("seller"),
-  updateSellerProfile
-);
+// --- Analytics ---
+router.get("/analytics/overview", getSellerDashboardStats);
+router.get("/analytics/graph", getSellerGraphData);
 
 export default router;

@@ -1,26 +1,27 @@
-import express from "express";
-import {
-  placeOrder,
-  getUserOrders,
-  getSellerOrders,
-} from "../controllers/order.controller.js";
+import { Router } from "express";
+import { 
+  checkout, 
+  verifyPayment, 
+  getMyOrders, 
+  getOrderDetails, 
+  cancelMyOrder 
+} from "../controllers/user/order.controller.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import validate from "../middlewares/validate.middleware.js";
+import { 
+  checkoutSchema, 
+  verifyPaymentSchema 
+} from "../validations/order.validation.js";
 
-import { protect, authorize } from "../middleware/auth.middleware.js";
+const router = Router();
 
-const router = express.Router();
+router.use(verifyJWT);
 
-/* USER */
-router.post("/", protect, placeOrder);
+router.post("/checkout", validate(checkoutSchema), checkout);
+router.post("/verify-payment", validate(verifyPaymentSchema), verifyPayment);
 
-//  /my
-router.get("/my", protect, getUserOrders);
-
-/* SELLER */
-router.get(
-  "/seller",
-  protect,
-  authorize("seller"),
-  getSellerOrders
-);
+router.get("/", getMyOrders);
+router.get("/:orderId", getOrderDetails);
+router.post("/:orderId/cancel", cancelMyOrder);
 
 export default router;

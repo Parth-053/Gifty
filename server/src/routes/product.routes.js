@@ -1,24 +1,17 @@
-import express from "express";
-import {
-  addProduct,
-  getSellerProducts,
-  getApprovedProducts,
-  getProductById,
-  approveProduct,
-} from "../controllers/product.controller.js";
-import { protect, isSeller, isAdmin } from "../middleware/auth.middleware.js";
+import { Router } from "express";
+import { 
+  getAllProducts, 
+  getProductDetails, 
+  getPublicCategories 
+} from "../controllers/public/product.controller.js";
+import validate from "../middlewares/validate.middleware.js";
+import { getProductsSchema } from "../validations/product.validation.js";
 
-const router = express.Router();
+const router = Router();
 
-// SELLER
-router.post("/", protect, isSeller, addProduct);
-router.get("/seller", protect, isSeller, getSellerProducts);
-
-// USER
-router.get("/", getApprovedProducts);
-router.get("/:id", getProductById);
-
-// ADMIN
-router.put("/approve/:id", protect, isAdmin, approveProduct);
+// 🔓 All Public
+router.get("/", validate(getProductsSchema, 'query'), getAllProducts);
+router.get("/categories", getPublicCategories);
+router.get("/:id", getProductDetails);
 
 export default router;
