@@ -1,187 +1,117 @@
-import Product from "../models/product.model.js";
-import ApiError from "../utils/apiError.js";
-import { httpStatus } from "../utils/constants.js"; // Ensure you have status codes defined
+import { Product } from "../models/Product.model.js";
+import { ApiError } from "../utils/apiError.js";
+import { uploadImages, deleteImages } from "./image.service.js";
 
 /**
- * Create a new product
- * @param {Object} productData - validated data from controller
- * @returns {Promise<Object>} - Created product
+ * Create New Product (Seller)
  */
-export const createProduct = async (productData) => {
-  // Business Logic: Check if slug already exists (though handled by DB index, good to check)
-  const existingProduct = await Product.findOne({ slug: productData.slug });
-  if (existingProduct) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Product with this slug already exists");
+export const createProduct = async (sellerId, productData, files) => {
+  // 1. Upload Images
+  const images = await uploadImages(files, "products");
+
+  if (images.length === 0) {
+    throw new ApiError(400, "At least one product image is required");
   }
 
-  const product = await Product.create(productData);
+  // 2. Create Product
+  const product = await Product.create({
+    ...productData,
+    sellerId,
+    images,
+    verificationStatus: "pending" // Admin approval needed
+  });
+
   return product;
 };
 
 /**
- * Update product details
- * @param {String} productId
- * @param {Object} updateData
- * @param {String} sellerId - To ensure only the owner can update
- * @returns {Promise<Object>}
+ *  Get Products (Public - with Filters & Pagination)
  */
-export const updateProduct = async (productId, updateData, sellerId) => {
-  const product = await Product.findOne({ _id: productId, sellerId });
+export const getAllProducts = async (query) => {
+  const { 
+    page = 1, 
+    limit = 10, 
+    sort = "newest", 
+    category, 
+    search, 
+    minPrice, 
+    maxPrice 
+  } = query;
 
-  if (!product) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Product not found or access denied");
+  // 1. Build Filter Object
+  const filter = { 
+    isActive: true, 
+    verificationStatus: "approved", 
+    isDeleted: false 
+  };
+
+  if (category) filter.categoryId = category;
+  if (minPrice || maxPrice) {
+    filter.price = {};
+    if (minPrice) filter.price.$gte = Number(minPrice);
+    if (maxPrice) filter.price.$lte = Number(maxPrice);
+  }
+  if (search) {
+    filter.$text = { $search: search };
   }
 
-  // Update fields
-  Object.assign(product, updateData);
+  // 2. Build Sort Object
+  let sortOptions = {};
+  if (sort === "newest") sortOptions = { createdAt: -1 };
+  else if (sort === "price_low") sortOptions = { price: 1 };
+  else if (sort === "price_high") sortOptions = { price: -1 };
+  else if (sort === "rating") sortOptions = { "rating.average": -1 };
+
+  // 3. Execute Query with Pagination
+  const products = await Product.find(filter)
+    .sort(sortOptions)
+    .skip((page - 1) * limit)
+    .limit(Number(limit))
+    .populate("categoryId", "name slug");
+
+  const total = await Product.countDocuments(filter);
+
+  return { products, total, page: Number(page), pages: Math.ceil(total / limit) };
+};
+
+/**
+ * Get Single Product
+ */
+export const getProductById = async (id) => {
+  const product = await Product.findById(id)
+    .populate("sellerId", "storeName rating") // Show seller info
+    .populate("categoryId", "name");
   
-  // Save ensures validations and virtuals run
+  if (!product || product.isDeleted) throw new ApiError(404, "Product not found");
+  return product;
+};
+
+/**
+ * Update Product (Seller)
+ */
+export const updateProduct = async (sellerId, productId, updateData, files) => {
+  const product = await Product.findOne({ _id: productId, sellerId });
+  if (!product) throw new ApiError(404, "Product not found or unauthorized");
+
+  // Handle New Images
+  if (files && files.length > 0) {
+    const newImages = await uploadImages(files, "products");
+    updateData.images = [...product.images, ...newImages]; // Append
+  }
+
+  Object.assign(product, updateData);
+
   await product.save();
   return product;
 };
 
 /**
- * Get Product by ID (Public View)
- * Populates Category and Seller info nicely
+ * Delete Product (Soft Delete)
  */
-export const getProductById = async (productId) => {
-  const product = await Product.findById(productId)
-    .populate("categoryIds", "name slug") // Only fetch name and slug of category
-    .populate("sellerId", "storeName logo rating") // Only fetch public seller info
-    .lean(); // 🔥 Faster read
+export const deleteProduct = async (sellerId, productId) => {
+  const product = await Product.findOne({ _id: productId, sellerId });
+  if (!product) throw new ApiError(404, "Product not found");
 
-  if (!product) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Product not found");
-  }
-
-  return product;
-};
-
-/**
- * 🔥 ADVANCED FILTERING, SORTING & PAGINATION
- * This is the core engine for your browse/search page.
- * * @param {Object} filters - { minPrice, maxPrice, category, rating, search, sellerId }
- * @param {Object} options - { page, limit, sortBy, sortOrder }
- */
-export const queryProducts = async (filters, options) => {
-  const { 
-    minPrice, 
-    maxPrice, 
-    category, // can be ID or slug
-    rating, 
-    search, 
-    tags, 
-    sellerId 
-  } = filters;
-
-  const { page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" } = options;
-
-  // 1. Build the Query Object
-  const query = { visibility: "public" }; // Always show only public products
-
-  // Search Logic (Regex for partial match on Name or Description)
-  if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: "i" } }, // 'i' case insensitive
-      { description: { $regex: search, $options: "i" } },
-      { tags: { $in: [new RegExp(search, "i")] } }
-    ];
-  }
-
-  // Category Filter
-  if (category) {
-    query.categoryIds = category; // Assuming Controller passes the Category ObjectId
-  }
-
-  // Seller Filter
-  if (sellerId) {
-    query.sellerId = sellerId;
-  }
-
-  // Price Range Filter
-  if (minPrice || maxPrice) {
-    query.price = {};
-    if (minPrice) query.price.$gte = Number(minPrice);
-    if (maxPrice) query.price.$lte = Number(maxPrice);
-  }
-
-  // Rating Filter (e.g. 4 stars and above)
-  if (rating) {
-    query.ratingAvg = { $gte: Number(rating) };
-  }
-
-  // Tags Filter
-  if (tags) {
-    const tagsArray = tags.split(",").map(t => t.trim().toLowerCase());
-    query.tags = { $in: tagsArray };
-  }
-
-  // 2. Prepare Sort Object
-  const sort = {};
-  sort[sortBy] = sortOrder === "asc" ? 1 : -1;
-  
-  // Secondary sort by _id to ensure consistent pagination order
-  sort["_id"] = 1; 
-
-  // 3. Calculate Pagination
-  const skip = (Number(page) - 1) * Number(limit);
-
-  // 4. Execute Queries in Parallel (Data + Count)
-  // Using Promise.all is industry standard to reduce wait time
-  const [products, totalCount] = await Promise.all([
-    Product.find(query)
-      .sort(sort)
-      .skip(skip)
-      .limit(Number(limit))
-      .select("-description -stock") // Optimization: Don't fetch heavy fields in list view
-      .populate("categoryIds", "name")
-      .lean(), // 🔥 Converts Mongoose Documents to Plain JS Objects (Much Faster)
-    
-    Product.countDocuments(query)
-  ]);
-
-  // 5. Return structured response with metadata
-  return {
-    products,
-    meta: {
-      total: totalCount,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(totalCount / Number(limit)),
-      hasMore: skip + products.length < totalCount
-    }
-  };
-};
-
-/**
- * Delete a product (Soft delete or Hard delete based on requirement)
- * Here implemented as Hard Delete.
- */
-export const deleteProduct = async (productId, sellerId) => {
-  const product = await Product.findOneAndUpdate(
-    { _id: productId, sellerId },
-    { visibility: "hidden" }, // Just hide it
-    { new: true }
-  );
-  
-  if (!product) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Product not found or access denied");
-  }
-  
-  return true;
-};
-
-// Internal utility to verify stock (used by Order Service)
-export const checkStockAvailability = async (productId, quantity) => {
-  const product = await Product.findById(productId).select("stock reservedStock");
-  if (!product) throw new ApiError(httpStatus.NOT_FOUND, "Product not found");
-  
-  // Using the virtual 'availableStock' logic manually here if needed for atomic checks
-  const available = product.stock - product.reservedStock;
-  
-  if (available < quantity) {
-    return { available: false, currentStock: available };
-  }
-  
-  return { available: true, product };
+  product.isDeleted = true;
+  await product.save();
 };

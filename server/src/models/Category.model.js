@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import slugify from "slugify";
 
 const categorySchema = new mongoose.Schema(
   {
@@ -6,37 +7,39 @@ const categorySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 100
+      unique: true
     },
-
     slug: {
       type: String,
-      required: true,
       lowercase: true,
       unique: true,
       index: true
     },
-
+    description: String,
+    image: {
+      url: String,
+      publicId: String
+    },
     parentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
-      default: null
+      default: null,
+      index: true
     },
-
     isActive: {
       type: Boolean,
       default: true
     }
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
-// 🔥 Indexes for fast filtering & hierarchy
-categorySchema.index({ parentId: 1 });
-categorySchema.index({ isActive: 1 });
+categorySchema.pre("save", function (next) {
+  if (this.isModified("name")) {
+    this.slug = slugify(this.name, { lower: true, strict: true });
+  }
+  next();
+});
 
 const Category = mongoose.model("Category", categorySchema);
-
 export default Category;

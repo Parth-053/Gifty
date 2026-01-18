@@ -1,99 +1,99 @@
-import User from "../models/user.model.js";
-import ApiError from "../utils/apiError.js";
-import { httpStatus } from "../utils/constants.js";
-import { hashPassword, comparePassword } from "../utils/password.util.js";
-import { generateAccessToken, generateRefreshToken } from "../utils/generateToken.js";
+import { User } from "../models/User.model.js";
+import { ApiError } from "../utils/ApiError.js";
+import { generateAccessAndRefreshToken } from "../utils/tokens.js";
 import jwt from "jsonwebtoken";
+import { envConfig } from "../config/env.config.js";
 
 /**
- * Register a new user
- * @param {Object} userData - { name, email, password, phone }
- * @returns {Promise<Object>} - Created user (without password)
+ * Register New User
+ * - Checks for existing user
+ * - Creates new user
+ * - Returns user without sensitive data
  */
 export const registerUser = async (userData) => {
   // 1. Check if user already exists
-  const existingUser = await User.findOne({ email: userData.email });
-  
-  if (existingUser) {
-    throw new ApiError(httpStatus.CONFLICT, "User with this email already exists");
-  }
-
-  // 2. Hash the password
-  const hashedPassword = await hashPassword(userData.password);
-
-  // 3. Create the user
-  const user = await User.create({
-    ...userData,
-    passwordHash: hashedPassword,
+  const existingUser = await User.findOne({ 
+    $or: [{ email: userData.email }, { phone: userData.phone }] 
   });
 
-  // 4. Return user data (Mongoose 'select: false' ensures passwordHash is excluded)
-  // We explicitly convert to object to ensure sensitive fields are stripped if needed
-  const userResponse = user.toObject();
-  delete userResponse.passwordHash;
+  if (existingUser) {
+    throw new ApiError(409, "User with email or phone already exists");
+  }
 
-  return userResponse;
+  // 2. Create User
+  const user = await User.create(userData);
+
+  // 3. Remove Sensitive Fields
+  const createdUser = await User.findById(user._id).select("-password -role -refreshToken");
+
+  if (!createdUser) {
+    throw new ApiError(500, "Something went wrong while registering the user");
+  }
+
+  return createdUser;
 };
 
 /**
- * Login User
- * @param {String} email
- * @param {String} password
- * @returns {Promise<Object>} - { user, accessToken, refreshToken }
+ *   Login User
+ * - Finds user by email
+ * - Verifies password using Model method
+ * - Generates Access & Refresh Tokens
  */
 export const loginUser = async (email, password) => {
-  // 1. Find user and explicitly select password (since it's hidden by default)
-  const user = await User.findOne({ email }).select("+passwordHash");
+  // 1. Find User (Explicitly select password as it's hidden by default)
+  const user = await User.findOne({ email }).select("+password");
 
-  // 2. Security: Use generic error message to prevent user enumeration
   if (!user) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid email or password");
+    throw new ApiError(404, "User does not exist");
   }
 
-  // 3. Compare password
-  const isPasswordValid = await comparePassword(password, user.passwordHash);
-  
+  // 2. Check Password
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
   if (!isPasswordValid) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid email or password");
+    throw new ApiError(401, "Invalid user credentials");
   }
 
-  // 4. Generate Tokens
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
+  // 3. Generate Tokens
+  // Fetch user again without password to keep the object clean
+  const loggedInUser = await User.findById(user._id).select("-password -refresh_token");
+  
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(loggedInUser);
 
-  // 5. Remove password from response
-  const userResponse = user.toObject();
-  delete userResponse.passwordHash;
-
-  // Optional: Save refreshToken in DB if you want to support "Force Logout" later
-  // user.refreshToken = refreshToken; 
-  // await user.save();
-
-  return { user: userResponse, accessToken, refreshToken };
+  return { user: loggedInUser, accessToken, refreshToken };
 };
 
 /**
- * Refresh Access Token
- * @param {String} incomingRefreshToken
- * @returns {Promise<String>} - New Access Token
+ *   Refresh Access Token
+ * - Verifies Refresh Token
+ * - Checks if token matches the one in DB (Rotation Check)
+ * - Issues new pair of tokens
  */
 export const refreshAccessToken = async (incomingRefreshToken) => {
   try {
-    // 1. Verify the refresh token
-    const decoded = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+    // 1. Verify Token
+    const decodedToken = jwt.verify(incomingRefreshToken, envConfig.jwt.refreshSecret);
 
-    // 2. Find the user
-    const user = await User.findById(decoded._id);
+    // 2. Find User
+    const user = await User.findById(decodedToken?._id);
 
     if (!user) {
-      throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid refresh token");
+      throw new ApiError(401, "Invalid refresh token");
     }
 
-    // 3. Generate new access token
-    const newAccessToken = generateAccessToken(user);
+    // 3. Check if Incoming Token Matches Database Token (Rotation Check)
+    // Explicitly select refreshToken as it is excluded by default
+    const userWithToken = await User.findById(user._id).select("+refreshToken");
+    
+    if (incomingRefreshToken !== userWithToken.refreshToken) {
+      throw new ApiError(401, "Refresh token is expired or used");
+    }
 
-    return newAccessToken;
+    // 4. Generate New Tokens
+    const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshToken(user);
+
+    return { accessToken, refreshToken: newRefreshToken };
   } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid or expired refresh token");
+    throw new ApiError(401, error?.message || "Invalid refresh token");
   }
 };

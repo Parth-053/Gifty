@@ -1,74 +1,70 @@
 import mongoose from "mongoose";
+import slugify from "slugify";
 
 const sellerSchema = new mongoose.Schema(
   {
-    // 🔥 FIXED: Link Seller Profile to the User Account
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-        unique: true, // One user can have only one seller profile
-        index: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+      index: true
     },
-
     storeName: {
       type: String,
-      required: true,
+      required: [true, "Store name is required"],
+      unique: true,
       trim: true,
-      maxlength: 120,
+      maxlength: 50
+    },
+    slug: {
+      type: String,
+      unique: true,
+      lowercase: true,
       index: true
     },
-
-    ownerName: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100
-    },
-
-    // This is purely for public display (Contact Email), NOT for login
-    email: {
-      type: String,
-      required: true,
-      lowercase: true,
-      trim: true
-      // Removed 'unique: true' to avoid conflict with User table
-    },
-
-    phone: {
-      type: String,
-      required: true,
-      trim: true
-    },
-
     description: {
       type: String,
-      trim: true,
-      maxlength: 1000
+      maxlength: 500
     },
-
     logo: {
-      url: { type: String },
-      publicId: { type: String }
+      url: String,
+      publicId: String
+    },
+    
+    // Business Details (Sensitive - Only visible to Admin/Owner)
+    gstin: { type: String, trim: true, select: false },
+    panNumber: { type: String, trim: true, select: false },
+    
+    bankDetails: {
+      accountNumber: { type: String, select: false },
+      ifscCode: { type: String, select: false },
+      beneficiaryName: { type: String, select: false }
     },
 
-    bannerImage: {
-      url: { type: String },
-      publicId: { type: String }
-    },
-
+    // Admin Approval Status
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "blocked"], // Added 'rejected'
+      enum: ["pending", "approved", "rejected", "suspended"],
       default: "pending",
       index: true
+    },
+    rejectionReason: { type: String, default: "" },
+
+    rating: {
+      average: { type: Number, default: 0, min: 0, max: 5 },
+      count: { type: Number, default: 0 }
     }
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
-const Seller = mongoose.model("Seller", sellerSchema);
+// Auto-generate slug
+sellerSchema.pre("save", function (next) {
+  if (this.isModified("storeName")) {
+    this.slug = slugify(this.storeName, { lower: true, strict: true });
+  }
+  next();
+});
 
-export default Seller;
+export const Seller = mongoose.model("Seller", sellerSchema);

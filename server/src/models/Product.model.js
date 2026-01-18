@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import slugify from "slugify";
 
 const productSchema = new mongoose.Schema(
   {
@@ -8,126 +9,81 @@ const productSchema = new mongoose.Schema(
       required: true,
       index: true
     },
-
     name: {
       type: String,
       required: true,
       trim: true,
-      maxlength: 150
+      maxlength: 200,
+      index: "text" // Full-text search
     },
-
     slug: {
       type: String,
-      required: true,
       unique: true,
       lowercase: true,
       index: true
     },
-
-    description: {
-      type: String,
-      required: true,
-      trim: true
-    },
-
-    shortDescription: {
-      type: String,
-      trim: true,
-      maxlength: 300
-    },
-
-    price: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-
-    discountPrice: {
-      type: Number,
+    description: { type: String, required: true },
+    shortDescription: { type: String, maxlength: 300 },
+    
+    price: { type: Number, required: true, min: 0, index: true },
+    discountPrice: { 
+      type: Number, 
       min: 0,
       validate: {
-        validator: function (value) {
-          // Only validate if discountPrice is set
-          if (value === undefined || value === null) return true;
-          return value < this.price;
-        },
-        message: "Discount price ({VALUE}) must be strictly less than the original price."
+        validator: function(val) { return !val || val < this.price; },
+        message: "Discount price must be less than regular price"
       }
     },
-
+    
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+      index: true
+    },
+    
     images: [
       {
         url: { type: String, required: true },
         publicId: { type: String, required: true }
       }
     ],
-
-    categoryIds: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Category",
-        index: true
-      }
-    ],
-
-    tags: [{ type: String, trim: true, lowercase: true }],
-
-    // 📦 Inventory Management
-    stock: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0
+    
+    stock: { type: Number, required: true, min: 0 },
+    
+    // Customization (For Gifting)
+    isCustomizable: { type: Boolean, default: false },
+    customizationOptions: [{ type: String }], // e.g. ["text", "image", "color"]
+    
+    tags: [String],
+    
+    rating: {
+      average: { type: Number, default: 0, index: true },
+      count: { type: Number, default: 0 }
     },
 
-    // Stock currently held in active checkouts but not yet paid
-    reservedStock: {
-      type: Number,
-      min: 0,
-      default: 0
-    },
-
-    isCustomizable: {
-      type: Boolean,
-      default: false
-    },
-
-    ratingAvg: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5
-    },
-
-    ratingCount: {
-      type: Number,
-      default: 0,
-      min: 0
-    },
-
-    visibility: {
+    // Admin & Control
+    verificationStatus: {
       type: String,
-      enum: ["public", "hidden"],
-      default: "public",
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
       index: true
-    }
+    },
+    isActive: { type: Boolean, default: true, index: true }, // Seller toggle
+    isDeleted: { type: Boolean, default: false }, // Soft delete
   },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true }, // Ensure virtuals are included in JSON response
-    toObject: { virtuals: true }
-  }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
-// 🔥 Virtual: Calculate actually sellable stock
-productSchema.virtual("availableStock").get(function () {
-  return Math.max(0, this.stock - this.reservedStock);
+// Indexes for Filtering
+productSchema.index({ categoryId: 1, isActive: 1, price: 1 });
+
+productSchema.pre("save", function (next) {
+  if (this.isModified("name")) {
+    this.slug = slugify(this.name, { lower: true, strict: true }) + "-" + Date.now();
+  }
+  next();
 });
 
-// Indexes
-productSchema.index({ name: "text", description: "text", tags: "text" });
-productSchema.index({ sellerId: 1, visibility: 1 });
-
-const Product = mongoose.model("Product", productSchema);
-
-export default Product;
+export const Product = mongoose.model("Product", productSchema);
+export default Product; // Default export for compatibility

@@ -1,57 +1,36 @@
-import User from "../../models/user.model.js";
+import { updateProfile } from "../../services/user.service.js"; 
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import ApiResponse from "../../utils/apiResponse.js";
-import ApiError from "../../utils/apiError.js";
-import { httpStatus } from "../../utils/constants.js";
-import { hashPassword, comparePassword } from "../../utils/password.util.js";
+import { ApiResponse } from "../../utils/apiResponse.js";
+import { ApiError } from "../../utils/apiError.js";
 
 /**
- * @desc    Update Account Details (Name, Phone)
- * @route   PATCH /api/v1/users/profile
- * @access  Private
+ * @desc    Get My Profile
+ * @route   GET /api/v1/user/profile
  */
-export const updateAccountDetails = asyncHandler(async (req, res) => {
-  const { name, phone } = req.body;
-
-  // req.user._id comes from verifyJWT middleware
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    {
-      $set: {
-        ...(name && { name }), 
-        ...(phone && { phone }) 
-      }
-    },
-    { new: true, runValidators: true }
-  ).select("-passwordHash"); // Exclude password from response
-
-  return res
-    .status(httpStatus.OK)
-    .json(new ApiResponse(httpStatus.OK, user, "Account details updated successfully"));
+export const getMyProfile = asyncHandler(async (req, res) => {
+  // User is already attached to req by authMiddleware
+  return res.status(200).json(new ApiResponse(200, req.user, "Profile fetched"));
 });
 
 /**
- * @desc    Change Current Password
- * @route   POST /api/v1/users/change-password
- * @access  Private
+ * @desc    Update Profile Details & Avatar
+ * @route   PUT /api/v1/user/profile
  */
-export const changeCurrentPassword = asyncHandler(async (req, res) => {
-  const { oldPassword, newPassword } = req.body;
-
-  // 1. Find User with Password (select: false logic requires explicit select)
-  const user = await User.findById(req.user._id).select("+passwordHash");
-
-  // 2. Verify Old Password
-  const isPasswordCorrect = await comparePassword(oldPassword, user.passwordHash);
-  if (!isPasswordCorrect) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid old password");
-  }
-
-  // 3. Hash & Save New Password
-  user.passwordHash = await hashPassword(newPassword);
-  await user.save();
+export const updateUserProfile = asyncHandler(async (req, res) => {
+  // req.file is provided by multer middleware if an image is uploaded
+  const updatedUser = await updateProfile(req.user._id, req.body, req.file);
 
   return res
-    .status(httpStatus.OK)
-    .json(new ApiResponse(httpStatus.OK, {}, "Password changed successfully"));
+    .status(200)
+    .json(new ApiResponse(200, updatedUser, "Profile updated successfully"));
+});
+
+/**
+ * @desc    Deactivate Account
+ * @route   DELETE /api/v1/user/profile
+ */
+export const deactivateAccount = asyncHandler(async (req, res) => {
+  // Soft delete logic usually goes here
+   await userService.deactivateUser(req.user._id);
+  return res.status(200).json(new ApiResponse(200, {}, "Account deactivated"));
 });

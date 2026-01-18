@@ -4,123 +4,90 @@ import {
   refreshAccessToken 
 } from "../../services/auth.service.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import ApiResponse from "../../utils/apiResponse.js";
-import ApiError from "../../utils/apiError.js";
-import { httpStatus, cookieOptions } from "../../utils/constants.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import { 
+  accessTokenCookieOptions, 
+  refreshTokenCookieOptions 
+} from "../../utils/tokens.js";
 
 /**
- * @desc    Register a new user (Customer)
  * @route   POST /api/v1/auth/register
- * @access  Public
  */
 export const register = asyncHandler(async (req, res) => {
-  // Validation is already handled by middleware (Joi) before reaching here
-  const { name, email, password, phone } = req.body;
-
-  const user = await registerUser({ name, email, password, phone });
+  // Logic is in Service, Validation is in Middleware
+  const user = await registerUser(req.body);
 
   return res
-    .status(httpStatus.CREATED)
-    .json(
-      new ApiResponse(
-        httpStatus.CREATED, 
-        user, 
-        "User registered successfully"
-      )
-    );
+    .status(201)
+    .json(new ApiResponse(201, user, "User registered successfully"));
 });
 
 /**
- * @desc    Login (User / Seller / Admin)
  * @route   POST /api/v1/auth/login
- * @access  Public
  */
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // 1. Call Service
   const { user, accessToken, refreshToken } = await loginUser(email, password);
 
-  // 2. Set Cookies
-  // Access Token: Short lived (e.g., 15 mins)
-  // Refresh Token: Long lived (e.g., 10 days)
-  
   return res
-    .status(httpStatus.OK)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, cookieOptions)
+    .status(200)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
+    .cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
     .json(
       new ApiResponse(
-        httpStatus.OK,
-        { 
-          user, 
-          accessToken, // Sending tokens in body too (useful for Mobile Apps)
-          refreshToken 
-        }, 
-        `Welcome back, ${user.name}!`
+        200,
+        { user, accessToken, refreshToken },
+        "User logged in successfully"
       )
     );
 });
 
 /**
- * @desc    Logout user (Clear cookies)
  * @route   POST /api/v1/auth/logout
- * @access  Private (Requires JWT)
  */
 export const logout = asyncHandler(async (req, res) => {
-  // We clear cookies by setting them to empty and expiring them immediately
-  // Note: We need to pass the same options (secure, sameSite) used while setting
+  // In a real scenario, you might want to remove the refreshToken from DB here.
+  // await User.findByIdAndUpdate(req.user._id, { $unset: { refreshToken: 1 } });
+  
   return res
-    .status(httpStatus.OK)
-    .clearCookie("accessToken", cookieOptions)
-    .clearCookie("refreshToken", cookieOptions)
-    .json(
-      new ApiResponse(httpStatus.OK, {}, "Logged out successfully")
-    );
+    .status(200)
+    .clearCookie("accessToken", accessTokenCookieOptions)
+    .clearCookie("refreshToken", refreshTokenCookieOptions)
+    .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
 /**
- * @desc    Refresh Access Token
  * @route   POST /api/v1/auth/refresh-token
- * @access  Public (Uses Refresh Token Cookie)
  */
 export const refresh = asyncHandler(async (req, res) => {
-  // Try getting token from Cookie first, fallback to Body
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+  const incomingRefreshToken = 
+    req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Refresh token is missing");
+    return res.status(401).json(new ApiResponse(401, null, "Refresh token is missing"));
   }
 
-  // Service handles verification and generation logic
-  const newAccessToken = await refreshAccessToken(incomingRefreshToken);
+  const { accessToken, refreshToken } = await refreshAccessToken(incomingRefreshToken);
 
   return res
-    .status(httpStatus.OK)
-    .cookie("accessToken", newAccessToken, cookieOptions)
+    .status(200)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
+    .cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
     .json(
       new ApiResponse(
-        httpStatus.OK,
-        { accessToken: newAccessToken },
+        200,
+        { accessToken, refreshToken },
         "Access token refreshed"
       )
     );
 });
 
 /**
- * @desc    Get Current User Profile
  * @route   GET /api/v1/auth/me
- * @access  Private
  */
 export const getCurrentUser = asyncHandler(async (req, res) => {
-  // req.user is injected by the authMiddleware (verifyJWT)
   return res
-    .status(httpStatus.OK)
-    .json(
-      new ApiResponse(
-        httpStatus.OK,
-        req.user,
-        "Current user fetched successfully"
-      )
-    );
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully"));
 });

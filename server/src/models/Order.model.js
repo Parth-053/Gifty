@@ -1,91 +1,83 @@
 import mongoose from "mongoose";
 
-// Sub-schema for items (Embedded directly)
+// Item Schema (Snapshot of product at time of purchase)
 const orderItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
     required: true
   },
-  // Snapshot: Product name at the time of purchase
-  nameSnapshot: {
+  sellerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Seller",
+    required: true
+  },
+  name: { type: String, required: true },
+  price: { type: Number, required: true }, 
+  image: { type: String, required: true },
+  
+  quantity: { type: Number, required: true, min: 1 },
+  
+  // Customization Data
+  customization: { 
+    text: String,
+    image: String,
+    color: String,
+    note: String
+  }, 
+  
+  status: {
     type: String,
-    required: true
-  },
-  // Snapshot: Price at the time of purchase
-  priceSnapshot: {
-    type: Number,
-    required: true
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  // Customization data specific to this item
-  selectedCustomizations: {
-    type: Object,
-    default: {} 
+    enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+    default: "pending"
   }
 }, { _id: false });
 
 const orderSchema = new mongoose.Schema(
   {
+    orderId: { type: String, unique: true, required: true, index: true }, // ORD-8273
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true
     },
-
-    // Address snapshot (frozen at checkout)
-    addressSnapshot: {
-      type: Object,
-      required: true
-    },
-
+    
     items: [orderItemSchema],
-
-    totalAmount: {
-      type: Number,
-      required: true,
-      min: 0
+    
+    totalAmount: { type: Number, required: true },
+    shippingAmount: { type: Number, default: 0 },
+    
+    shippingAddress: {
+      fullName: String,
+      addressLine1: String,
+      city: String,
+      state: String,
+      pincode: String,
+      phone: String
     },
-
+    
     paymentMethod: {
       type: String,
       enum: ["cod", "online"],
       required: true
     },
-
-    paymentStatus: {
-      type: String,
-      enum: ["pending", "paid", "failed"],
-      default: "pending",
-      index: true
+    
+    paymentInfo: {
+      razorpayOrderId: String,
+      razorpayPaymentId: String,
+      status: { type: String, enum: ["pending", "paid", "failed"], default: "pending" }
     },
 
-    orderStatus: {
-      type: String,
-      enum: ["placed", "packed", "shipped", "delivered", "cancelled"],
-      default: "placed",
-      index: true
-    },
-
-    trackingId: {
-      type: String,
-      default: null
+    orderStatus: { // Aggregate Status
+        type: String,
+        enum: ["placed", "processing", "shipped", "delivered", "cancelled"],
+        default: "placed",
+        index: true
     }
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
-// Indexes
-orderSchema.index({ createdAt: -1 });
-orderSchema.index({ userId: 1, orderStatus: 1 });
-
 const Order = mongoose.model("Order", orderSchema);
-
 export default Order;

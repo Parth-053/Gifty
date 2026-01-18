@@ -1,41 +1,67 @@
 import dotenv from "dotenv";
+import Joi from "joi";
 
 // Load .env file
 dotenv.config();
 
-// Validation: Check ALL critical variables
-const requiredEnvs = [
-  "MONGODB_URI",
-  "ACCESS_TOKEN_SECRET",
-  "REFRESH_TOKEN_SECRET",
-  "CLOUDINARY_CLOUD_NAME",
-  "CLOUDINARY_API_KEY",
-  "CLOUDINARY_API_SECRET",
-  "RAZORPAY_KEY_ID",
-  "RAZORPAY_KEY_SECRET"
-];
+// Define Schema for Environment Variables
+const envSchema = Joi.object({
+  PORT: Joi.number().default(8000),
+  NODE_ENV: Joi.string()
+    .valid("development", "production", "test")
+    .default("development"),
+  MONGODB_URI: Joi.string().required().description("Database URL"),
+  CORS_ORIGIN: Joi.string().default("*").description("Allowed Origins"),
+  
+  // Security Secrets
+  ACCESS_TOKEN_SECRET: Joi.string().required(),
+  REFRESH_TOKEN_SECRET: Joi.string().required(),
+  
+  // Admin Setup
+  ADMIN_EMAIL: Joi.string().email().required(),
+  
+  // Cloudinary (Images)
+  CLOUDINARY_CLOUD_NAME: Joi.string().required(),
+  CLOUDINARY_API_KEY: Joi.string().required(),
+  CLOUDINARY_API_SECRET: Joi.string().required(),
 
-// Loop through required keys and validate
-requiredEnvs.forEach((key) => {
-  if (!process.env[key]) {
-    console.error(`❌ FATAL ERROR: Missing ${key} in .env file`);
-    process.exit(1); // Kill server immediately if config is missing
-  }
-});
+  // Payment
+  RAZORPAY_KEY_ID: Joi.string().optional(),
+  RAZORPAY_KEY_SECRET: Joi.string().optional()
+})
+.unknown(); // Allow other unknown variables
+
+// Validate
+const { value: envVars, error } = envSchema.validate(process.env);
+
+if (error) {
+  console.error(`❌ Config validation error: ${error.message}`);
+  process.exit(1);
+}
 
 export const envConfig = {
-  port: process.env.PORT || 8000,
-  nodeEnv: process.env.NODE_ENV || "development",
-  mongodbUri: process.env.MONGODB_URI,
-  corsOrigin: process.env.CORS_ORIGIN || "*",
-  adminEmail: process.env.ADMIN_EMAIL,
-  
-  // Optional: Centralized access to other keys (good for autocomplete)
-  jwt: {
-    accessSecret: process.env.ACCESS_TOKEN_SECRET,
-    refreshSecret: process.env.REFRESH_TOKEN_SECRET
+  port: envVars.PORT,
+  env: envVars.NODE_ENV,
+  mongoose: {
+    url: envVars.MONGODB_URI,
+    options: {
+      // Modern Mongoose options are default in v7+, keeping empty for now
+    },
   },
+  cors: {
+    origin: envVars.CORS_ORIGIN.split(","), // Supports multiple origins via comma
+    credentials: true,
+  },
+  jwt: {
+    accessSecret: envVars.ACCESS_TOKEN_SECRET,
+    refreshSecret: envVars.REFRESH_TOKEN_SECRET,
+    accessExpiration: "15m",
+    refreshExpiration: "7d",
+  },
+  adminEmail: envVars.ADMIN_EMAIL,
   cloudinary: {
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME
+    name: envVars.CLOUDINARY_CLOUD_NAME,
+    key: envVars.CLOUDINARY_API_KEY,
+    secret: envVars.CLOUDINARY_API_SECRET
   }
 };

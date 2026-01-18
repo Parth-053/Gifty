@@ -1,27 +1,20 @@
 import mongoose from "mongoose";
 
-const cartItemSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true
-    },
-
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1,
-      default: 1
-    },
-
-    selectedCustomizations: {
-      type: Object,
-      default: {}
-    }
+const cartItemSchema = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true
   },
-  { _id: false }
-);
+  quantity: { type: Number, required: true, min: 1, default: 1 },
+  
+  // Save customization draft
+  customization: {
+    text: String,
+    color: String,
+    image: String
+  }
+}, { _id: false });
 
 const cartSchema = new mongoose.Schema(
   {
@@ -30,16 +23,12 @@ const cartSchema = new mongoose.Schema(
       ref: "User",
       required: true,
       unique: true,
-      index: true // ✅ यह काफी है, नीचे अलग से लिखने की ज़रूरत नहीं
+      index: true
     },
-
     items: [cartItemSchema]
   },
-  {
-    timestamps: { createdAt: false, updatedAt: true }
-  }
+  { timestamps: true }
 );
 
 const Cart = mongoose.model("Cart", cartSchema);
-
 export default Cart;

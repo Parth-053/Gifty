@@ -1,53 +1,58 @@
 import jwt from "jsonwebtoken";
-import { asyncHandler } from "../utils/asyncHandler.js";
-import ApiError from "../utils/apiError.js";
-import { httpStatus } from "../utils/constants.js";
-import User from "../models/user.model.js";
+import { User } from "../models/User.model.js";
+import { envConfig } from "../config/env.config.js";
+import { ApiError } from "../utils/ApiError.js"; 
+import { asyncHandler } from "../utils/asyncHandler.js"; 
 
 /**
- * Verify JWT Access Token
- * Injects the authenticated user into `req.user`
+    Verify JWT Access Token
+    Checks cookies or Authorization header
  */
 export const verifyJWT = asyncHandler(async (req, res, next) => {
+  // 1. Get token from Cookie OR Header
+  const token =
+    req.cookies?.accessToken ||
+    req.header("Authorization")?.replace("Bearer ", "");
+
+  if (!token) {
+    throw new ApiError(401, "Unauthorized request. Please login first.");
+  }
+
   try {
-    // 1. Get token from Cookie OR Header
-    const token =
-      req.cookies?.accessToken ||
-      req.header("Authorization")?.replace("Bearer ", "");
-
-    if (!token) {
-      throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized request");
-    }
-
     // 2. Verify Token
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const decodedToken = jwt.verify(token, envConfig.jwt.accessSecret);
 
-    // 3. Find User (Exclude sensitive data like password)
-    // We strictly check DB to ensure user wasn't deleted/banned recently
-    const user = await User.findById(decodedToken?._id).select("-passwordHash");
+    // 3. Find User (Select only necessary fields)
+    const user = await User.findById(decodedToken._id).select(
+      "-password -refresh_token -loginAttempts -lockUntil"
+    );
 
     if (!user) {
-      throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid Access Token");
+      throw new ApiError(401, "Invalid Access Token. User not found.");
     }
 
     // 4. Attach user to request object
     req.user = user;
     next();
   } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid access token");
+    throw new ApiError(401, error?.message || "Invalid Access Token");
   }
 });
 
 /**
- * Role Based Authorization
- * @param {...String} roles - Allowed roles (e.g. "admin", "seller")
+ * Role Based Access Control (RBAC)
+ * @param {...string} roles - Allowed roles (e.g. "admin", "seller")
  */
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
+      throw new ApiError(401, "Authentication required");
+    }
+
+    if (!roles.includes(req.user.role)) {
       throw new ApiError(
-        httpStatus.FORBIDDEN, 
-        `Role: ${req.user.role} is not allowed to access this resource`
+        403,
+        `Access Forbidden: You do not have permission to access this resource. Required: ${roles.join(" or ")}`
       );
     }
     next();

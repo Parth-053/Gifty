@@ -1,38 +1,35 @@
 import mongoose from "mongoose";
-import ApiError from "../utils/apiError.js";
-import { httpStatus } from "../utils/constants.js";
+import { ApiError } from "../utils/ApiError.js";
+import { envConfig } from "../config/env.config.js";
+import { logger } from "../config/logger.js";
 
-/**
- * Global Error Handler Middleware
- * Catches all errors thrown in the app and sends a standardized JSON response.
- */
-export const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, next) => {
   let error = err;
 
-  // 1. Check if the error is an instance of our custom ApiError
-  // If not (e.g., Mongoose error), wrap it into ApiError for consistency
+  // 1. Convert Non-ApiError to ApiError (Standardization)
   if (!(error instanceof ApiError)) {
     const statusCode =
-      error.statusCode || error instanceof mongoose.Error 
-        ? httpStatus.BAD_REQUEST 
-        : httpStatus.INTERNAL_SERVER_ERROR;
-
-    const message = error.message || "Something went wrong";
+      error.statusCode || (error instanceof mongoose.Error ? 400 : 500);
     
-    // Pass the original stack trace
-    error = new ApiError(statusCode, message, error?.errors || [], err.stack);
+    const message = error.message || "Something went wrong";
+    error = new ApiError(statusCode, message, error?.errors || [], error.stack);
   }
 
-  // 2. Prepare the response object
+  // 2. Prepare Response
   const response = {
-    ...error,
-    message: error.message,
+    success: false,
     statusCode: error.statusCode,
-    success: false, // Errors are never successful
-    // Only show stack trace in Development mode (Security Best Practice)
-    ...(process.env.NODE_ENV === "development" ? { stack: error.stack } : {}),
+    message: error.message,
+    ...(envConfig.env === "development" && { stack: error.stack }), // Show stack only in Dev
+    errors: error.errors || [],
   };
 
-  // 3. Send the response
+  // 3. Log Error (Critical for debugging)
+  if (envConfig.env === "development") {
+    logger.error(`❌ ${error.message}`);
+  }
+
   return res.status(error.statusCode).json(response);
 };
+
+export { errorHandler };

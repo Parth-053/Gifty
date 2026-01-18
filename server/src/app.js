@@ -1,87 +1,83 @@
 import express from "express";
+import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import helmet from "helmet"; // Security Headers
-import morgan from "morgan"; // Request Logger
+import morgan from "morgan";
+import compression from "compression";
 
 import { envConfig } from "./config/env.config.js";
-import { errorHandler } from "./middlewares/error.middleware.js";
+import { corsOptions } from "./config/cors.config.js";
+import { apiLimiter } from "./config/rateLimit.js";
+import { logger } from "./config/logger.js";
 
-// --- Import Routes ---
-import authRoutes from "./routes/auth.routes.js";
-import userRoutes from "./routes/user.routes.js";
-import sellerRoutes from "./routes/seller.routes.js";
-import adminRoutes from "./routes/admin.routes.js";
-import productRoutes from "./routes/product.routes.js";
-import orderRoutes from "./routes/order.routes.js";
-import cartRoutes from "./routes/cart.routes.js";
-import wishlistRoutes from "./routes/wishlist.routes.js";
-import reviewRoutes from "./routes/review.routes.js";
-import addressRoutes from "./routes/address.routes.js";
-import aiRoutes from "./routes/ai.routes.js";
-import analyticsRoutes from "./routes/analytics.routes.js";
+// -- Import Routes (We will create these in next step) --
+// import routes from "./routes/index.js";
 
 const app = express();
 
-// =========================================================================
-// 🛡️ Global Middlewares
-// =========================================================================
+// ======================================================
+// 🛡️ Security & Performance Middleware
+// ======================================================
 
-// 1. Security Headers (Helps prevent XSS, Clickjacking, etc.)
-app.use(helmet());
-
-// 2. CORS (Cross-Origin Resource Sharing)
-// 'credentials: true' is REQUIRED for cookies to work on Frontend
-app.use(
-  cors({
-    origin: envConfig.corsOrigin,
-    credentials: true,
-  })
-);
-
-// 3. Body Parsing
-app.use(express.json({ limit: "16kb" })); // Accept JSON
-app.use(express.urlencoded({ extended: true, limit: "16kb" })); // Accept URL Encoded data
-
-// 4. Cookie Parsing (To read secure HttpOnly tokens)
-app.use(cookieParser());
-
-// 5. Logging (Only in Development)
-if (envConfig.nodeEnv === "development") {
+// 1. Logger (HTTP Requests)
+if (envConfig.env === "development") {
   app.use(morgan("dev"));
 }
 
-// 6. Static Files (For temp uploads if needed)
-app.use(express.static("public"));
+// 2. Helmet (Sets secure HTTP headers)
+app.use(helmet());
 
-// =========================================================================
-// 🚦 Routes Mounting
-// =========================================================================
+// 3. CORS (Cross-Origin Resource Sharing)
+app.use(cors(corsOptions));
+
+// 4. Rate Limiting (Prevent Brute Force/DDoS)
+app.use("/api", apiLimiter);
+
+// 5. Compression (Gzip response bodies)
+app.use(compression());
+
+// 6. Body Parsers
+app.use(express.json({ limit: "16kb" })); // Prevent large payloads
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(cookieParser());
+
+// ======================================================
+// 🚦 Routes
+// ======================================================
 
 // Health Check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "OK", message: "Server is running 🚀" });
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", service: "Gifty Backend" });
 });
 
-// API V1 Routes
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/users", userRoutes);
-app.use("/api/v1/sellers", sellerRoutes);
-app.use("/api/v1/admin", adminRoutes);
-app.use("/api/v1/products", productRoutes); // Public browsing + Seller management
-app.use("/api/v1/orders", orderRoutes);
-app.use("/api/v1/cart", cartRoutes);
-app.use("/api/v1/wishlist", wishlistRoutes);
-app.use("/api/v1/reviews", reviewRoutes);
-app.use("/api/v1/addresses", addressRoutes);
-app.use("/api/v1/ai", aiRoutes);
-app.use("/api/v1/analytics", analyticsRoutes);
+// Mount API Routes (Uncomment when routes are ready)
+// app.use("/api/v1", routes);
 
-// =========================================================================
-// ❌ Global Error Handling
-// =========================================================================
+// ======================================================
+// ❌ Error Handling (Global)
+// ======================================================
 
-// This must be the LAST middleware
-app.use(errorHandler);
+// 404 Handler
+app.use((req, res, next) => {
+  const error = new Error("Not Found");
+  error.status = 404;
+  next(error);
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  const statusCode = err.status || 500;
+  const message = err.message || "Internal Server Error";
+
+  if (statusCode === 500) {
+    logger.error(err); // Log unexpected errors
+  }
+
+  res.status(statusCode).json({
+    success: false,
+    message,
+    stack: envConfig.env === "development" ? err.stack : undefined
+  });
+});
 
 export { app };
