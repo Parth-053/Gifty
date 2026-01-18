@@ -11,7 +11,7 @@ import AppLayout from './components/layout/AppLayout';
 
 // 3. Pages - Main Tabs (Bottom Nav wale pages)
 import Home from './pages/Main/Home';
-import Categories from './pages/Main/Categories';
+import Categories from './pages/Main/Categories.jsx';
 import Customize from './pages/Main/Customize';
 import MyOrders from './pages/Main/MyOrders';
 import Account from './pages/Main/Account';
@@ -19,7 +19,7 @@ import Account from './pages/Main/Account';
 // 4. Pages - Full Screen (Product & Search)
 import Search from './pages/Product/Search';
 import ProductDetails from './pages/Product/ProductDetails';
-import Wishlist from './pages/Main/Wishlist'; // Wishlist ko alag page rakha hai
+import Wishlist from './pages/Main/Wishlist'; 
 
 // 5. Pages - Checkout Flow
 import Cart from './pages/Checkout/Cart';
