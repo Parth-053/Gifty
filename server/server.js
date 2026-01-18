@@ -6,7 +6,7 @@ import { logger } from "./src/config/logger.js";
 // 1. Connect to Database
 connectDB()
   .then(() => {
-    // 2. Start Server only after DB connection
+    // 2. Start Server only after DB connection success
     app.listen(envConfig.port, () => {
       logger.info(`🚀 Server running in ${envConfig.env} mode on port ${envConfig.port}`);
       logger.info(`   Local: http://localhost:${envConfig.port}`);
@@ -17,14 +17,14 @@ connectDB()
     process.exit(1);
   });
 
-// Handle Uncaught Exceptions (e.g. sync code errors)
+// Handle Uncaught Exceptions 
 process.on("uncaughtException", (err) => {
   logger.error("UNCAUGHT EXCEPTION! 💥 Shutting down...");
   logger.error(err.name, err.message);
   process.exit(1);
 });
 
-// Handle Unhandled Promise Rejections (e.g. async DB errors)
+// Handle Unhandled Promise Rejections 
 process.on("unhandledRejection", (err) => {
   logger.error("UNHANDLED REJECTION! 💥 Shutting down...");
   logger.error(err.name, err.message);
