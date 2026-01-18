@@ -25,9 +25,12 @@ const envSchema = Joi.object({
   CLOUDINARY_API_KEY: Joi.string().required(),
   CLOUDINARY_API_SECRET: Joi.string().required(),
 
-  // Payment
-  RAZORPAY_KEY_ID: Joi.string().optional(),
-  RAZORPAY_KEY_SECRET: Joi.string().optional()
+  // Payment (Razorpay) 
+  RAZORPAY_KEY_ID: Joi.string().allow("").optional(),
+  RAZORPAY_KEY_SECRET: Joi.string().allow("").optional(),
+
+  // AI (Gemini)
+  GEMINI_API_KEY: Joi.string().allow("").optional()
 })
 .unknown(); // Allow other unknown variables
 
@@ -49,7 +52,7 @@ export const envConfig = {
     },
   },
   cors: {
-    origin: envVars.CORS_ORIGIN.split(","), // Supports multiple origins via comma
+    origin: envVars.CORS_ORIGIN.split(","), 
     credentials: true,
   },
   jwt: {
@@ -63,5 +66,14 @@ export const envConfig = {
     name: envVars.CLOUDINARY_CLOUD_NAME,
     key: envVars.CLOUDINARY_API_KEY,
     secret: envVars.CLOUDINARY_API_SECRET
+  },
+  // 👇 Added Missing Payment Config
+  payment: {
+    razorpayId: envVars.RAZORPAY_KEY_ID,
+    razorpaySecret: envVars.RAZORPAY_KEY_SECRET
+  },
+  // 👇 Added Missing AI Config
+  ai: {
+    geminiKey: envVars.GEMINI_API_KEY
   }
 };
