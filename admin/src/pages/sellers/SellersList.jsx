@@ -1,49 +1,88 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
-import SellerTable from '../../components/tables/SellerTable';
-import Pagination from '../../components/common/Pagination';
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchPendingSellers, updateSellerStatus } from "../../store/sellerSlice";
+import { FiCheck, FiX, FiInfo } from "react-icons/fi";
+import toast from "react-hot-toast";
+import Loader from "../../components/common/Loader";
 
-const SellersList = () => {
-  const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
+const SellerList = () => {
+  const dispatch = useDispatch();
+  const { pendingList, loading} = useSelector((state) => state.sellers);
 
-  const sellers = [
-    { id: 1, storeName: "TechWorld", ownerName: "Rahul Kumar", email: "rahul@tech.com", status: "Verified" },
-    { id: 2, storeName: "FashionHub", ownerName: "Sita Verma", email: "sita@hub.com", status: "Pending" },
-    { id: 3, storeName: "GadgetStore", ownerName: "Amit Singh", email: "amit@gadget.com", status: "Rejected" },
-  ];
+  // 1. Fetch Pending Sellers
+  useEffect(() => {
+    dispatch(fetchPendingSellers());
+  }, [dispatch]);
 
-  const filteredSellers = sellers.filter(s => 
-    s.storeName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Handle Approval/Rejection
+  const handleStatus = async (id, status) => {
+    try {
+      await dispatch(updateSellerStatus({ id, status, reason: "Admin Verification" })).unwrap();
+      toast.success(`Seller ${status} successfully!`);
+    } catch {
+      toast.error("Action failed");
+    }
+  };
+
+  if (loading && pendingList.length === 0) return <Loader />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Sellers</h1>
-          <p className="text-sm text-gray-500">Manage registered vendors.</p>
-        </div>
-      </div>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-800">Seller Requests</h1>
 
-      <div className="bg-white p-2 rounded-xl border border-gray-100 shadow-sm flex items-center gap-2">
-         <div className="flex items-center gap-2 px-3 bg-gray-50 rounded-lg py-2.5 w-full sm:w-80 border border-transparent focus-within:border-blue-100 focus-within:bg-white transition-all">
-            <Search size={18} className="text-gray-400" />
-            <input 
-               type="text" 
-               placeholder="Search by store name..." 
-               value={searchQuery}
-               onChange={(e) => setSearchQuery(e.target.value)}
-               className="bg-transparent outline-none text-sm w-full font-medium"
-            />
-         </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-6 py-4 text-gray-600">Store Info</th>
+              <th className="px-6 py-4 text-gray-600">Contact</th>
+              <th className="px-6 py-4 text-gray-600">GST/Docs</th>
+              <th className="px-6 py-4 text-right text-gray-600">Decisions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {pendingList.map((seller) => (
+              <tr key={seller._id}>
+                <td className="px-6 py-4">
+                  <p className="font-bold text-gray-900">{seller.storeName}</p>
+                  <p className="text-sm text-gray-500">Owner: {seller.name}</p>
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <p>{seller.email}</p>
+                  <p>{seller.phone}</p>
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <span className="bg-gray-100 px-2 py-1 rounded text-gray-600">
+                    {seller.gstNumber || "No GST Provided"}
+                  </span>
+                </td>
+                <td className="px-6 py-4 flex justify-end gap-2">
+                  <button
+                    onClick={() => handleStatus(seller._id, "approved")}
+                    className="flex items-center gap-1 bg-green-50 text-green-600 px-3 py-1.5 rounded-lg hover:bg-green-100 transition"
+                  >
+                    <FiCheck /> Approve
+                  </button>
+                  <button
+                    onClick={() => handleStatus(seller._id, "rejected")}
+                    className="flex items-center gap-1 bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"
+                  >
+                    <FiX /> Reject
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {pendingList.length === 0 && !loading && (
+            <div className="p-12 text-center flex flex-col items-center text-gray-500">
+                <FiInfo className="text-4xl mb-2 text-gray-300"/>
+                <p>No pending seller requests at the moment.</p>
+            </div>
+        )}
       </div>
-
-      <SellerTable sellers={filteredSellers} onView={(id) => navigate(`/sellers/${id}`)} />
-      <Pagination currentPage={1} totalPages={3} onPageChange={()=>{}} />
     </div>
   );
 };
 
-export default SellersList;
+export default SellerList;

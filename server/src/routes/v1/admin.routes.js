@@ -15,11 +15,21 @@ import {
   updateUserStatus, 
   deleteUser 
 } from "../../controllers/admin/users.controller.js";
+import { 
+  getAllOrders, 
+  updateAdminOrderStatus 
+} from "../../controllers/admin/order.controller.js";
+
+import { 
+  getAllTransactions,
+  getAllPayouts 
+} from "../../controllers/admin/finance.controller.js";
+
 import { verifyJWT, authorizeRoles } from "../../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Protect all routes: Admin Only
+// Protect all routes
 router.use(verifyJWT, authorizeRoles("admin"));
 
 // Analytics
@@ -29,18 +39,20 @@ router.get("/analytics/graph", getSalesGraph);
 // Approvals
 router.get("/approvals/sellers", getPendingSellers);
 router.post("/approvals/sellers/:id", updateSellerStatus);
-
 router.get("/approvals/products", getPendingProducts);
 router.post("/approvals/products/:id", updateProductStatus);
 
-// User Management
-router.route("/users")
-  .get(getAllUsers);
-
-router.route("/users/:id")
-  .get(getUserDetails)
-  .delete(deleteUser);
-
+// Users
+router.route("/users").get(getAllUsers);
+router.route("/users/:id").get(getUserDetails).delete(deleteUser);
 router.put("/users/:id/status", updateUserStatus);
+
+// Orders
+router.get("/orders", getAllOrders);
+router.put("/orders/:id/status", updateAdminOrderStatus);
+
+// Finance Routes 
+router.get("/finance/transactions", getAllTransactions);
+router.get("/finance/payouts", getAllPayouts); 
 
 export default router;

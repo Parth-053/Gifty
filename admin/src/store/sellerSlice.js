@@ -1,35 +1,51 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "../api/axios";
 
-const initialSellers = [
-  { id: 1, storeName: "TechWorld", ownerName: "Rahul Kumar", email: "rahul@tech.com", status: "Verified", sales: 120000 },
-  { id: 2, storeName: "FashionHub", ownerName: "Sita Verma", email: "sita@hub.com", status: "Pending", sales: 0 },
-  { id: 3, storeName: "GadgetStore", ownerName: "Amit Singh", email: "amit@gadget.com", status: "Rejected", sales: 0 },
-];
+// Fetch Pending Sellers
+export const fetchPendingSellers = createAsyncThunk(
+  "sellers/fetchPending",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/admin/approvals/sellers");
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message);
+    }
+  }
+);
+
+// Approve/Reject Seller
+export const updateSellerStatus = createAsyncThunk(
+  "sellers/updateStatus",
+  async ({ id, status, reason }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/admin/approvals/sellers/${id}`, { status, reason });
+      return { id, status, seller: response.data.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message);
+    }
+  }
+);
 
 const sellerSlice = createSlice({
-  name: 'sellers',
+  name: "sellers",
   initialState: {
-    list: initialSellers,
+    pendingList: [],
     loading: false,
     error: null,
   },
-  reducers: {
-    setSellers: (state, action) => {
-      state.list = action.payload;
-    },
-    verifySeller: (state, action) => {
-      const seller = state.list.find(s => s.id === action.payload);
-      if (seller) seller.status = 'Verified';
-    },
-    rejectSeller: (state, action) => {
-      const seller = state.list.find(s => s.id === action.payload);
-      if (seller) seller.status = 'Rejected';
-    },
-    deleteSeller: (state, action) => {
-      state.list = state.list.filter(s => s.id !== action.payload);
-    }
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchPendingSellers.pending, (state) => { state.loading = true; })
+      .addCase(fetchPendingSellers.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingList = action.payload;
+      })
+      .addCase(updateSellerStatus.fulfilled, (state, action) => {
+        // Remove processed seller from pending list
+        state.pendingList = state.pendingList.filter(s => s._id !== action.payload.id);
+      });
   },
 });
 
-export const { setSellers, verifySeller, rejectSeller, deleteSeller } = sellerSlice.actions;
 export default sellerSlice.reducer;

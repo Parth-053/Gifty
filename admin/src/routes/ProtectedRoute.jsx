@@ -1,19 +1,18 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import Loader from '../components/common/Loader';
+import { Navigate, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
+import Loader from "../components/common/Loader"; // Ensure you have a loader
 
 const ProtectedRoute = ({ children }) => {
-  const location = useLocation();
-  
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
+  const location = useLocation();
 
   if (loading) {
-    return <Loader fullScreen text="Verifying session..." />;
+    return <Loader />; // Show spinner while checking auth status
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" state={{ from: location }} replace />;
+    // Redirect to login but save where they were trying to go
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;

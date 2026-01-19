@@ -1,128 +1,97 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import ProtectedRoute from "./ProtectedRoute";
+import AdminLayout from "../components/layout/AdminLayout";
+import Loader from "../components/common/Loader";
 
-// Layouts & Guards
-import AdminLayout from '../components/layout/AdminLayout';
-import ProtectedRoute from './ProtectedRoute';
-import Loader from '../components/common/Loader';
+//  Lazy Load Pages
+const Login = lazy(() => import("../pages/auth/Login"));
+const Dashboard = lazy(() => import("../pages/dashboard/Dashboard"));
+const Analytics = lazy(() => import("../pages/analytics/Analytics"));
+const NotFound = lazy(() => import("../pages/NotFound"));
 
-// =========================================================
-// ⚡ LAZY LOADING PAGES (Performance Optimization)
-// =========================================================
+// Modules
+const UsersList = lazy(() => import("../pages/users/UsersList"));
+const UserDetails = lazy(() => import("../pages/users/UserDetails"));
 
-// Auth
-const AdminLogin = lazy(() => import('../pages/auth/AdminLogin'));
-const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword'));
+const SellersList = lazy(() => import("../pages/sellers/SellersList"));
+const SellerDetails = lazy(() => import("../pages/sellers/SellerDetails"));
+const SellerApproval = lazy(() => import("../pages/sellers/SellerApproval"));
 
-// Dashboard
-const Dashboard = lazy(() => import('../pages/dashboard/Dashboard'));
+const ProductsList = lazy(() => import("../pages/products/ProductsList"));
+const ProductDetails = lazy(() => import("../pages/products/ProductDetails"));
+const ProductApproval = lazy(() => import("../pages/products/ProductApproval"));
 
-// Categories
-const CategoriesList = lazy(() => import('../pages/categories/CategoriesList'));
-const AddCategory = lazy(() => import('../pages/categories/AddCategory'));
-const EditCategory = lazy(() => import('../pages/categories/EditCategory'));
-const CategoryDetails = lazy(() => import('../pages/categories/CategoryDetails'));
+const CategoriesList = lazy(() => import("../pages/categories/CategoriesList"));
+const AddCategory = lazy(() => import("../pages/categories/AddCategory"));
+const EditCategory = lazy(() => import("../pages/categories/EditCategory"));
+const CategoryDetails = lazy(() => import("../pages/categories/CategoryDetails"));
 
-// Products
-const ProductsList = lazy(() => import('../pages/products/ProductsList'));
-const ProductDetails = lazy(() => import('../pages/products/ProductDetails'));
-const ProductApproval = lazy(() => import('../pages/products/ProductApproval'));
+const OrdersList = lazy(() => import("../pages/orders/OrdersList"));
+const OrderDetails = lazy(() => import("../pages/orders/OrderDetails"));
 
-// Sellers
-const SellersList = lazy(() => import('../pages/sellers/SellersList'));
-const SellerDetails = lazy(() => import('../pages/sellers/SellerDetails'));
-const SellerApproval = lazy(() => import('../pages/sellers/SellerApproval'));
+const Transactions = lazy(() => import("../pages/finance/Transactions"));
+const Payouts = lazy(() => import("../pages/finance/Payouts"));
 
-// Users
-const UsersList = lazy(() => import('../pages/users/UsersList'));
-const UserDetails = lazy(() => import('../pages/users/UserDetails'));
+const BannersList = lazy(() => import("../pages/banners/BannersList"));
+const AddBanner = lazy(() => import("../pages/banners/AddBanner"));
 
-// Orders
-const OrdersList = lazy(() => import('../pages/orders/OrdersList'));
-const OrderDetails = lazy(() => import('../pages/orders/OrderDetails'));
-
-// Payments
-const Transactions = lazy(() => import('../pages/payments/Transactions'));
-const Payouts = lazy(() => import('../pages/payments/Payouts'));
-
-// Banners
-const BannersList = lazy(() => import('../pages/banners/BannersList'));
-const AddBanner = lazy(() => import('../pages/banners/AddBanner'));
-
-// Analytics & Settings
-const Analytics = lazy(() => import('../pages/analytics/Analytics'));
-const GeneralSettings = lazy(() => import('../pages/settings/GeneralSettings'));
-const RolesPermissions = lazy(() => import('../pages/settings/RolesPermissions'));
-const AdminProfile = lazy(() => import('../pages/settings/AdminProfile'));
-
-// 404
-const NotFound = lazy(() => import('../pages/notfound/NotFound'));
-
-// =========================================================
-// ROUTER CONFIGURATION
-// =========================================================
+// Settings (Only Profile kept)
+const AdminProfile = lazy(() => import("../pages/settings/AdminProfile"));
 
 const AdminRoutes = () => {
   return (
-    <Suspense fallback={<Loader fullScreen text="Loading resources..." />}>
+    <Suspense fallback={<Loader fullScreen={true} />}>
       <Routes>
-        
-        {/* --- PUBLIC ROUTES (No Sidebar) --- */}
-        <Route path="/auth/login" element={<AdminLogin />} />
-        <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
 
-        {/* --- PROTECTED ROUTES (With Admin Layout) --- */}
-        <Route element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }>
-          {/* Dashboard */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+        {/* Protected */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="analytics" element={<Analytics />} />
 
-          {/* Categories */}
-          <Route path="/categories" element={<CategoriesList />} />
-          <Route path="/categories/add" element={<AddCategory />} />
-          <Route path="/categories/edit/:id" element={<EditCategory />} />
-          <Route path="/categories/:id" element={<CategoryDetails />} />
+          {/* Core Features */}
+          <Route path="users" element={<UsersList />} />
+          <Route path="users/:id" element={<UserDetails />} />
 
-          {/* Products */}
-          <Route path="/products" element={<ProductsList />} />
-          <Route path="/products/:id" element={<ProductDetails />} />
-          <Route path="/products/approvals" element={<ProductApproval />} />
+          <Route path="sellers" element={<SellersList />} />
+          <Route path="sellers/:id" element={<SellerDetails />} />
+          <Route path="approvals/sellers" element={<SellerApproval />} />
 
-          {/* Sellers */}
-          <Route path="/sellers" element={<SellersList />} />
-          <Route path="/sellers/:id" element={<SellerDetails />} />
-          <Route path="/sellers/approvals" element={<SellerApproval />} />
+          <Route path="products" element={<ProductsList />} />
+          <Route path="products/:id" element={<ProductDetails />} />
+          <Route path="approvals/products" element={<ProductApproval />} />
 
-          {/* Users */}
-          <Route path="/users" element={<UsersList />} />
-          <Route path="/users/:id" element={<UserDetails />} />
+          <Route path="categories" element={<CategoriesList />} />
+          <Route path="categories/add" element={<AddCategory />} />
+          <Route path="categories/edit/:id" element={<EditCategory />} />
+          <Route path="categories/:id" element={<CategoryDetails />} />
 
-          {/* Orders */}
-          <Route path="/orders" element={<OrdersList />} />
-          <Route path="/orders/:id" element={<OrderDetails />} />
+          <Route path="orders" element={<OrdersList />} />
+          <Route path="orders/:id" element={<OrderDetails />} />
 
-          {/* Payments */}
-          <Route path="/payments" element={<Transactions />} />
-          <Route path="/payments/payouts" element={<Payouts />} />
+          <Route path="finance/transactions" element={<Transactions />} />
+          <Route path="finance/payouts" element={<Payouts />} />
 
-          {/* Banners */}
-          <Route path="/banners" element={<BannersList />} />
-          <Route path="/banners/add" element={<AddBanner />} />
+          <Route path="banners" element={<BannersList />} />
+          <Route path="banners/add" element={<AddBanner />} />
 
-          {/* Reports & Settings */}
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/settings" element={<GeneralSettings />} />
-          <Route path="/settings/roles" element={<RolesPermissions />} />
-          <Route path="/settings/profile" element={<AdminProfile />} />
+          {/* Settings (Simplified) */}
+          <Route path="settings" element={<Navigate to="/settings/profile" replace />} />
+          <Route path="settings/profile" element={<AdminProfile />} />
+          
         </Route>
 
-        {/* --- FALLBACK --- */}
         <Route path="*" element={<NotFound />} />
-
       </Routes>
     </Suspense>
   );

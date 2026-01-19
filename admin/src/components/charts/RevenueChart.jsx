@@ -1,17 +1,20 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-const data = [
-  { name: 'Mon', revenue: 4000, profit: 2400 },
-  { name: 'Tue', revenue: 3000, profit: 1398 },
-  { name: 'Wed', revenue: 2000, profit: 9800 },
-  { name: 'Thu', revenue: 2780, profit: 3908 },
-  { name: 'Fri', revenue: 1890, profit: 4800 },
-  { name: 'Sat', revenue: 2390, profit: 3800 },
-  { name: 'Sun', revenue: 3490, profit: 4300 },
-];
+const RevenueChart = ({ data }) => {
+  // Fallback
+  const defaultData = [
+    { name: 'Mon', revenue: 0, profit: 0 },
+    { name: 'Tue', revenue: 0, profit: 0 },
+    { name: 'Wed', revenue: 0, profit: 0 },
+    { name: 'Thu', revenue: 0, profit: 0 },
+    { name: 'Fri', revenue: 0, profit: 0 },
+    { name: 'Sat', revenue: 0, profit: 0 },
+    { name: 'Sun', revenue: 0, profit: 0 },
+  ];
 
-const RevenueChart = () => {
+  const chartData = data && data.length > 0 ? data : defaultData;
+
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
       <div className="mb-6 flex justify-between items-center">
@@ -19,6 +22,7 @@ const RevenueChart = () => {
           <h3 className="text-lg font-bold text-gray-800">Revenue Analytics</h3>
           <p className="text-sm text-gray-500">Revenue vs Profit Comparison</p>
         </div>
+        {/* Filter logic can be added later */}
         <select className="text-xs bg-gray-50 border-none rounded-lg p-2 font-medium text-gray-600 outline-none cursor-pointer">
           <option>This Week</option>
           <option>Last Week</option>
@@ -27,7 +31,7 @@ const RevenueChart = () => {
 
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
             <XAxis 
               dataKey="name" 

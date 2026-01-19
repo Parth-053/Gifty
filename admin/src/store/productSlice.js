@@ -1,35 +1,79 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "../api/axios";
 
-const initialProducts = [
-  { id: 1, name: "Wireless Headphones", category: "Electronics", price: 2999, stock: 45, sellerName: "TechWorld", status: "Pending", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100" },
-  { id: 2, name: "Running Shoes", category: "Fashion", price: 1499, stock: 120, sellerName: "ShoeZone", status: "Active", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100" },
-  { id: 3, name: "Smart Watch", category: "Electronics", price: 3999, stock: 10, sellerName: "GadgetHub", status: "Rejected", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100" },
-];
+// 1. Fetch Pending Products (For Approval Table)
+export const fetchPendingProducts = createAsyncThunk(
+  "products/fetchPending",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/admin/approvals/products");
+      return response.data.data; // Expecting array of products
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch products");
+    }
+  }
+);
+
+// 2. Approve or Reject Product
+export const updateProductStatus = createAsyncThunk(
+  "products/updateStatus",
+  async ({ id, status, reason }, { rejectWithValue }) => {
+    try {
+      // Backend expects: { status: 'approved' | 'rejected', reason: '...' }
+      const response = await api.post(`/admin/approvals/products/${id}`, { 
+        status, 
+        reason 
+      });
+      return { id, status, product: response.data.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Update failed");
+    }
+  }
+);
 
 const productSlice = createSlice({
-  name: 'products',
+  name: "products",
   initialState: {
-    list: initialProducts,
+    list: [], // This will hold real data from DB
     loading: false,
     error: null,
   },
   reducers: {
-    setProducts: (state, action) => {
-      state.list = action.payload;
-    },
-    approveProduct: (state, action) => {
-      const product = state.list.find(p => p.id === action.payload);
-      if (product) product.status = 'Active';
-    },
-    rejectProduct: (state, action) => {
-      const product = state.list.find(p => p.id === action.payload);
-      if (product) product.status = 'Rejected';
-    },
-    deleteProduct: (state, action) => {
-      state.list = state.list.filter(p => p.id !== action.payload);
+    clearProducts: (state) => {
+      state.list = [];
     }
+  },
+  extraReducers: (builder) => {
+    builder
+      // --- Fetch Pending ---
+      .addCase(fetchPendingProducts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPendingProducts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.list = action.payload;
+      })
+      .addCase(fetchPendingProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // --- Update Status (Approve/Reject) ---
+      .addCase(updateProductStatus.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateProductStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        // Remove the processed product from the pending list
+        state.list = state.list.filter((product) => product._id !== action.payload.id);
+      })
+      .addCase(updateProductStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 
-export const { setProducts, approveProduct, rejectProduct, deleteProduct } = productSlice.actions;
+export const { clearProducts } = productSlice.actions;
 export default productSlice.reducer;

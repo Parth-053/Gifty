@@ -1,28 +1,30 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const data = [
-  { name: 'Jan', sales: 4000 },
-  { name: 'Feb', sales: 3000 },
-  { name: 'Mar', sales: 5000 },
-  { name: 'Apr', sales: 2780 },
-  { name: 'May', sales: 1890 },
-  { name: 'Jun', sales: 2390 },
-  { name: 'Jul', sales: 3490 },
-];
+const SalesChart = ({ data }) => {
+  // Fallback data if API fails or is loading
+  const defaultData = [
+    { name: 'Mon', sales: 0 },
+    { name: 'Tue', sales: 0 },
+    { name: 'Wed', sales: 0 },
+    { name: 'Thu', sales: 0 },
+    { name: 'Fri', sales: 0 },
+    { name: 'Sat', sales: 0 },
+    { name: 'Sun', sales: 0 },
+  ];
 
-const SalesChart = () => {
+  const chartData = data && data.length > 0 ? data : defaultData;
+
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
       <div className="mb-6">
         <h3 className="text-lg font-bold text-gray-800">Total Sales</h3>
-        <p className="text-sm text-gray-500">Sales performance over the last 7 months</p>
+        <p className="text-sm text-gray-500">Sales performance over time</p>
       </div>
       
-      {/* Fixed Height Wrapper to prevent Recharts error */}
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
@@ -31,7 +33,7 @@ const SalesChart = () => {
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
             <XAxis 
-              dataKey="name" 
+              dataKey="name" // Ensure backend sends 'name' (e.g., 'Jan', 'Feb' or date)
               axisLine={false} 
               tickLine={false} 
               tick={{ fill: '#6B7280', fontSize: 12 }} 
@@ -47,7 +49,7 @@ const SalesChart = () => {
             />
             <Area 
               type="monotone" 
-              dataKey="sales" 
+              dataKey="sales" // Ensure backend sends 'sales' value
               stroke="#2563EB" 
               strokeWidth={3}
               fillOpacity={1} 

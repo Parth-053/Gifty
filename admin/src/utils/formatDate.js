@@ -3,8 +3,12 @@
  */
 export const formatDate = (dateString) => {
   if (!dateString) return '-';
+  const date = new Date(dateString);
+  // Invalid date check
+  if (isNaN(date.getTime())) return '-';
+  
   const options = { year: 'numeric', month: 'short', day: 'numeric' };
-  return new Date(dateString).toLocaleDateString('en-IN', options);
+  return date.toLocaleDateString('en-IN', options);
 };
 
 /**
@@ -12,12 +16,16 @@ export const formatDate = (dateString) => {
  */
 export const formatDateTime = (dateString) => {
   if (!dateString) return '-';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '-';
+
   const options = { 
     year: 'numeric', 
     month: 'short', 
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: true
   };
-  return new Date(dateString).toLocaleDateString('en-IN', options);
+  return date.toLocaleString('en-IN', options);
 };

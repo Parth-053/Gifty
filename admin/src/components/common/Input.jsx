@@ -9,13 +9,14 @@ const Input = ({
   placeholder, 
   error, 
   icon: Icon,
-  disabled = false,
-  required = false
+  disabled = false, 
+  required = false,
+  className = ""
 }) => {
   return (
-    <div className="w-full">
+    <div className={`w-full ${className}`}>
       {label && (
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        <label className="block text-sm font-bold text-gray-700 mb-1.5">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
@@ -33,17 +34,17 @@ const Input = ({
           placeholder={placeholder}
           disabled={disabled}
           className={`
-            w-full rounded-lg border bg-white py-2.5 px-4 text-sm outline-none transition-all
+            w-full rounded-xl border bg-white py-2.5 px-4 text-sm outline-none transition-all
             ${Icon ? 'pl-10' : ''}
             ${error 
               ? 'border-red-500 focus:ring-2 focus:ring-red-200' 
-              : 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+              : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
             }
-            disabled:bg-gray-50 disabled:text-gray-500
+            disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed
           `}
         />
       </div>
-      {error && <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-500 font-medium animate-pulse">{error}</p>}
     </div>
   );
 };

@@ -11,13 +11,15 @@ import adminRoutes from "./v1/admin.routes.js";
 import reviewRoutes from "./v1/review.routes.js";
 import wishlistRoutes from "./v1/wishlist.routes.js";
 import aiRoutes from "./v1/ai.routes.js";
+import categoryRoutes from "./v1/category.routes.js";
+import bannerRoutes from "./v1/banner.routes.js";
 
 const router = Router();
 
 // Mount Routes
 router.use("/auth", authRoutes);
 router.use("/user", userRoutes);
-router.use("/address", addressRoutes); // Access via /api/v1/address
+router.use("/address", addressRoutes); 
 router.use("/seller", sellerRoutes);
 router.use("/products", productRoutes);
 router.use("/cart", cartRoutes);
@@ -27,5 +29,7 @@ router.use("/admin", adminRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/wishlist", wishlistRoutes);
 router.use("/ai", aiRoutes);
+router.use("/categories", categoryRoutes);
+router.use("/banners", bannerRoutes);
 
 export default router;

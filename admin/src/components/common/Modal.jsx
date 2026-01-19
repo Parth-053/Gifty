@@ -7,8 +7,14 @@ const Modal = ({ isOpen, onClose, title, children, size = "md" }) => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') onClose();
     };
-    if (isOpen) window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -21,17 +27,17 @@ const Modal = ({ isOpen, onClose, title, children, size = "md" }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       ></div>
 
       {/* Content */}
-      <div className={`relative w-full ${sizes[size]} bg-white rounded-xl shadow-2xl transform transition-all animate-fade-in-up`}>
+      <div className={`relative w-full ${sizes[size]} bg-white rounded-2xl shadow-2xl transform transition-all animate-fade-in-up flex flex-col max-h-[90vh]`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0">
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
           <button 
             onClick={onClose}
@@ -41,8 +47,8 @@ const Modal = ({ isOpen, onClose, title, children, size = "md" }) => {
           </button>
         </div>
         
-        {/* Body */}
-        <div className="p-6">
+        {/* Body (Scrollable) */}
+        <div className="p-6 overflow-y-auto">
           {children}
         </div>
       </div>

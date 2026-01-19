@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Ban } from 'lucide-react';
+import { Trash2, Ban, Shield, CheckCircle } from 'lucide-react';
 
 const UserTable = ({ users, onBlock, onDelete }) => {
   return (
@@ -17,30 +17,41 @@ const UserTable = ({ users, onBlock, onDelete }) => {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+              <tr key={user._id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="py-4 px-6">
                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-                         {user.name.charAt(0)}
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs uppercase">
+                         {user.name?.charAt(0) || "U"}
                       </div>
                       <span className="text-sm font-bold text-gray-800">{user.name}</span>
                    </div>
                 </td>
                 <td className="py-4 px-6 text-sm text-gray-500">{user.email}</td>
-                <td className="py-4 px-6 text-sm text-gray-600">{user.role}</td>
+                <td className="py-4 px-6 text-sm text-gray-600 capitalize">
+                    {user.role === 'admin' ? (
+                        <span className="flex items-center gap-1 text-purple-600 font-bold"><Shield size={12}/> Admin</span>
+                    ) : user.role}
+                </td>
                 <td className="py-4 px-6">
-                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                    user.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
+                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1 w-fit ${
+                    !user.isBlocked 
+                        ? 'bg-green-50 text-green-600 border-green-100' 
+                        : 'bg-red-50 text-red-600 border-red-100'
                   }`}>
-                    {user.status}
+                    {!user.isBlocked ? <CheckCircle size={12}/> : <Ban size={12}/>}
+                    {!user.isBlocked ? 'Active' : 'Blocked'}
                   </span>
                 </td>
                 <td className="py-4 px-6 text-right">
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => onBlock(user.id)} className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg" title="Block User">
+                    <button 
+                        onClick={() => onBlock(user._id)} 
+                        className={`p-2 rounded-lg transition-colors ${user.isBlocked ? 'text-green-600 hover:bg-green-50' : 'text-orange-500 hover:bg-orange-50'}`} 
+                        title={user.isBlocked ? "Unblock" : "Block"}
+                    >
                       <Ban size={18} />
                     </button>
-                    <button onClick={() => onDelete(user.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Delete User">
+                    <button onClick={() => onDelete(user._id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete User">
                       <Trash2 size={18} />
                     </button>
                   </div>

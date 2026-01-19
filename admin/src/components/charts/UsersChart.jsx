@@ -1,30 +1,33 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const data = [
-  { day: '01', users: 10 },
-  { day: '05', users: 25 },
-  { day: '10', users: 40 },
-  { day: '15', users: 30 },
-  { day: '20', users: 60 },
-  { day: '25', users: 55 },
-  { day: '30', users: 80 },
-];
+const UsersChart = ({ data }) => {
+  // Fallback
+  const defaultData = [
+    { day: '01', users: 0 },
+    { day: '05', users: 0 },
+    { day: '10', users: 0 },
+    { day: '15', users: 0 },
+    { day: '20', users: 0 },
+    { day: '25', users: 0 },
+    { day: '30', users: 0 },
+  ];
 
-const UsersChart = () => {
+  const chartData = data && data.length > 0 ? data : defaultData;
+
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
       <div className="mb-6">
         <h3 className="text-lg font-bold text-gray-800">User Growth</h3>
-        <p className="text-sm text-gray-500">New registrations this month</p>
+        <p className="text-sm text-gray-500">New registrations trends</p>
       </div>
 
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
             <XAxis 
-              dataKey="day" 
+              dataKey="day" // Assuming backend returns 'day' or date string
               axisLine={false} 
               tickLine={false} 
               tick={{ fill: '#6B7280', fontSize: 12 }} 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, MoreHorizontal } from 'lucide-react';
+import { Eye, ShieldCheck, AlertCircle } from 'lucide-react';
 
 const SellerTable = ({ sellers, onView }) => {
   return (
@@ -17,22 +17,25 @@ const SellerTable = ({ sellers, onView }) => {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {sellers.map((seller) => (
-              <tr key={seller.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="py-4 px-6 font-bold text-gray-800">{seller.storeName}</td>
-                <td className="py-4 px-6 text-sm text-gray-600">{seller.ownerName}</td>
+              <tr key={seller._id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="py-4 px-6 font-bold text-gray-800">
+                    {seller.storeName || "N/A"}
+                </td>
+                <td className="py-4 px-6 text-sm text-gray-600">{seller.name}</td>
                 <td className="py-4 px-6 text-sm text-gray-500">{seller.email}</td>
                 <td className="py-4 px-6">
-                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                    seller.status === 'Verified' ? 'bg-green-50 text-green-600 border-green-100' : 
-                    seller.status === 'Pending' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                    'bg-red-50 text-red-600 border-red-100'
+                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1 ${
+                    seller.isVerified 
+                        ? 'bg-green-50 text-green-600 border-green-100' 
+                        : 'bg-orange-50 text-orange-600 border-orange-100'
                   }`}>
-                    {seller.status}
+                    {seller.isVerified ? <ShieldCheck size={12}/> : <AlertCircle size={12}/>}
+                    {seller.isVerified ? "Verified" : "Pending"}
                   </span>
                 </td>
                 <td className="py-4 px-6 text-right">
-                  <button onClick={() => onView(seller.id)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                    <Eye size={18} />
+                  <button onClick={() => onView(seller._id)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm flex items-center gap-1 ml-auto">
+                    <Eye size={16} /> View
                   </button>
                 </td>
               </tr>

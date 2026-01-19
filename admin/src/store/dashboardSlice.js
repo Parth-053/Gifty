@@ -1,32 +1,59 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "../api/axios";
+
+// Fetch Dashboard Stats (Cards)
+export const fetchDashboardStats = createAsyncThunk(
+  "dashboard/fetchStats",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/admin/analytics/dashboard");
+      return response.data.data; // { totalUsers, totalRevenue, ... }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message);
+    }
+  }
+);
+
+// Fetch Sales Graph Data
+export const fetchSalesGraph = createAsyncThunk(
+  "dashboard/fetchGraph",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/admin/analytics/graph");
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message);
+    }
+  }
+);
 
 const dashboardSlice = createSlice({
-  name: 'dashboard',
+  name: "dashboard",
   initialState: {
     stats: {
-      totalSales: 425000,
-      totalOrders: 1250,
-      totalUsers: 3400,
-      totalSellers: 56
+      totalUsers: 0,
+      totalSellers: 0,
+      totalOrders: 0,
+      totalRevenue: 0,
     },
-    salesChartData: [
-      { name: 'Jan', sales: 4000 },
-      { name: 'Feb', sales: 3000 },
-      { name: 'Mar', sales: 5000 },
-      { name: 'Apr', sales: 2780 },
-      { name: 'May', sales: 1890 },
-      { name: 'Jun', sales: 2390 },
-    ],
-    recentOrders: [],
-    loading: false
+    graphData: [],
+    loading: false,
+    error: null,
   },
-  reducers: {
-    setDashboardData: (state, action) => {
-      state.stats = action.payload.stats;
-      state.salesChartData = action.payload.salesChartData;
-    }
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      // Stats
+      .addCase(fetchDashboardStats.pending, (state) => { state.loading = true; })
+      .addCase(fetchDashboardStats.fulfilled, (state, action) => {
+        state.loading = false;
+        state.stats = action.payload;
+      })
+      // Graph
+      .addCase(fetchSalesGraph.fulfilled, (state, action) => {
+        state.graphData = action.payload;
+      });
   },
 });
 
-export const { setDashboardData } = dashboardSlice.actions;
 export default dashboardSlice.reducer;

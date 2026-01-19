@@ -1,76 +1,106 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Store, Tag } from 'lucide-react';
-import Button from '../../components/common/Button';
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { updateProductStatus } from "../../store/productSlice";
+import api from "../../api/axios";
+import { FiArrowLeft, FiTag, FiLayers, FiCheckCircle, FiXCircle } from "react-icons/fi";
+import Loader from "../../components/common/Loader";
+import toast from "react-hot-toast";
 
 const ProductDetails = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
-  // Dummy Data
-  const product = {
-    id: 1, 
-    name: "Smart Watch Series 7", 
-    category: "Electronics", 
-    price: 3999, 
-    stock: 10, 
-    sellerName: "GadgetHub", 
-    status: "Pending", 
-    description: "Latest series smart watch with AMOLED display and 2 days battery life.",
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500"
+  const dispatch = useDispatch();
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get(`/admin/products/${id}`)
+      .then(res => setProduct(res.data.data))
+      .catch(() => toast.error("Product not found"))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleStatus = async (status) => {
+    try {
+        await dispatch(updateProductStatus({ id, status })).unwrap();
+        toast.success(`Product ${status}`);
+        navigate(-1);
+    } catch  {
+        toast.error("Update failed");
+    }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-white text-gray-500">
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800">Product Details</h1>
-      </div>
+  if (loading) return <Loader />;
+  if (!product) return <div>Product not found</div>;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: Image */}
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-          <img src={product.image} alt={product.name} className="w-full h-80 object-cover rounded-lg" />
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-2 text-gray-500 hover:text-black">
+        <FiArrowLeft /> Back to Products
+      </button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left: Image Gallery */}
+        <div className="space-y-4">
+          <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+            <img 
+              src={product.images?.[0]?.url} 
+              alt={product.name} 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {product.images?.slice(1).map((img, idx) => (
+              <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+                <img src={img.url} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Right: Info */}
+        {/* Right: Info & Actions */}
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
-             <div className="flex justify-between items-start">
-               <div>
-                 <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
-                 <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                   <Tag size={14} /> {product.category}
-                 </div>
-               </div>
-               <span className="px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-xs font-bold border border-orange-100">
-                 {product.status}
-               </span>
-             </div>
-
-             <div className="text-3xl font-bold text-gray-900">₹{product.price}</div>
-             
-             <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-3">
-                <Store size={20} className="text-blue-600" />
-                <div>
-                   <p className="text-xs text-gray-500 font-bold uppercase">Sold by</p>
-                   <p className="text-sm font-bold text-gray-900">{product.sellerName}</p>
-                </div>
-             </div>
-
-             <div>
-                <h3 className="font-bold text-gray-800 mb-2">Description</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{product.description}</p>
-             </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
+            <p className="text-gray-500 mt-2">{product.description}</p>
           </div>
 
-          {/* Actions (Only if Pending) */}
-          {product.status === 'Pending' && (
-             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex gap-3">
-                <Button variant="success" className="w-full" icon={CheckCircle}>Approve Product</Button>
-                <Button variant="danger" className="w-full" icon={XCircle}>Reject</Button>
-             </div>
-          )}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
+            <div className="flex justify-between border-b pb-2">
+              <span className="text-gray-600 flex items-center gap-2"><FiTag /> Price</span>
+              <span className="font-bold text-xl">₹{product.price}</span>
+            </div>
+            <div className="flex justify-between border-b pb-2">
+              <span className="text-gray-600 flex items-center gap-2"><FiLayers /> Stock</span>
+              <span className="font-bold">{product.stock} units</span>
+            </div>
+            <div className="flex justify-between pb-2">
+               <span className="text-gray-600">Category</span>
+               <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-sm">
+                 {product.category?.name || "Uncategorized"}
+               </span>
+            </div>
+          </div>
+
+          {/* Admin Actions */}
+          <div className="pt-4 border-t border-gray-200">
+            <h3 className="font-bold mb-3 text-gray-700">Admin Actions</h3>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => handleStatus('active')}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium flex justify-center items-center gap-2"
+              >
+                <FiCheckCircle /> Approve Product
+              </button>
+              <button 
+                onClick={() => handleStatus('rejected')}
+                className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 py-3 rounded-xl font-medium flex justify-center items-center gap-2"
+              >
+                <FiXCircle /> Reject
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
