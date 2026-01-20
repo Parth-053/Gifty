@@ -1,51 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-
-// Components
+import { useDispatch, useSelector } from 'react-redux';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import ProductForm from '../../components/product/ProductForm';
 import Loader from '../../components/common/Loader';
-import Toast from '../../components/common/Toast';
+import { fetchProductById, updateProduct } from '../../store/productSlice';
+import toast from 'react-hot-toast';
 
 const EditProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
-  const [initialData, setInitialData] = useState({});
-  const [toast, setToast] = useState(null);
+  const { currentProduct, loading, fetchLoading } = useSelector((state) => state.products);
 
-  // Fetch Product Data (Dummy)
   useEffect(() => {
-    // Simulate fetching data for ID
-    setTimeout(() => {
-      setInitialData({
-        id: id,
-        name: "Personalized Mug",
-        price: 499,
-        stock: 120,
-        category: "Kitchen",
-        description: "High quality ceramic mug with custom print.",
-        images: ["https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=300"]
-      });
-      setFetching(false);
-    }, 1000);
-  }, [id]);
+    if (id) {
+      dispatch(fetchProductById(id));
+    }
+  }, [id, dispatch]);
 
-  const handleSubmit = (formData) => {
-    setLoading(true);
-    console.log("Updating Product:", formData);
-
-    // 🔥 Dummy Update Logic
-    setTimeout(() => {
-      setLoading(false);
-      setToast({ type: 'success', message: 'Product updated successfully!' });
-      setTimeout(() => navigate('/products'), 1500);
-    }, 1500);
+  const handleSubmit = async (formData) => {
+    const resultAction = await dispatch(updateProduct({ id, formData }));
+    
+    if (updateProduct.fulfilled.match(resultAction)) {
+      toast.success('Product updated successfully!');
+      navigate('/products');
+    } else {
+      toast.error(resultAction.payload || "Failed to update product");
+    }
   };
 
-  if (fetching) return <Loader fullScreen text="Fetching product details..." />;
+  if (fetchLoading) return <Loader fullScreen text="Fetching product details..." />;
+  if (!currentProduct) return <div className="p-10 text-center">Product not found</div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -54,25 +41,22 @@ const EditProduct = () => {
       <div className="flex items-center gap-3 mb-6">
         <button 
           onClick={() => navigate(-1)} 
-          className="p-2 rounded-lg hover:bg-white text-gray-500 hover:text-gray-900 transition-colors"
+          className="p-2 rounded-lg hover:bg-white text-gray-500 transition-colors"
         >
           <ArrowLeft size={24} />
         </button>
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Edit Product</h1>
-          <p className="text-sm text-gray-500">Update product details and stock.</p>
+          <p className="text-sm text-gray-500">Update details for {currentProduct.name}</p>
         </div>
       </div>
 
-      {/* Form with Initial Data */}
+      {/* Form with Real Data */}
       <ProductForm 
-        initialData={initialData}
         onSubmit={handleSubmit} 
+        initialData={currentProduct}
         isLoading={loading} 
       />
-
-      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
-
     </div>
   );
 };

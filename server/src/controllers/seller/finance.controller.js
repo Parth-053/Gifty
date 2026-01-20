@@ -1,142 +1,87 @@
 import Order from "../../models/Order.model.js";
+import { Payout } from "../../models/Payout.model.js";  
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
+import { ApiError } from "../../utils/apiError.js";
 
-// Platform Commission Rate (5%)
-const COMMISSION_RATE = 0.05; 
+const COMMISSION_RATE = 0.05; // 5% Platform Fee
 
 /**
- * @desc    Get Seller Financial Stats (Gross, Net, Balance)
- * @route   GET /api/v1/seller/finance/stats
+ * @desc    Get Seller Financial Stats for Dashboard
  */
 export const getFinanceStats = asyncHandler(async (req, res) => {
   const sellerId = req.user._id;
 
-  // 1. Aggregation to get Gross Totals
   const stats = await Order.aggregate([
-    {
-      $match: {
-        "items.sellerId": sellerId,
-        orderStatus: { $ne: "cancelled" } 
-      }
-    },
+    { $match: { "items.sellerId": sellerId, orderStatus: { $ne: "cancelled" } } },
     { $unwind: "$items" },
-    {
-      $match: {
-        "items.sellerId": sellerId
-      }
-    },
+    { $match: { "items.sellerId": sellerId } },
     {
       $group: {
         _id: null,
-        // Total value of goods sold by this seller
-        grossSales: { 
-          $sum: { $multiply: ["$items.price", "$items.quantity"] } 
-        },
+        grossSales: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
         itemsSold: { $sum: "$items.quantity" },
-        // Amount stuck in non-delivered orders
-        pendingGross: {
+        pendingAmount: {
           $sum: {
-            $cond: [
-              { $ne: ["$orderStatus", "delivered"] }, 
-              { $multiply: ["$items.price", "$items.quantity"] }, 
-              0
-            ]
+            $cond: [{ $ne: ["$orderStatus", "delivered"] }, { $multiply: ["$items.price", "$items.quantity"] }, 0]
           }
         }
       }
     }
   ]);
 
-  const data = stats[0] || { grossSales: 0, itemsSold: 0, pendingGross: 0 };
+  const result = stats[0] || { grossSales: 0, itemsSold: 0, pendingAmount: 0 };
+  const netEarnings = Math.round(result.grossSales * (1 - COMMISSION_RATE));
 
-  // 2. Calculate Commission & Net Earnings
-  const platformFee = Math.round(data.grossSales * COMMISSION_RATE);
-  const netEarnings = data.grossSales - platformFee;
-
-  // Calculate Pending part of Net Earnings
-  const pendingPlatformFee = Math.round(data.pendingGross * COMMISSION_RATE);
-  const pendingNet = data.pendingGross - pendingPlatformFee;
-
-  // 3. Final Available Balance (Released Net Amount)
-  const availableBalance = netEarnings - pendingNet;
-
-  return res.status(200).json(new ApiResponse(200, {
-    grossSales: data.grossSales,       // Total Sales (User Paid)
-    platformFee,                       // Our Commission (5%)
-    netEarnings,                       // Seller's Total Share
-    pendingAmount: pendingNet,         // Money not yet released
-    availableBalance,                  // Ready to withdraw
-    itemsSold: data.itemsSold
-  }, "Financial stats calculated successfully"));
+  return res.status(200).json(
+    new ApiResponse(200, { ...result, netEarnings }, "Finance stats fetched")
+  );
 });
 
 /**
- * @desc    Get Transaction History (With Commission Breakdown)
+ * @desc    Get Transaction History 
  * @route   GET /api/v1/seller/finance/transactions
  */
 export const getTransactionHistory = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
+  const sellerId = req.user._id;
 
-  // 1. Fetch raw orders
-  const orders = await Order.find({
-    "items.sellerId": req.user._id
-  })
-  .select("orderId items orderStatus createdAt") // Only needed fields
-  .sort({ createdAt: -1 })
-  .skip((page - 1) * limit)
-  .limit(Number(limit));
+  // Logic: Orders ko as transactions treat karke fetch karna
+  const transactions = await Order.find({
+    "items.sellerId": sellerId,
+    orderStatus: "delivered"
+  }).select("orderId items totalAmount createdAt orderStatus");
 
-  const totalDocs = await Order.countDocuments({ "items.sellerId": req.user._id });
-
-  // 2. Process each order to calculate Seller's specific share
-  const transactions = orders.map(order => {
-    // Filter items belonging to this seller
-    const myItems = order.items.filter(item => 
-      item.sellerId.toString() === req.user._id.toString()
-    );
-
-    // Calculate totals for this specific order
-    const sellerGross = myItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const commission = Math.round(sellerGross * COMMISSION_RATE);
-    const netPayout = sellerGross - commission;
-
-    return {
-      _id: order._id,
-      orderId: order.orderId,
-      date: order.createdAt,
-      status: order.orderStatus, // delivered, processing, etc.
-      grossAmount: sellerGross,
-      commission: commission,
-      netAmount: netPayout // This is what seller actually gets
-    };
-  });
-
-  return res.status(200).json(new ApiResponse(200, {
-    transactions,
-    total: totalDocs,
-    page: Number(page),
-    pages: Math.ceil(totalDocs / limit)
-  }, "Transaction history fetched"));
+  return res.status(200).json(
+    new ApiResponse(200, transactions, "Transaction history fetched")
+  );
 });
 
 /**
- * @desc    Request Payout (Withdrawal)
- * @route   POST /api/v1/seller/finance/withdraw
+ * @desc    Request Payout
  */
 export const requestPayout = asyncHandler(async (req, res) => {
   const { amount } = req.body;
 
-  
   if (!amount || amount < 500) {
-    return res.status(400).json({ success: false, message: "Minimum withdrawal amount is ₹500" });
+    throw new ApiError(400, "Minimum withdrawal amount is ₹500");
   }
 
-  // Mock Success Response
-  return res.status(200).json(new ApiResponse(200, {
-    requestId: "REQ-" + Date.now(),
+  const payoutRequest = await Payout.create({
+    sellerId: req.user._id,
     amount,
     status: "pending",
-    message: "Withdrawal request submitted. It will be processed within 24-48 hours."
-  }, "Payout requested"));
+    requestDate: new Date()
+  });
+
+  return res.status(201).json(
+    new ApiResponse(201, payoutRequest, "Withdrawal request submitted")
+  );
+});
+
+/**
+ * @desc    Get Payout History
+ */
+export const getPayoutHistory = asyncHandler(async (req, res) => {
+  const payouts = await Payout.find({ sellerId: req.user._id }).sort({ createdAt: -1 });
+  return res.status(200).json(new ApiResponse(200, payouts, "Payout history fetched"));
 });

@@ -1,39 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-
-// Components
+import { useDispatch, useSelector } from 'react-redux';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import ProductForm from '../../components/product/ProductForm';
-import Toast from '../../components/common/Toast';
+import { addProduct } from '../../store/productSlice'; // Redux action
+import toast from 'react-hot-toast';
 
 const AddProduct = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
+  const dispatch = useDispatch();
+  const { loading } = useSelector((state) => state.products);
 
-  const handleSubmit = (formData) => {
-    setLoading(true);
-    console.log("Adding Product:", formData);
-
-    // 🔥 Dummy API Call
-    setTimeout(() => {
-      setLoading(false);
-      setToast({ type: 'success', message: 'Product added successfully!' });
-      
-      // Navigate after short delay
-      setTimeout(() => navigate('/products'), 1500);
-    }, 1500);
+  const handleSubmit = async (formData) => {
+    // API Call via Redux
+    const resultAction = await dispatch(addProduct(formData));
+    
+    if (addProduct.fulfilled.match(resultAction)) {
+      toast.success('Product added successfully!');
+      navigate('/products');
+    } else {
+      toast.error(resultAction.payload || "Failed to add product");
+    }
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="p-2 rounded-lg hover:bg-white text-gray-500 hover:text-gray-900 transition-colors"
-        >
+        <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-white text-gray-500">
           <ArrowLeft size={24} />
         </button>
         <div>
@@ -42,21 +35,7 @@ const AddProduct = () => {
         </div>
       </div>
 
-      {/* Form */}
-      <ProductForm 
-        onSubmit={handleSubmit} 
-        isLoading={loading} 
-      />
-
-      {/* Toast Notification */}
-      {toast && (
-        <Toast 
-          type={toast.type} 
-          message={toast.message} 
-          onClose={() => setToast(null)} 
-        />
-      )}
-
+      <ProductForm onSubmit={handleSubmit} isLoading={loading} />
     </div>
   );
 };

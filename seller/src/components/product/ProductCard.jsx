@@ -1,59 +1,29 @@
 import React from 'react';
-import { Edit2, Trash2, Eye, MoreVertical } from 'lucide-react';
+import { Edit2, Trash2, Eye, Package } from 'lucide-react';
+import { formatPrice } from '../../utils/formatPrice';
 
-const ProductCard = ({ product, onEdit, onDelete }) => {
+const ProductCard = ({ product, onEdit, onDelete, onView }) => {
   return (
-    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex gap-4 transition-all hover:shadow-md">
-      
-      {/* Product Image */}
-      <div className="w-24 h-24 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 relative group">
-        <img 
-          src={product.image || "https://via.placeholder.com/150"} 
-          alt={product.name} 
-          className="w-full h-full object-cover transition-transform group-hover:scale-110" 
-        />
-        {/* Quick Status Badge on Image */}
-        {product.stock <= 5 && (
-          <span className="absolute top-1 left-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-            Low Stock
+    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all group">
+      <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-4">
+        <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+        <div className="absolute top-2 right-2">
+          <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${product.stock > 0 ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+            {product.stock > 0 ? 'In Stock' : 'Sold Out'}
           </span>
-        )}
+        </div>
+      </div>
+      
+      <div className="space-y-1 mb-4">
+        <p className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">{product.category}</p>
+        <h3 className="text-sm font-bold text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">{product.name}</h3>
+        <p className="text-lg font-black text-gray-900">{formatPrice(product.price)}</p>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col justify-between">
-        <div>
-          <div className="flex justify-between items-start">
-            <h3 className="font-bold text-gray-800 line-clamp-1">{product.name}</h3>
-            <button className="text-gray-400 p-1">
-              <MoreVertical size={16} />
-            </button>
-          </div>
-          <p className="text-xs text-gray-500">{product.category}</p>
-        </div>
-
-        <div className="flex items-end justify-between mt-2">
-          <div>
-            <p className="text-xs text-gray-400">Price</p>
-            <p className="text-lg font-extrabold text-gray-900">₹{product.price}</p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button 
-              onClick={() => onEdit(product)}
-              className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-            >
-              <Edit2 size={16} />
-            </button>
-            <button 
-              onClick={() => onDelete(product.id)}
-              className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        </div>
+      <div className="grid grid-cols-3 gap-2">
+        <button onClick={() => onView(product._id)} className="flex items-center justify-center p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all"><Eye size={16}/></button>
+        <button onClick={() => onEdit(product)} className="flex items-center justify-center p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-green-50 hover:text-green-600 transition-all"><Edit2 size={16}/></button>
+        <button onClick={() => onDelete(product._id)} className="flex items-center justify-center p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all"><Trash2 size={16}/></button>
       </div>
     </div>
   );

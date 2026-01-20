@@ -4,18 +4,24 @@ import { ApiResponse } from "../../utils/apiResponse.js";
 import { ApiError } from "../../utils/apiError.js";
 
 /**
- * @desc    Get Seller Orders
+ * @desc    Get Seller Orders with Filtering & Pagination
  * @route   GET /api/v1/seller/orders
  */
 export const getSellerOrders = asyncHandler(async (req, res) => {
-  // Find orders where at least one item belongs to this seller
-  const orders = await Order.find({
-    "items.sellerId": req.user._id
-  })
-  .select("orderId items totalAmount orderStatus createdAt shippingAddress")
-  .sort({ createdAt: -1 });
+  const { status, page = 1, limit = 10 } = req.query;
+ 
+  const query = { "items.sellerId": req.user._id };
+  if (status) query.orderStatus = status;
 
-  // Filter items inside the order to show ONLY seller's products
+  const orders = await Order.find(query)
+    .select("orderId items totalAmount orderStatus createdAt shippingAddress")
+    .populate("userId", "fullName email phone") // User details for shipping
+    .sort({ createdAt: -1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
+
+  const total = await Order.countDocuments(query);
+ 
   const sellerOrders = orders.map(order => {
     const myItems = order.items.filter(item => 
       item.sellerId.toString() === req.user._id.toString()
@@ -23,17 +29,21 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
     
     return {
       ...order.toObject(),
-      items: myItems, // Only show my items
-      // Recalculate total for this seller only (optional, logical display)
+      items: myItems,
       sellerTotal: myItems.reduce((acc, item) => acc + (item.price * item.quantity), 0)
     };
   });
 
-  return res.status(200).json(new ApiResponse(200, sellerOrders, "Seller orders fetched"));
+  return res.status(200).json(
+    new ApiResponse(200, {
+      orders: sellerOrders,
+      pagination: { total, page, totalPages: Math.ceil(total / limit) }
+    }, "Seller orders fetched")
+  );
 });
 
 /**
- * @desc    Update Order Status (e.g. Shipped)
+ * @desc    Update Status of a specific item in an order
  * @route   PUT /api/v1/seller/orders/:orderId/item/:itemId
  */
 export const updateOrderItemStatus = asyncHandler(async (req, res) => {
@@ -45,18 +55,15 @@ export const updateOrderItemStatus = asyncHandler(async (req, res) => {
     "items.sellerId": req.user._id 
   });
 
-  if (!order) throw new ApiError(404, "Order not found");
+  if (!order) throw new ApiError(404, "Order not found or unauthorized");
 
-  // Find the specific item
   const item = order.items.id(itemId);
   if (!item) throw new ApiError(404, "Item not found");
 
-  if (item.sellerId.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "Not authorized to update this item");
-  }
-
+  // Status Update
   item.status = status;
+   
   await order.save();
 
-  return res.status(200).json(new ApiResponse(200, order, "Item status updated"));
+  return res.status(200).json(new ApiResponse(200, order, `Item status updated to ${status}`));
 });

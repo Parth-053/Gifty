@@ -1,103 +1,99 @@
-import React from 'react';
-import { Download, Calendar, TrendingUp } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Download, Calendar, TrendingUp, Loader2, DollarSign, ShoppingBag, Package } from 'lucide-react';
 
-// Charts
+// Charts & Store Actions
 import SalesChart from '../../components/charts/SalesChart';
 import RevenueChart from '../../components/charts/RevenueChart';
 import OrdersChart from '../../components/charts/OrdersChart';
+import { fetchDashboardData } from '../../store/analyticsSlice';
+import { formatPrice } from '../../utils/formatPrice';
 
 const Analytics = () => {
+  const dispatch = useDispatch();
+  
+  // Redux store se data fetch karna
+  const { salesData, revenueData, overview, loading } = useSelector((state) => state.analytics);
+
+  useEffect(() => {
+    // Initial data fetch call
+    dispatch(fetchDashboardData());
+  }, [dispatch]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={40} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       
-      {/* 1. Header */}
+      {/* 1. Header with Export Feature */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-           <h1 className="text-2xl font-bold text-gray-800">Analytics</h1>
-           <p className="text-sm text-gray-500">Detailed insights into your store's performance.</p>
+           <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
+           <p className="text-sm text-gray-500">Track your store's sales performance and revenue growth.</p>
         </div>
         <div className="flex gap-3">
-           <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600">
-              <Calendar size={16} />
-              <span>Oct 2025</span>
-           </div>
+           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
+              <Calendar size={16} /> Last 30 Days
+           </button>
            <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold shadow-lg hover:bg-black transition-colors">
-              <Download size={16} /> Report
+              <Download size={16} /> Export Report
            </button>
         </div>
       </div>
 
-      {/* 2. Top Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-lg shadow-blue-200">
-            <p className="text-blue-100 text-xs font-bold uppercase">Total Revenue</p>
-            <h3 className="text-2xl font-extrabold mt-1">₹4,25,000</h3>
-            <p className="text-xs bg-white/20 inline-block px-2 py-0.5 rounded mt-2">+12% vs last month</p>
+      {/* 2. Top Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+               <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24} /></div>
+               <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">+12.5%</span>
+            </div>
+            <p className="text-sm font-bold text-gray-500">Total Revenue</p>
+            <h3 className="text-2xl font-black text-gray-900">{formatPrice(overview.totalRevenue)}</h3>
          </div>
-         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <p className="text-gray-400 text-xs font-bold uppercase">Avg. Order Value</p>
-            <h3 className="text-2xl font-extrabold text-gray-900 mt-1">₹850</h3>
-            <p className="text-xs text-green-600 font-bold mt-2 flex items-center gap-1">
-               <TrendingUp size={12} /> +5.4%
-            </p>
+
+         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+               <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><ShoppingBag size={24} /></div>
+               <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">+8.2%</span>
+            </div>
+            <p className="text-sm font-bold text-gray-500">Total Orders</p>
+            <h3 className="text-2xl font-black text-gray-900">{overview.totalOrders}</h3>
          </div>
-         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <p className="text-gray-400 text-xs font-bold uppercase">Conversion Rate</p>
-            <h3 className="text-2xl font-extrabold text-gray-900 mt-1">2.4%</h3>
-            <p className="text-xs text-red-500 font-bold mt-2">-0.1% vs last month</p>
+
+         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+               <div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Package size={24} /></div>
+            </div>
+            <p className="text-sm font-bold text-gray-500">Active Products</p>
+            <h3 className="text-2xl font-black text-gray-900">{overview.totalProducts}</h3>
          </div>
       </div>
 
-      {/* 3. Main Charts Area */}
+      {/* 3. Main Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         <SalesChart />
-         <RevenueChart />
+         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-6">Revenue Growth</h3>
+            <RevenueChart data={revenueData} />
+         </div>
+         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-6">Sales Volume</h3>
+            <SalesChart data={salesData} />
+         </div>
       </div>
 
-      {/* 4. Bottom Section: Traffic & Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-         
-         {/* Order Traffic (1 Col) */}
-         <div className="lg:col-span-1">
+      {/* 4. Order Analytics Section */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+         <h3 className="font-bold text-gray-800 mb-6">Order Status Breakdown</h3>
+         <div className="h-[300px]">
             <OrdersChart />
          </div>
-
-         {/* Top Products (2 Cols) */}
-         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-[350px]">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-               <h3 className="font-bold text-gray-800">Top Selling Products</h3>
-               <button className="text-xs font-bold text-blue-600">See All</button>
-            </div>
-            
-            <div className="overflow-x-auto">
-               <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-                     <tr>
-                        <th className="px-5 py-3">Product</th>
-                        <th className="px-5 py-3">Price</th>
-                        <th className="px-5 py-3">Sold</th>
-                        <th className="px-5 py-3">Earnings</th>
-                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                     {[1, 2, 3, 4].map((i) => (
-                        <tr key={i} className="hover:bg-gray-50/50">
-                           <td className="px-5 py-3">
-                              <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 rounded bg-gray-200"></div> {/* Placeholder Img */}
-                                 <span className="text-sm font-bold text-gray-800">Product Name {i}</span>
-                              </div>
-                           </td>
-                           <td className="px-5 py-3 text-sm text-gray-600">₹499</td>
-                           <td className="px-5 py-3 text-sm font-bold text-gray-800">{120 - (i*10)}</td>
-                           <td className="px-5 py-3 text-sm font-bold text-green-600">₹{(120 - (i*10)) * 499}</td>
-                        </tr>
-                     ))}
-                  </tbody>
-               </table>
-            </div>
-         </div>
-
       </div>
 
     </div>

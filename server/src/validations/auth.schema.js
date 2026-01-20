@@ -10,12 +10,12 @@ const passwordRule = Joi.string()
     "string.min": "Password must be at least 8 characters long"
   });
 
-export const registerSchema = Joi.object({
-  name: Joi.string().min(2).max(50).trim().required(),
+export const registerSchema = Joi.object({ 
+  fullName: Joi.string().min(2).max(50).trim().required(), 
   email: Joi.string().email().required(),
   password: passwordRule,
   role: Joi.string().valid("user", "seller").default("user"),
-  phone: Joi.string().pattern(/^[0-9]{10}$/).messages({'string.pattern.base': 'Phone number must be 10 digits.'})
+  phone: Joi.string().pattern(/^[0-9]{10}$/).required()
 });
 
 export const loginSchema = Joi.object({

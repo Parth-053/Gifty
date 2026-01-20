@@ -1,36 +1,29 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure, logout } from '../store/authSlice';
-import { useNavigate } from 'react-router-dom';
+import { logout, clearAuthError } from '../store/authSlice';
 
 export const useAuth = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { user, isAuthenticated, loading, error } = useSelector((state) => state.auth);
+    const dispatch = useDispatch();
+    
+    // Fetching state from authSlice
+    const { user, token, loading, error, isEmailVerified } = useSelector((state) => state.auth);
+    
+    return {
+        // Auth Flags
+        isAuthenticated: !!token, 
+        
+        // Seller Approval Check (Matches backend schema 'status')
+        isPending: user?.role === 'seller' && user?.status === 'pending', 
+        
+        // Email Verification Status
+        isEmailVerified: user?.isVerified || isEmailVerified, 
+        
+        // Data & UI States
+        user,
+        loading,
+        error,
 
-  const login = async (email, password) => {
-    dispatch(loginStart());
-    try {
-      // Simulate API Call
-      if (email === "seller@example.com" && password === "123456") {
-        setTimeout(() => {
-          const dummyUser = { name: "John Doe", email, role: "seller" };
-          const dummyToken = "abc-123-xyz";
-          
-          dispatch(loginSuccess({ user: dummyUser, token: dummyToken }));
-          navigate('/dashboard');
-        }, 1000);
-      } else {
-        throw new Error("Invalid credentials");
-      }
-    } catch (err) {
-      dispatch(loginFailure(err.message));
-    }
-  };
-
-  const signout = () => {
-    dispatch(logout());
-    navigate('/auth/login');
-  };
-
-  return { user, isAuthenticated, loading, error, login, signout };
+        // Actions
+        handleLogout: () => dispatch(logout()),
+        clearErrors: () => dispatch(clearAuthError())
+    };
 };

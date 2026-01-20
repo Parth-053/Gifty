@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios'; // Ensure axios is installed
+import api from '../api/axios'; 
 
 export const useFetch = (url, options = {}) => {
   const [data, setData] = useState(null);
@@ -7,25 +7,26 @@ export const useFetch = (url, options = {}) => {
   const [error, setError] = useState(null);
 
   const fetchData = useCallback(async () => {
+    // Avoid fetching if no URL provided
+    if (!url) return;
+
     setLoading(true);
     setError(null);
     try {
-      // Replace with your axios instance or fetch
-      const response = await axios.get(url, options);
-      setData(response.data);
+      // Using custom api instance to handle Bearer tokens automatically
+      const response = await api.get(url, options);
+      setData(response.data.data); // Backend returns data inside 'data' property
     } catch (err) {
-      setError(err.message || 'Something went wrong');
+      setError(err.response?.data?.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
   }, [url]);
 
   useEffect(() => {
-    if (url) {
-      fetchData();
-    }
+    fetchData();
   }, [fetchData]);
 
-  // Return refetch function to manually trigger updates
+  // Return refetch to trigger manual updates 
   return { data, loading, error, refetch: fetchData };
 };

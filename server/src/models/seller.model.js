@@ -10,6 +10,23 @@ const sellerSchema = new mongoose.Schema(
       unique: true,
       index: true
     },
+    
+    fullName: {
+      type: String,
+      required: [true, "Full name is required"],
+      trim: true
+    },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true
+    },
+    phone: {
+      type: String,
+      required: [true, "Phone number is required"],
+      trim: true
+    },
     storeName: {
       type: String,
       required: [true, "Store name is required"],
@@ -28,18 +45,28 @@ const sellerSchema = new mongoose.Schema(
       maxlength: 500
     },
     logo: {
-      url: String,
-      publicId: String
+      url: { type: String, default: "" },
+      publicId: { type: String, default: "" }
     },
     
-    // Business Details (Sensitive - Only visible to Admin/Owner)
-    gstin: { type: String, trim: true, select: false },
-    panNumber: { type: String, trim: true, select: false },
+    // Business Details
+    gstin: { 
+      type: String, 
+      trim: true, 
+      default: null 
+    },
+    panNumber: { 
+      type: String, 
+      trim: true, 
+      default: null 
+    },
     
+    // Bank Details synced with BankDetails.jsx
     bankDetails: {
       accountNumber: { type: String, select: false },
       ifscCode: { type: String, select: false },
-      beneficiaryName: { type: String, select: false }
+      bankName: { type: String, select: false },
+      accountName: { type: String, select: false }  
     },
 
     // Admin Approval Status
@@ -49,7 +76,11 @@ const sellerSchema = new mongoose.Schema(
       default: "pending",
       index: true
     },
-    rejectionReason: { type: String, default: "" },
+    
+    vacationMode: {
+      type: Boolean,
+      default: false
+    },
 
     rating: {
       average: { type: Number, default: 0, min: 0, max: 5 },

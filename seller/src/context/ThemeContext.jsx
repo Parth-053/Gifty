@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-// Create Context
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
@@ -8,32 +7,25 @@ export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       const storedTheme = localStorage.getItem('theme');
-      if (storedTheme) {
-        return storedTheme;
-      }
-      // Check system preference
+      if (storedTheme) return storedTheme;
+      
+      // Auto-detect dark mode from system settings
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         return 'dark';
       }
     }
-    return 'light'; // Default
+    return 'light';
   });
 
-  // Apply theme to HTML tag whenever it changes
+  // Apply theme class to <html> element whenever theme state changes
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // Remove previous classes
     root.classList.remove('light', 'dark');
-    
-    // Add current theme class
     root.classList.add(theme);
-    
-    // Save to LocalStorage
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Toggle Function
+  // Toggle between light and dark modes
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
@@ -45,7 +37,6 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-// Custom Hook to use Theme
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
@@ -53,5 +44,3 @@ export const useTheme = () => {
   }
   return context;
 };
-
-export default ThemeContext;

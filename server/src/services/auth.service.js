@@ -1,30 +1,42 @@
 import { User } from "../models/User.model.js";
-import { ApiError } from "../utils/ApiError.js";
+import { ApiError } from "../utils/apiError.js";
 import { generateAccessAndRefreshToken } from "../utils/tokens.js";
 import jwt from "jsonwebtoken";
 import { envConfig } from "../config/env.config.js";
 
 /**
  * Register New User
- * - Checks for existing user
- * - Creates new user
- * - Returns user without sensitive data
+ * - Sync with Register.jsx fields (fullName, phone, etc.)
  */
 export const registerUser = async (userData) => {
-  // 1. Check if user already exists
+  const { email, phone, password, fullName, role = "user" } = userData;
+
+  // 1. Validation for essential fields
+  if ([email, password, fullName, phone].some((field) => field?.trim() === "")) {
+    throw new ApiError(400, "All registration fields are required");
+  }
+
+  // 2. Check if user already exists (Email or Phone)
   const existingUser = await User.findOne({ 
-    $or: [{ email: userData.email }, { phone: userData.phone }] 
+    $or: [{ email }, { phone }] 
   });
 
   if (existingUser) {
     throw new ApiError(409, "User with email or phone already exists");
   }
 
-  // 2. Create User
-  const user = await User.create(userData);
+  // 3. Create User in Auth Collection
+  // Note: fullName and phone are now passed to the User model as well for consistency
+  const user = await User.create({
+    name: fullName,
+    email,
+    phone,
+    password,
+    role
+  });
 
-  // 3. Remove Sensitive Fields
-  const createdUser = await User.findById(user._id).select("-password -role -refreshToken");
+  // 4. Return clean user object
+  const createdUser = await User.findById(user._id).select("-password -refreshToken");
 
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while registering the user");
@@ -34,13 +46,12 @@ export const registerUser = async (userData) => {
 };
 
 /**
- *   Login User
- * - Finds user by email
- * - Verifies password using Model method
- * - Generates Access & Refresh Tokens
+ * Login User
+ * - Verifies credentials
+ * - Generates Token Pair
  */
 export const loginUser = async (email, password) => {
-  // 1. Find User (Explicitly select password as it's hidden by default)
+  // 1. Find User with password
   const user = await User.findOne({ email }).select("+password");
 
   if (!user) {
@@ -54,43 +65,47 @@ export const loginUser = async (email, password) => {
     throw new ApiError(401, "Invalid user credentials");
   }
 
-  // 3. Generate Tokens
-  // Fetch user again without password to keep the object clean
-  const loggedInUser = await User.findById(user._id).select("-password -refresh_token");
-  
-  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(loggedInUser);
+  // 3. Generate Tokens using Utility
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+
+  // 4. Update Refresh Token in DB for rotation security
+  user.refreshToken = refreshToken;
+  await user.save({ validateBeforeSave: false });
+
+  const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
   return { user: loggedInUser, accessToken, refreshToken };
 };
 
 /**
- *   Refresh Access Token
- * - Verifies Refresh Token
- * - Checks if token matches the one in DB (Rotation Check)
- * - Issues new pair of tokens
+ * Refresh Access Token
+ * - Implements Token Rotation Security
  */
 export const refreshAccessToken = async (incomingRefreshToken) => {
   try {
-    // 1. Verify Token
-    const decodedToken = jwt.verify(incomingRefreshToken, envConfig.jwt.refreshSecret);
+    // 1. Verify incoming token
+    const decodedToken = jwt.verify(
+      incomingRefreshToken, 
+      envConfig.jwt.refreshSecret
+    );
 
-    // 2. Find User
-    const user = await User.findById(decodedToken?._id);
+    // 2. Find user and check token validity
+    const user = await User.findById(decodedToken?._id).select("+refreshToken");
 
     if (!user) {
       throw new ApiError(401, "Invalid refresh token");
     }
 
-    // 3. Check if Incoming Token Matches Database Token (Rotation Check)
-    // Explicitly select refreshToken as it is excluded by default
-    const userWithToken = await User.findById(user._id).select("+refreshToken");
-    
-    if (incomingRefreshToken !== userWithToken.refreshToken) {
+    if (incomingRefreshToken !== user.refreshToken) {
       throw new ApiError(401, "Refresh token is expired or used");
     }
 
-    // 4. Generate New Tokens
-    const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshToken(user);
+    // 3. Generate new pair
+    const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshToken(user._id);
+
+    // 4. Update DB with new refresh token
+    user.refreshToken = newRefreshToken;
+    await user.save({ validateBeforeSave: false });
 
     return { accessToken, refreshToken: newRefreshToken };
   } catch (error) {

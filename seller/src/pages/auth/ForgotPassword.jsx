@@ -1,96 +1,117 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Mail, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
+import { forgotPassword } from '../../store/authSlice';
+import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  
+  const dispatch = useDispatch();
+  // Get loading state from Redux auth slice
+  const { loading } = useSelector((state) => state.auth);
 
-  const handleSubmit = (e) => {
+  /**
+   * Handles the form submission to request a password reset link
+   */
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    
+    if (!email) {
+      return toast.error("Please enter your email address");
+    }
 
-    // 🔥 Dummy API Call Simulation
-    setTimeout(() => {
-      setLoading(false);
+    // Dispatching the forgotPassword thunk
+    const resultAction = await dispatch(forgotPassword(email));
+    
+    if (forgotPassword.fulfilled.match(resultAction)) {
       setIsSubmitted(true);
-    }, 1500);
+      toast.success("Reset link sent successfully!");
+    } else {
+      // Show backend error message or default fallback
+      toast.error(resultAction.payload || "Failed to send reset link. Please try again.");
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-10">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FC] px-4 py-10">
+      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
         
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Forgot Password?</h1>
-          <p className="text-gray-500 text-sm mt-2">
-            Enter your email and we'll send you instructions to reset your password.
-          </p>
-        </div>
-
         {!isSubmitted ? (
-          /* Form State */
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail size={18} className="text-gray-400" />
-                </div>
-                <input
-                  type="email"
-                  required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400"
-                  placeholder="seller@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+          /* --- Request Reset Link State --- */
+          <>
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <Mail size={32} />
               </div>
+              <h1 className="text-2xl font-bold text-gray-900">Forgot Password?</h1>
+              <p className="text-gray-500 text-sm mt-2">
+                No worries! Enter your email and we'll send you a link to reset your password.
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white py-3.5 rounded-xl font-bold transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-gray-200"
-            >
-              {loading ? (
-                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              ) : (
-                'Send Reset Link'
-              )}
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-bold text-gray-700">Email Address</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail size={18} className="text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
+                    placeholder="seller@example.com"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white py-3.5 rounded-xl font-bold text-sm shadow-lg transition-all disabled:opacity-70 transform active:scale-[0.98]"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  'Send Reset Link'
+                )}
+              </button>
+            </form>
+          </>
         ) : (
-          /* Success State */
+          /* --- Success Confirmation State --- */
           <div className="text-center animate-fade-in-up">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle size={32} />
             </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Check your mail</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              We have sent a password recover instructions to your email <strong>{email}</strong>.
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Check your email</h2>
+            <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+              We have sent password recovery instructions to:<br />
+              <strong className="text-gray-800">{email}</strong>
             </p>
             <button 
               onClick={() => setIsSubmitted(false)}
-              className="text-sm font-bold text-blue-600 hover:text-blue-700"
+              className="text-sm font-bold text-blue-600 hover:text-blue-700 hover:underline"
             >
-              Try another email
+              Try another email address
             </button>
           </div>
         )}
 
-        {/* Back Link */}
-        <div className="mt-8 text-center">
+        {/* --- Back to Login Footer --- */}
+        <div className="mt-8 text-center pt-6 border-t border-gray-50">
           <Link 
             to="/auth/login" 
             className="inline-flex items-center justify-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors"
           >
-            <ArrowLeft size={16} /> Back to Login
+            <ArrowLeft size={18} /> Back to Sign In
           </Link>
         </div>
-
       </div>
     </div>
   );
