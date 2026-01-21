@@ -15,7 +15,11 @@ export const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   password: passwordRule,
   role: Joi.string().valid("user", "seller").default("user"),
-  phone: Joi.string().pattern(/^[0-9]{10}$/).required()
+  phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+  
+  // Add these fields to allow seller registration
+  storeName: Joi.string().when('role', { is: 'seller', then: Joi.required(), otherwise: Joi.optional() }),
+  gstin: Joi.string().optional().allow('', null)
 });
 
 export const loginSchema = Joi.object({

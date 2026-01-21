@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { validateGST, validatePassword, validatePhone } from '../../utils/validateForm';
 import toast from 'react-hot-toast';
 
-
+// Reusable Input Component
 const InputField = ({ icon: Icon, type, name, placeholder, label, value, onChange, required = true }) => (
   <div className="space-y-1.5">
     <label className="block text-sm font-bold text-gray-700">{label}</label>
@@ -49,6 +49,7 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 1. Frontend Validation
     if (!validatePhone(formData.phone)) {
       return toast.error("Please enter a valid 10-digit phone number");
     }
@@ -59,12 +60,20 @@ const Register = () => {
       return toast.error("Invalid GSTIN format");
     }
 
-    const resultAction = await dispatch(registerSeller(formData));
+    // 2. Prepare Payload with explicit Role
+    const registrationData = {
+      ...formData,
+      role: "seller"
+    };
+
+    // 3. Dispatch Action
+    const resultAction = await dispatch(registerSeller(registrationData));
     
     if (registerSeller.fulfilled.match(resultAction)) {
       toast.success("Account created! Please verify your email.");
       navigate('/auth/verify-email', { state: { email: formData.email } });
     } else {
+      // Handle backend errors 
       toast.error(resultAction.payload || "Registration failed. Email might already exist.");
     }
   };

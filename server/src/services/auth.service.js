@@ -1,22 +1,20 @@
 import { User } from "../models/User.model.js";
-import { ApiError } from "../utils/apiError.js";
+import { ApiError } from "../utils/ApiError.js";
 import { generateAccessAndRefreshToken } from "../utils/tokens.js";
 import jwt from "jsonwebtoken";
 import { envConfig } from "../config/env.config.js";
+import { sendEmail } from "./email.service.js"; 
 
 /**
  * Register New User
- * - Sync with Register.jsx fields (fullName, phone, etc.)
  */
 export const registerUser = async (userData) => {
   const { email, phone, password, fullName, role = "user" } = userData;
 
-  // 1. Validation for essential fields
   if ([email, password, fullName, phone].some((field) => field?.trim() === "")) {
     throw new ApiError(400, "All registration fields are required");
   }
 
-  // 2. Check if user already exists (Email or Phone)
   const existingUser = await User.findOne({ 
     $or: [{ email }, { phone }] 
   });
@@ -25,8 +23,7 @@ export const registerUser = async (userData) => {
     throw new ApiError(409, "User with email or phone already exists");
   }
 
-  // 3. Create User in Auth Collection
-  // Note: fullName and phone are now passed to the User model as well for consistency
+  // 1. Create User
   const user = await User.create({
     name: fullName,
     email,
@@ -35,8 +32,31 @@ export const registerUser = async (userData) => {
     role
   });
 
-  // 4. Return clean user object
-  const createdUser = await User.findById(user._id).select("-password -refreshToken");
+  // 2. Generate and Save Verification Code
+  // Note: generateVerificationCode is a method on the User instance
+  const verificationCode = user.generateVerificationCode(); 
+  await user.save({ validateBeforeSave: false });
+
+  // 3. Send Email
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "Gifty - Verify your email",
+      message: `Your verification code is: ${verificationCode}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>Welcome to Gifty!</h2>
+          <p>Please use the code below to verify your account:</p>
+          <h1 style="color: #2563EB; letter-spacing: 5px;">${verificationCode}</h1>
+          <p>This code expires in 15 minutes.</p>
+        </div>
+      `
+    });
+  } catch (error) {
+    console.error("Verification email failed:", error);
+  }
+
+  const createdUser = await User.findById(user._id).select("-password -refreshToken -verificationCode");
 
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while registering the user");
@@ -47,8 +67,6 @@ export const registerUser = async (userData) => {
 
 /**
  * Login User
- * - Verifies credentials
- * - Generates Token Pair
  */
 export const loginUser = async (email, password) => {
   // 1. Find User with password
@@ -65,10 +83,11 @@ export const loginUser = async (email, password) => {
     throw new ApiError(401, "Invalid user credentials");
   }
 
-  // 3. Generate Tokens using Utility
-  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+  // 3. Generate Tokens
+  // FIX: Passed the full 'user' object, NOT 'user._id'
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user);
 
-  // 4. Update Refresh Token in DB for rotation security
+  // 4. Update Refresh Token in DB
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
@@ -79,7 +98,6 @@ export const loginUser = async (email, password) => {
 
 /**
  * Refresh Access Token
- * - Implements Token Rotation Security
  */
 export const refreshAccessToken = async (incomingRefreshToken) => {
   try {
@@ -89,7 +107,7 @@ export const refreshAccessToken = async (incomingRefreshToken) => {
       envConfig.jwt.refreshSecret
     );
 
-    // 2. Find user and check token validity
+    // 2. Find user
     const user = await User.findById(decodedToken?._id).select("+refreshToken");
 
     if (!user) {
@@ -101,7 +119,8 @@ export const refreshAccessToken = async (incomingRefreshToken) => {
     }
 
     // 3. Generate new pair
-    const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshToken(user._id);
+    // FIX: Passed the full 'user' object here as well
+    const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshToken(user);
 
     // 4. Update DB with new refresh token
     user.refreshToken = newRefreshToken;

@@ -10,11 +10,20 @@ const VerifyEmail = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   
-  const email = location.state?.email || "your email";
+  // Ensure we handle case where state might be null (e.g. page refresh)
+  const email = location.state?.email;
   const { loading, isEmailVerified } = useSelector((state) => state.auth);
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
+
+  // Redirect if email is missing (e.g. direct access without registration)
+  useEffect(() => {
+    if (!email) {
+      toast.error("Email not found. Please register again.");
+      navigate('/auth/register');
+    }
+  }, [email, navigate]);
 
   useEffect(() => {
     if (isEmailVerified) {
@@ -36,21 +45,25 @@ const VerifyEmail = () => {
     }
   };
 
-const handleVerify = async (e) => {
-  e.preventDefault();
-  const enteredOtp = otp.join('');
-  if (enteredOtp.length !== 6) return toast.error("Enter 6-digit code");
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    const enteredOtp = otp.join('');
+    if (enteredOtp.length !== 6) return toast.error("Enter 6-digit code");
 
-  const resultAction = await dispatch(verifySellerEmail({ 
-    email: location.state?.email, 
-    otp: enteredOtp 
-  }));
+    // FIX IS HERE: Rename 'otp' to 'code' to match backend expectation
+    const resultAction = await dispatch(verifySellerEmail({ 
+      email: email, 
+      code: enteredOtp 
+    }));
 
-  if (verifySellerEmail.fulfilled.match(resultAction)) {
-    toast.success("Account Verified!");
-    navigate('/auth/login');
-  }
-};
+    if (verifySellerEmail.fulfilled.match(resultAction)) {
+      toast.success("Account Verified!");
+      navigate('/auth/login');
+    } else {
+      // Show backend error message
+      toast.error(resultAction.payload || "Verification failed");
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F8F9FC] px-4">
@@ -59,7 +72,7 @@ const handleVerify = async (e) => {
           <Mail size={28} />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify your email</h1>
-        <p className="text-gray-500 text-sm mb-8">OTP sent to <span className="font-bold text-gray-800">{email}</span></p>
+        <p className="text-gray-500 text-sm mb-8">OTP sent to <span className="font-bold text-gray-800">{email || "your email"}</span></p>
 
         <form onSubmit={handleVerify}>
           <div className="flex justify-center gap-2 mb-8">

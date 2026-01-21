@@ -4,7 +4,8 @@ import {
   login, 
   logout, 
   refresh, 
-  getCurrentUser 
+  getCurrentUser,
+  verifyEmail 
 } from "../../controllers/auth/auth.controller.js";
 import { 
   changePassword, 
@@ -20,6 +21,8 @@ import {
 } from "../../validations/auth.schema.js"; 
 
 const router = Router();
+
+router.post("/verify-email", verifyEmail);
 
 // Public Routes
 router.post("/register", validate(registerSchema), register);

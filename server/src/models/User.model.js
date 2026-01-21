@@ -6,6 +6,7 @@ import { envConfig } from "../config/env.config.js";
 
 const userSchema = new mongoose.Schema(
   {
+    // ... (baki fields same rahenge: name, email, phone, etc.)
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -32,7 +33,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
       minlength: [8, "Password must be at least 8 characters"],
-      select: false // Password hidden by default
+      select: false 
     },
     role: {
       type: String,
@@ -49,11 +50,16 @@ const userSchema = new mongoose.Schema(
       default: false
     },
     
+    // ADDED: Fields for storing verification code
+    verificationCode: {
+      type: String,
+      select: false
+    },
+    verificationCodeExpire: Date,
+
     loginAttempts: { type: Number, default: 0, select: false },
     lockUntil: { type: Date, select: false },
-    
     refreshToken: { type: String, select: false },
-    
     resetPasswordToken: String,
     resetPasswordExpire: Date
   },
@@ -62,9 +68,7 @@ const userSchema = new mongoose.Schema(
 
 // Password Hashing Middleware
 userSchema.pre("save", async function (next) {
-  // If password is not modified  skip hashing
   if (!this.isModified("password")) return next();
-
   try {
     this.password = await bcrypt.hash(this.password, 10);
     next();
@@ -73,12 +77,11 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-//  Password Comparison Method
 userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
-// Token Methods ...
+// ... (Token methods same rahenge)
 
 userSchema.methods.getResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
@@ -88,6 +91,23 @@ userSchema.methods.getResetPasswordToken = function () {
     .digest("hex");
   this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
   return resetToken;
+};
+
+// ADDED: Method to generate 6-digit OTP
+userSchema.methods.generateVerificationCode = function () {
+  // Generate a random 6-digit number
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Hash it before saving to DB (Security Best Practice)
+  this.verificationCode = crypto
+    .createHash("sha256")
+    .update(code)
+    .digest("hex");
+
+  // Code expires in 15 minutes
+  this.verificationCodeExpire = Date.now() + 15 * 60 * 1000;
+
+  return code; // Return the plain code to send in email
 };
 
 userSchema.methods.generateAccessToken = function () {
