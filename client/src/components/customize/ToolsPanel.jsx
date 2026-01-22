@@ -1,79 +1,103 @@
-import React from 'react';
-import { Type, Palette, Image as ImageIcon, ShoppingBag } from 'lucide-react';
+import React, { useState } from 'react';
+import { Type, Image as ImageIcon, Sparkles, Upload } from 'lucide-react';
+import AIGenerator from './AIGenerator';
 
-const ToolsPanel = ({ 
-  product, 
-  customText, setCustomText, 
-  textColor, setTextColor,
-  customColor, setCustomColor 
-}) => {
+const tabs = [
+  { id: 'text', label: 'Text', icon: Type },
+  { id: 'ai', label: 'AI Gen', icon: Sparkles },
+  { id: 'upload', label: 'Upload', icon: Upload },
+];
+
+const ToolsPanel = ({ onAddText, onAddImage }) => {
+  const [activeTab, setActiveTab] = useState('text');
+  const [textInput, setTextInput] = useState('');
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      onAddImage(url);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.05)] p-6 z-10">
+    <div className="bg-white border-t border-gray-100 h-1/2 md:h-full md:border-l md:border-t-0 flex flex-col">
       
-      <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex border-b border-gray-100">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`
+              flex-1 py-4 flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors border-b-2
+              ${activeTab === tab.id 
+                ? 'border-blue-600 text-blue-600 bg-blue-50/50' 
+                : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+              }
+            `}
+          >
+            <tab.icon size={20} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content Area */}
+      <div className="p-5 overflow-y-auto flex-1">
         
-        {/* Text Tool */}
-        {product.allowedOptions.includes('text') && (
-          <div>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 mb-2">
-              <Type size={14} /> ADD TEXT
-            </label>
+        {/* TEXT TAB */}
+        {activeTab === 'text' && (
+          <div className="space-y-4">
+            <h4 className="font-bold text-gray-900 text-sm">Add Custom Text</h4>
             <div className="flex gap-2">
               <input 
                 type="text" 
-                placeholder="Type Name or Quote..."
-                value={customText}
-                onChange={(e) => setCustomText(e.target.value)}
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#FF6B6B]"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Enter text..." 
+                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
               />
-              <input 
-                type="color" 
-                value={textColor}
-                onChange={(e) => setTextColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border-none cursor-pointer"
-              />
+              <button 
+                onClick={() => { onAddText(textInput); setTextInput(''); }}
+                disabled={!textInput.trim()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 mt-4">
+               {/* Pre-defined fonts/styles could go here */}
             </div>
           </div>
         )}
 
-        {/* Color Tool */}
-        {product.allowedOptions.includes('color') && (
-          <div>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 mb-2">
-              <Palette size={14} /> PRODUCT COLOR
-            </label>
-            <div className="flex gap-3">
-              {['white', 'black', 'red', 'blue'].map((color) => (
-                <button 
-                  key={color}
-                  onClick={() => setCustomColor(color)}
-                  className={`w-8 h-8 rounded-full border-2 ${customColor === color ? 'border-[#FF6B6B] scale-110' : 'border-gray-200'}`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-          </div>
+        {/* AI TAB */}
+        {activeTab === 'ai' && (
+          <AIGenerator onImageSelect={onAddImage} />
         )}
 
-        {/* Image Tool (Dummy) */}
-        {product.allowedOptions.includes('image') && (
-          <div>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 mb-2">
-              <ImageIcon size={14} /> UPLOAD PHOTO
+        {/* UPLOAD TAB */}
+        {activeTab === 'upload' && (
+          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileUpload}
+              className="hidden" 
+              id="file-upload"
+            />
+            <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-3 group-hover:bg-white group-hover:text-blue-600 shadow-sm">
+                <ImageIcon size={24} />
+              </div>
+              <p className="text-sm font-bold text-gray-700">Click to Upload</p>
+              <p className="text-xs text-gray-400 mt-1">Supports JPG, PNG</p>
             </label>
-            <button className="w-full border-2 border-dashed border-gray-300 rounded-lg py-3 text-gray-400 text-xs font-bold hover:bg-gray-50 transition-colors">
-              + Choose from Gallery
-            </button>
           </div>
         )}
       </div>
-
-      {/* Add to Cart Button */}
-      <button className="w-full mt-8 bg-[#2D3436] text-white py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
-        <ShoppingBag size={18} />
-        Add to Cart - ₹{product.price}
-      </button>
-
     </div>
   );
 };

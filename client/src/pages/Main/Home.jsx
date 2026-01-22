@@ -1,57 +1,68 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Sparkles } from 'lucide-react';
+
+// Components
 import TopHeader from '../../components/home/TopHeader';
 import HeroBanner from '../../components/home/HeroBanner';
 import CategoryRail from '../../components/home/CategoryRail';
+import ProductGrid from '../../components/product/ProductGrid';
+import Loader from '../../components/common/Loader';
 
-// ✅ Fix: Import the reusable ProductCard
-import ProductCard from '../../components/product/ProductCard';
-
-// Dummy Products Data
-const featuredProducts = [
-  { id: '1', name: "Personalized Lamp", price: 499, originalPrice: 999, discount: 50, rating: 4.5, reviews: 120, image: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=500" },
-  { id: '2', name: "Chocolate Hamper", price: 899, originalPrice: 1299, discount: 30, rating: 4.8, reviews: 85, image: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500" },
-  { id: '3', name: "Gold Plated Pendant", price: 1499, originalPrice: 2999, discount: 50, rating: 4.2, reviews: 45, image: "https://images.unsplash.com/photo-1602751584552-8ba731f0e535?w=500" },
-  { id: '4', name: "Cute Teddy Bear", price: 599, originalPrice: 899, discount: 33, rating: 4.6, reviews: 200, image: "https://images.unsplash.com/photo-1559563458-52c6959b8136?w=500" },
-];
+// Actions
+import { fetchProducts } from '../../store/productSlice';
 
 const Home = () => {
+  const dispatch = useDispatch();
+  const { items: products, loading } = useSelector((state) => state.products);
+
+  // Fetch "New Arrivals" (Limit 8)
+  useEffect(() => {
+    dispatch(fetchProducts({ limit: 8, sort: 'newest' }));
+  }, [dispatch]);
+
   return (
-    <div className="bg-[#F9F9F9] min-h-screen pb-24">
-      
-      {/* 1. Sticky Header */}
+    <div className="pb-24 md:pb-8 px-4 max-w-7xl mx-auto pt-4">
       <TopHeader />
+      <HeroBanner />
+      <CategoryRail />
 
-      {/* 2. Scrollable Content */}
-      <div className="space-y-2">
-        
-        {/* Banner */}
-        <HeroBanner />
-
-        {/* Categories */}
-        <CategoryRail />
-
-        {/* Featured Section */}
-        <div className="mt-6 px-4">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="font-bold text-gray-800 text-lg">Featured Gifts</h2>
-            <span className="text-xs text-[#FF6B6B] font-semibold">View All</span>
-          </div>
-
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {featuredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+      <div className="mt-8 mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+           <Sparkles className="text-yellow-500" size={20} />
+           <h2 className="text-xl font-black text-gray-900">New Arrivals</h2>
         </div>
+        {/* Note: This links to Categories page now effectively as main shop */}
+        <Link 
+          to="/categories" 
+          className="text-sm font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+        >
+          View All <ArrowRight size={16} />
+        </Link>
+      </div>
 
-        {/* Second Banner / Ad */}
-        <div className="px-4 py-4">
-           <div className="w-full h-32 bg-[#4ECDC4]/10 rounded-xl border border-[#4ECDC4] border-dashed flex items-center justify-center">
-              <span className="text-[#4ECDC4] font-bold">✨ AI Customization Ad ✨</span>
-           </div>
+      {loading && products.length === 0 ? (
+         <div className="min-h-[300px] flex items-center justify-center"><Loader /></div>
+      ) : (
+         <ProductGrid products={products} />
+      )}
+
+      {/* Promo Banner */}
+      <div className="mt-12 relative rounded-3xl overflow-hidden bg-gray-900 text-white p-8 md:p-12 text-center md:text-left shadow-2xl">
+        <div className="relative z-10 max-w-lg">
+           <span className="bg-white/20 backdrop-blur-md text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block">AI Powered</span>
+           <h2 className="text-3xl md:text-4xl font-black mb-4">Create Unique Gifts</h2>
+           <p className="text-gray-300 mb-8 leading-relaxed">Design your own personalized products using our AI tool. It's magic!</p>
+           <Link 
+             to="/customize" 
+             className="inline-block bg-white text-gray-900 px-8 py-3.5 rounded-xl font-bold hover:bg-blue-50 transition-all transform hover:scale-105 shadow-lg"
+           >
+             Start Creating
+           </Link>
         </div>
-
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/30 rounded-full blur-3xl -mr-16 -mt-16" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-600/30 rounded-full blur-3xl -ml-12 -mb-12" />
       </div>
     </div>
   );

@@ -1,18 +1,28 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import BottomNavbar from './BottomNavbar';
+import { Outlet, useLocation } from 'react-router-dom';
+import Navbar from './Navbar';
+import BottomNavbar from './BottomNav'; // Updated Import
 
 const AppLayout = () => {
+  const location = useLocation();
+  
+  // Hide layouts on checkout/auth pages if needed
+  const isCheckout = location.pathname.includes('/checkout');
+  const isAuth = location.pathname.includes('/auth');
+
   return (
-    <div className="bg-[#F9F9F9] min-h-screen text-gray-800 font-sans">
+    <div className="min-h-screen flex flex-col bg-white font-sans text-gray-900 pb-[80px]"> {/* Added padding-bottom for fixed navbar */}
       
-     
-      <main className="pb-24 max-w-md mx-auto md:max-w-full min-h-screen"> 
+      {/* 1. Top Navbar (Hide on specific pages if desired) */}
+      {!isCheckout && !isAuth && <Navbar />}
+      
+      {/* 2. Main Content */}
+      <main className="flex-1 w-full max-w-full">
         <Outlet />
       </main>
 
-      {/* Fixed Bottom Navigation */}
-      <BottomNavbar />
+      {/* 3. New Bottom Navbar (Fixed) */}
+      {!isCheckout && !isAuth && <BottomNavbar />}
     </div>
   );
 };

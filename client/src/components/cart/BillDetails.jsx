@@ -1,35 +1,51 @@
 import React from 'react';
-import { FileText } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { formatPrice } from '../../utils/formatCurrency';
 
-const BillDetails = ({ subtotal, discount, total }) => {
+const BillDetails = () => {
+  const { totalAmount, items } = useSelector((state) => state.cart);
+
+  // Calculate Derived Values (Backend typically sends these, but we can calculate for UI speed)
+  const subtotal = totalAmount;
+  const shipping = subtotal > 999 ? 0 : 50; // Example Logic: Free shipping over ₹999
+  const tax = Math.round(subtotal * 0.18); // Example: 18% GST (Adjust logic as per backend)
+  const finalTotal = subtotal + shipping + tax;
+
   return (
-    <div className="bg-white p-4 rounded-xl border border-gray-100 mt-4 mb-24 shadow-sm">
-      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-         <FileText size={14} /> Bill Details
-      </h3>
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+      <h3 className="font-bold text-gray-900 mb-4">Order Summary</h3>
       
-      <div className="space-y-2 text-sm text-gray-600">
-        <div className="flex justify-between">
-           <span>Item Total</span>
-           <span>₹{subtotal}</span>
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between text-gray-600">
+          <span>Subtotal ({items.length} items)</span>
+          <span className="font-medium text-gray-900">{formatPrice(subtotal)}</span>
         </div>
-        <div className="flex justify-between text-green-600">
-           <span>Product Discount</span>
-           <span>- ₹{discount}</span>
+        
+        <div className="flex justify-between text-gray-600">
+          <span>Shipping Fee</span>
+          {shipping === 0 ? (
+            <span className="text-green-600 font-bold">Free</span>
+          ) : (
+            <span className="font-medium text-gray-900">{formatPrice(shipping)}</span>
+          )}
         </div>
-        <div className="flex justify-between">
-           <span>Delivery Fee</span>
-           <span className="text-green-600 font-bold">FREE</span>
+
+        <div className="flex justify-between text-gray-600">
+          <span>Tax (GST 18%)</span>
+          <span className="font-medium text-gray-900">{formatPrice(tax)}</span>
         </div>
-        <div className="h-px bg-gray-100 my-2 border-dashed border-t"></div>
-        <div className="flex justify-between font-extrabold text-base text-gray-900">
-           <span>To Pay</span>
-           <span>₹{total}</span>
+
+        {/* Divider */}
+        <div className="border-t border-dashed border-gray-200 my-4" />
+
+        <div className="flex justify-between items-end">
+          <span className="font-bold text-gray-900 text-base">Total Amount</span>
+          <span className="font-black text-xl text-blue-600">{formatPrice(finalTotal)}</span>
         </div>
       </div>
       
-      <div className="mt-3 bg-green-50 text-green-700 text-[10px] font-bold px-3 py-2 rounded-lg text-center border border-green-100">
-         Yay! You saved ₹{discount} on this order 🎉
+      <div className="mt-4 bg-blue-50 p-3 rounded-xl text-xs text-blue-700 font-medium text-center">
+        🎉 You are saving on shipping for this order!
       </div>
     </div>
   );

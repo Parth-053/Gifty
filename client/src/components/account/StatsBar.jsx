@@ -1,52 +1,33 @@
 import React from 'react';
-import { ShoppingBag, Heart, Ticket } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-// ✅ Import Separate Hooks
-import { useCart } from '../../hooks/useCart';
-import { useWishlist } from '../../hooks/useWishlist';
+import { ShoppingBag, Heart, Ticket, Wallet } from 'lucide-react';
+import { useSelector } from 'react-redux';
 
 const StatsBar = () => {
-  // ✅ Get data from individual hooks
-  const { cartCount } = useCart();
-  const { wishlistItems } = useWishlist();
+  // Get real data lengths from Redux
+  const wishlistCount = useSelector((state) => state.wishlist.items.length);
+  // Assuming orders are fetched in orderSlice, otherwise default to 0
+  const ordersCount = useSelector((state) => state.orders?.totalOrders || 0);
 
   const stats = [
-    { 
-      label: 'Cart', 
-      value: cartCount, // Live count from CartContext
-      icon: ShoppingBag, 
-      link: '/cart' 
-    },
-    { 
-      label: 'Wishlist', 
-      value: wishlistItems.length, // Live count from WishlistContext
-      icon: Heart, 
-      link: '/wishlist' 
-    },
-    { 
-      label: 'Coupons', 
-      value: '3', // Dummy Data (Static)
-      icon: Ticket, 
-      link: '/account/coupons' 
-    },
+    { label: 'Total Orders', value: ordersCount, icon: ShoppingBag, color: 'bg-blue-50 text-blue-600' },
+    { label: 'Wishlist', value: wishlistCount, icon: Heart, color: 'bg-pink-50 text-pink-600' },
+    { label: 'Coupons', value: '2', icon: Ticket, color: 'bg-purple-50 text-purple-600' }, // Dummy for now
+    { label: 'Wallet', value: '₹0', icon: Wallet, color: 'bg-green-50 text-green-600' },
   ];
 
   return (
-    <div className="px-4 -mt-6 mb-6 relative z-10">
-      <div className="bg-white rounded-xl shadow-lg shadow-gray-200/50 p-4 flex justify-between items-center border border-gray-50">
-        
-        {stats.map((stat, index) => (
-          <Link to={stat.link} key={index} className="flex-1 flex flex-col items-center gap-1 active:scale-95 transition-transform group">
-            <div className="text-[#FF6B6B] bg-[#FF6B6B]/10 p-2.5 rounded-full mb-1 group-hover:bg-[#FF6B6B] group-hover:text-white transition-colors">
-               <stat.icon size={20} strokeWidth={2.5} />
-            </div>
-            <span className="text-lg font-extrabold text-gray-800">{stat.value}</span>
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{stat.label}</span>
-          </Link>
-        ))}
-
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {stats.map((stat, index) => (
+        <div key={index} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className={`p-3 rounded-xl ${stat.color}`}>
+            <stat.icon size={20} />
+          </div>
+          <div>
+            <p className="text-xl font-black text-gray-900">{stat.value}</p>
+            <p className="text-xs font-bold text-gray-400">{stat.label}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

@@ -1,24 +1,42 @@
 import React from 'react';
-import { ArrowLeft, Wand2 } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import Button from '../common/Button';
 
-const CustomizeHeader = ({ step, onBack }) => {
+const CustomizeHeader = ({ onReset, onSave, loading }) => {
+  const navigate = useNavigate();
+
   return (
-    <div className="bg-white p-4 shadow-sm sticky top-0 z-20 flex items-center justify-between">
-      {step === 2 && (
-        <button onClick={onBack} className="p-2 -ml-2 text-gray-600 active:scale-90 transition-transform">
-          <ArrowLeft size={24} />
+    <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
+      <div className="flex items-center gap-3">
+        <button 
+          onClick={() => navigate(-1)}
+          className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+        >
+          <ArrowLeft size={20} />
         </button>
-      )}
-      
-      <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-        {step === 1 ? (
-          <><Wand2 size={20} className="text-[#FF6B6B]" /> AI Gift Studio</>
-        ) : (
-          'Customize It'
-        )}
-      </h1>
-      
-      <div className="w-8"></div> {/* Spacer for alignment */}
+        <div>
+          <h1 className="font-bold text-gray-900 text-sm sm:text-lg leading-tight">Customize Gift</h1>
+          <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Design it your way using AI.</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button 
+          onClick={onReset}
+          className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all text-xs font-bold flex items-center gap-1"
+        >
+          <RotateCcw size={16} /> <span className="hidden sm:inline">Reset</span>
+        </button>
+        <Button 
+          onClick={onSave} 
+          isLoading={loading}
+          size="sm"
+          className="shadow-blue-200"
+        >
+          <Check size={16} className="mr-1" /> Done
+        </Button>
+      </div>
     </div>
   );
 };

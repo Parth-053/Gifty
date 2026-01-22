@@ -1,93 +1,112 @@
-import React from 'react';
-import { ArrowLeft, MapPin, Phone, FileText } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
-
-// ✅ Fix: Import correct component
+import React, { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { ArrowLeft, Download, MapPin } from 'lucide-react';
+import { fetchOrderById, clearCurrentOrder } from '../../store/orderSlice';
 import OrderTracker from '../../components/user/OrderTracker';
+import Loader from '../../components/common/Loader';
+import { formatPrice } from '../../utils/formatCurrency';
+import { formatDate } from '../../utils/formatDate';
 
 const OrderDetails = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { orderId } = useParams();
+  const dispatch = useDispatch();
+  const { currentOrder: order, loading } = useSelector((state) => state.orders);
 
-  // Dummy Data - In real app, find order by ID from Context/API
-  const orderData = {
-    id: orderId || 'ORD-98212',
-    status: 'Shipped', // Try changing to 'Delivered' or 'Processing' to see Tracker change
-    date: '12 Jan, 2025',
-    total: 1299,
-    address: {
-      name: 'Arjun Sharma',
-      text: 'Flat 402, Krishna Residency, MP Nagar, Bhopal, 462001',
-      phone: '+91 98765 43210'
-    },
-    items: [
-      { name: "Customized Photo Mug", price: 499, qty: 1, image: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=100" },
-      { name: "Chocolate Hamper", price: 800, qty: 1, image: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=100" }
-    ]
-  };
+  useEffect(() => {
+    dispatch(fetchOrderById(id));
+    return () => dispatch(clearCurrentOrder());
+  }, [dispatch, id]);
+
+  if (loading || !order) return <Loader fullScreen />;
 
   return (
-    <div className="bg-[#F9F9F9] min-h-screen pb-24">
-      
+    <div className="max-w-3xl mx-auto px-4 py-6 pb-20">
       {/* Header */}
-      <div className="bg-white p-4 shadow-sm sticky top-0 z-20 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-gray-600"><ArrowLeft size={24} /></button>
-        <div className="flex-1">
-          <h1 className="text-lg font-bold text-gray-800">Order Details</h1>
-          <p className="text-xs text-gray-400">ID: {orderData.id}</p>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-xl font-black text-gray-900">Order #{order._id.slice(-8)}</h1>
+            <p className="text-sm text-gray-500">Placed on {formatDate(order.createdAt)}</p>
+          </div>
+        </div>
+        <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
+          <Download size={20} />
+        </button>
+      </div>
+
+      {/* Tracker */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6">
+        <h3 className="font-bold text-gray-900 mb-4">Order Status</h3>
+        <OrderTracker status={order.status} />
+      </div>
+
+      {/* Items */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-50 bg-gray-50/50">
+          <h3 className="font-bold text-gray-900">Items ({order.items.length})</h3>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {order.items.map((item, idx) => (
+            <div key={idx} className="p-4 flex gap-4">
+              <img 
+                src={item.product?.images?.[0]?.url} 
+                alt={item.product?.name} 
+                className="w-20 h-20 rounded-xl object-cover bg-gray-50 border border-gray-100"
+              />
+              <div className="flex-1">
+                <h4 className="font-bold text-gray-900 text-sm line-clamp-2">{item.product?.name}</h4>
+                <p className="text-xs text-gray-500 mt-1">Qty: {item.quantity} × {formatPrice(item.price)}</p>
+                {item.variant && <span className="inline-block mt-2 px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded">{item.variant}</span>}
+              </div>
+              <div className="text-right">
+                <p className="font-black text-gray-900">{formatPrice(item.price * item.quantity)}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        
-        {/* 1. Tracker Section */}
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-          <h2 className="text-xs font-bold text-gray-500 uppercase mb-2">Order Status</h2>
-          <OrderTracker currentStatus={orderData.status} />
+      {/* Shipping & Payment Info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+          <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <MapPin size={18} className="text-gray-400" /> Delivery Address
+          </h3>
+          <p className="text-sm font-bold text-gray-800">{order.shippingAddress?.fullName}</p>
+          <p className="text-sm text-gray-500 leading-relaxed mt-1">
+            {order.shippingAddress?.street},<br/>
+            {order.shippingAddress?.city}, {order.shippingAddress?.state} - {order.shippingAddress?.postalCode}<br/>
+            Phone: {order.shippingAddress?.phone}
+          </p>
         </div>
 
-        {/* 2. Items List */}
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-           <h2 className="text-xs font-bold text-gray-500 uppercase mb-4">Items in Order</h2>
-           {orderData.items.map((item, index) => (
-             <div key={index} className="flex gap-3 mb-4 last:mb-0">
-                <div className="w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100">
-                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                </div>
-                <div>
-                   <h3 className="text-sm font-semibold text-gray-800">{item.name}</h3>
-                   <p className="text-xs text-gray-500">Qty: {item.qty}</p>
-                   <p className="text-sm font-bold text-[#FF6B6B]">₹{item.price}</p>
-                </div>
-             </div>
-           ))}
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+          <h3 className="font-bold text-gray-900 mb-3">Payment Summary</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between text-gray-500">
+              <span>Subtotal</span>
+              <span>{formatPrice(order.totalAmount)}</span>
+            </div>
+            <div className="flex justify-between text-gray-500">
+              <span>Shipping</span>
+              <span className="text-green-600">Free</span>
+            </div>
+            <div className="flex justify-between font-black text-gray-900 text-base border-t border-gray-100 pt-2 mt-2">
+              <span>Grand Total</span>
+              <span>{formatPrice(order.totalAmount)}</span>
+            </div>
+            <div className="mt-2 pt-2">
+               <span className={`px-2 py-1 rounded text-xs font-bold ${order.paymentInfo?.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                 Payment: {order.paymentInfo?.status?.toUpperCase()}
+               </span>
+            </div>
+          </div>
         </div>
-
-        {/* 3. Shipping Address */}
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-           <h2 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
-             <MapPin size={14} /> Shipping Details
-           </h2>
-           <h3 className="text-sm font-bold text-gray-800">{orderData.address.name}</h3>
-           <p className="text-sm text-gray-600 mt-1 leading-relaxed">{orderData.address.text}</p>
-           <p className="text-sm text-gray-600 mt-2 flex items-center gap-2">
-             <Phone size={14} /> {orderData.address.phone}
-           </p>
-        </div>
-
-        {/* 4. Payment Summary */}
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-           <h2 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
-             <FileText size={14} /> Payment Summary
-           </h2>
-           <div className="space-y-2 text-sm">
-             <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₹{orderData.total}</span></div>
-             <div className="flex justify-between text-green-600"><span>Delivery</span><span>Free</span></div>
-             <div className="h-px bg-gray-100 my-1"></div>
-             <div className="flex justify-between font-bold text-gray-900"><span>Grand Total</span><span>₹{orderData.total}</span></div>
-           </div>
-        </div>
-
       </div>
     </div>
   );

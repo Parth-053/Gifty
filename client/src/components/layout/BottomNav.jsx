@@ -17,7 +17,6 @@ const BottomNavbar = () => {
   ];
 
   return (
-    // ✅ Height Fixed to h-[65px] to prevent it from becoming too big
     <div className="fixed bottom-0 left-0 w-full bg-white z-50 rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] border-t border-gray-100 h-[65px]">
       
       <div className="flex justify-between items-center px-6 h-full pb-1">

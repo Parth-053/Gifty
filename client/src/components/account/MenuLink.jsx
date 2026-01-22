@@ -1,34 +1,26 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
-const MenuLink = ({ icon: Icon, label, subLabel, to, isDestructive }) => {
-  // If 'to' prop is present, make it a Link, else a Button (for logout)
-  const Wrapper = to ? Link : 'button';
-
+const MenuLink = ({ to, icon: Icon, label, end = false }) => {
   return (
-    <Wrapper 
-      to={to} 
-      className={`
-        w-full flex items-center justify-between p-4 bg-white border-b border-gray-50 last:border-none active:bg-gray-50 transition-colors
-        ${isDestructive ? 'text-red-500' : 'text-gray-700'}
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) => `
+        flex items-center justify-between p-4 rounded-xl transition-all group mb-2
+        ${isActive 
+          ? 'bg-gray-900 text-white shadow-lg' 
+          : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent hover:border-gray-100'
+        }
       `}
     >
-      <div className="flex items-center gap-4">
-        <div className={`
-          p-2 rounded-lg 
-          ${isDestructive ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-600'}
-        `}>
-          <Icon size={18} strokeWidth={2} />
-        </div>
-        <div className="text-left">
-          <h4 className="text-sm font-semibold">{label}</h4>
-          {subLabel && <p className="text-[10px] text-gray-400">{subLabel}</p>}
-        </div>
+      <div className="flex items-center gap-3">
+        <Icon size={20} className={({ isActive }) => isActive ? 'text-blue-400' : 'text-gray-400'} />
+        <span className="font-bold text-sm">{label}</span>
       </div>
-      
-      {!isDestructive && <ChevronRight size={18} className="text-gray-300" />}
-    </Wrapper>
+      <ChevronRight size={16} className="opacity-50 group-hover:translate-x-1 transition-transform" />
+    </NavLink>
   );
 };
 

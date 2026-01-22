@@ -1,23 +1,77 @@
 import React from 'react';
-import { Trash2, Edit2, MapPin } from 'lucide-react';
+import { MapPin, Phone, Trash2, Edit2, CheckCircle2 } from 'lucide-react';
 
-const AddressCard = ({ address, onDelete, onEdit }) => {
+const AddressCard = ({ address, onEdit, onDelete, onSelect, selected }) => {
   return (
-    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-3 flex gap-3">
-      <div className="mt-1 text-[#FF6B6B]">
-        <MapPin size={20} />
-      </div>
-      <div className="flex-1">
-        <div className="flex justify-between items-start">
-           <h3 className="text-sm font-bold text-gray-800">{address.type}</h3>
-           <div className="flex gap-3">
-              <button onClick={() => onEdit(address.id)} className="text-gray-400 hover:text-blue-500"><Edit2 size={16} /></button>
-              <button onClick={() => onDelete(address.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
-           </div>
+    <div 
+      onClick={() => onSelect && onSelect(address)}
+      className={`
+        relative p-5 rounded-2xl border-2 transition-all cursor-pointer group flex flex-col justify-between h-full
+        ${selected 
+          ? 'border-blue-600 bg-blue-50/30' 
+          : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-md'
+        }
+      `}
+    >
+      {/* Selection Checkmark */}
+      {selected && (
+        <div className="absolute top-4 right-4 text-blue-600">
+          <CheckCircle2 size={22} fill="currentColor" className="text-white" />
         </div>
-        <p className="text-sm font-semibold text-gray-700 mt-1">{address.name} <span className="text-xs font-normal text-gray-500">({address.phone})</span></p>
-        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{address.fullAddress}</p>
+      )}
+
+      <div>
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className={`mt-1 p-2 rounded-full ${selected ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-500'}`}>
+            <MapPin size={18} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-gray-200">
+                {address.type || 'Home'}
+              </span>
+              {address.isDefault && (
+                <span className="text-[10px] font-bold text-green-600">Default</span>
+              )}
+            </div>
+            <h4 className="font-bold text-gray-900 text-sm mt-1 line-clamp-1">{address.fullName || address.name}</h4>
+          </div>
+        </div>
+
+        {/* Address Body */}
+        <p className="text-gray-500 text-sm leading-relaxed pl-11 mb-2">
+          {address.street}, {address.city}, {address.state}
+          <br />
+          <span className="font-bold text-gray-900">{address.postalCode}</span>
+        </p>
+        
+        <div className="flex items-center gap-2 text-gray-500 text-sm pl-11 font-medium">
+          <Phone size={14} /> {address.phone}
+        </div>
       </div>
+
+      {/* Action Buttons */}
+      {(onEdit || onDelete) && (
+        <div className="flex gap-2 mt-5 pl-11 pt-4 border-t border-gray-50">
+          {onEdit && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEdit(address); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center gap-1"
+            >
+              <Edit2 size={12} /> Edit
+            </button>
+          )}
+          {onDelete && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onDelete(address._id); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-1"
+            >
+              <Trash2 size={12} /> Delete
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

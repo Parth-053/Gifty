@@ -1,22 +1,29 @@
 import React from 'react';
 
-const filters = ["All", "Processing", "Shipped", "Delivered", "Cancelled"];
+const filters = [
+  { id: 'all', label: 'All Orders' },
+  { id: 'Processing', label: 'Processing' },
+  { id: 'Shipped', label: 'Shipped' },
+  { id: 'Delivered', label: 'Delivered' },
+  { id: 'Cancelled', label: 'Cancelled' },
+];
 
-const OrderFilter = ({ activeFilter, setFilter }) => {
+const OrderFilter = ({ activeFilter, onFilterChange }) => {
   return (
-    <div className="bg-white sticky top-[60px] z-10 px-4 py-3 shadow-sm border-b border-gray-100 flex gap-3 overflow-x-auto no-scrollbar">
+    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
       {filters.map((filter) => (
         <button
-          key={filter}
-          onClick={() => setFilter(filter)}
+          key={filter.id}
+          onClick={() => onFilterChange(filter.id)}
           className={`
-            px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 border
-            ${activeFilter === filter 
-              ? 'bg-[#FF6B6B] text-white border-[#FF6B6B] shadow-md shadow-[#FF6B6B]/20' 
-              : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}
+            px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border
+            ${activeFilter === filter.id 
+              ? 'bg-gray-900 text-white border-gray-900 shadow-md' 
+              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+            }
           `}
         >
-          {filter}
+          {filter.label}
         </button>
       ))}
     </div>

@@ -1,56 +1,82 @@
-import React from 'react';
-import { Minus, Plus, Trash2 } from 'lucide-react';
-import { useCart } from '../../context/CartContext'; // Hook Import
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Minus, Plus, Trash2, Loader2 } from 'lucide-react';
+import { formatPrice } from '../../utils/formatCurrency';
+import { useCart } from '../../hooks/useCart';
 
 const CartItem = ({ item }) => {
-  const { updateQty, removeFromCart } = useCart();
+  const { updateQuantity, removeFromCart } = useCart();
+  const [updating, setUpdating] = useState(false);
+
+  // Handle Quantity Change with Debounce/Loading state
+  const handleQuantity = async (newQty) => {
+    if (newQty < 1 || newQty > item.product.stock) return;
+    setUpdating(true);
+    await updateQuantity(item._id, newQty);
+    setUpdating(false);
+  };
 
   return (
-    <div className="bg-white p-3 rounded-xl border border-gray-100 mb-3 flex gap-3 shadow-sm">
-      {/* Image */}
-      <div className="w-20 h-20 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
-         <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+    <div className="flex gap-4 py-6 border-b border-gray-100 last:border-0">
+      {/* Product Image */}
+      <div className="w-24 h-24 flex-shrink-0 bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
+        <img 
+          src={item.product.images?.[0]?.url} 
+          alt={item.product.name} 
+          className="w-full h-full object-cover"
+        />
       </div>
 
-      {/* Details */}
+      {/* Product Details */}
       <div className="flex-1 flex flex-col justify-between">
-        <div className="flex justify-between items-start">
-           <h3 className="text-xs font-bold text-gray-800 line-clamp-2 w-[85%]">{item.name}</h3>
-           <button 
-             onClick={() => removeFromCart(item.id)} 
-             className="text-gray-400 hover:text-red-500 p-1 active:scale-90 transition-transform"
-           >
-             <Trash2 size={16} />
-           </button>
+        <div>
+          <div className="flex justify-between items-start">
+            <Link 
+              to={`/product/${item.product._id}`} 
+              className="font-bold text-gray-900 line-clamp-2 hover:text-blue-600 transition-colors"
+            >
+              {item.product.name}
+            </Link>
+            <button 
+              onClick={() => removeFromCart(item._id)}
+              className="text-gray-400 hover:text-red-500 transition-colors p-1"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+          
+          <p className="text-xs text-gray-500 mt-1">
+            {item.variant ? `Variant: ${item.variant}` : 'Standard'}
+          </p>
         </div>
-        
-        {/* Optional Customization Badge */}
-        {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
-           <p className="text-[10px] text-gray-500 bg-gray-50 inline-block px-1.5 rounded mt-1">Customized</p>
-        )}
 
+        {/* Price & Quantity Controls */}
         <div className="flex justify-between items-end mt-2">
-           <span className="text-sm font-bold text-gray-900">₹{item.price * item.qty}</span>
-           
-           {/* Stepper */}
-           <div className="flex items-center gap-3 bg-white rounded-lg px-2 py-1 border border-gray-200 shadow-sm">
-              <button 
-                onClick={() => updateQty(item.id, 'dec')} 
-                disabled={item.qty === 1} 
-                className="text-gray-500 disabled:opacity-30 active:scale-75 transition-transform"
-              >
-                <Minus size={14} />
-              </button>
-              
-              <span className="text-xs font-bold w-4 text-center">{item.qty}</span>
-              
-              <button 
-                onClick={() => updateQty(item.id, 'inc')} 
-                className="text-gray-800 active:scale-75 transition-transform"
-              >
-                <Plus size={14} />
-              </button>
-           </div>
+          <p className="font-black text-lg text-gray-900">
+            {formatPrice(item.price * item.quantity)}
+          </p>
+
+          <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 h-9">
+            <button 
+              onClick={() => handleQuantity(item.quantity - 1)}
+              disabled={updating || item.quantity <= 1}
+              className="w-8 h-full flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-l-lg disabled:opacity-50"
+            >
+              <Minus size={14} />
+            </button>
+            
+            <span className="w-8 text-center text-sm font-bold flex items-center justify-center">
+              {updating ? <Loader2 size={12} className="animate-spin" /> : item.quantity}
+            </span>
+            
+            <button 
+              onClick={() => handleQuantity(item.quantity + 1)}
+              disabled={updating || item.quantity >= item.product.stock}
+              className="w-8 h-full flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-r-lg disabled:opacity-50"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

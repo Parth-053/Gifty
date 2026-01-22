@@ -1,36 +1,74 @@
-import React from 'react';
-
-// Fake Data
-const categories = [
-  { name: 'Birthday', img: 'https://cdn-icons-png.flaticon.com/512/2488/2488980.png' },
-  { name: 'Wedding', img: 'https://cdn-icons-png.flaticon.com/512/2706/2706950.png' },
-  { name: 'Anniversary', img: 'https://cdn-icons-png.flaticon.com/512/1164/1164620.png' },
-  { name: 'For Him', img: 'https://cdn-icons-png.flaticon.com/512/4140/4140048.png' },
-  { name: 'For Her', img: 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png' },
-  { name: 'Flowers', img: 'https://cdn-icons-png.flaticon.com/512/10752/10752182.png' },
-];
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
+import { fetchCategories } from '../../store/categorySlice';
+import { Package, ArrowRight } from 'lucide-react';
 
 const CategoryRail = () => {
+  const dispatch = useDispatch();
+  const { items: categories, loading } = useSelector((state) => state.categories);
+
+  // Fetch only if empty
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categories.length]);
+
+  // Loading Skeleton
+  if (loading && categories.length === 0) {
+    return (
+      <div className="py-4">
+        <div className="flex gap-4 overflow-hidden">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-2 min-w-[72px]">
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 animate-pulse" />
+              <div className="w-12 h-3 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Hide if no categories
+  if (categories.length === 0) return null;
+
   return (
-    <div className="mt-6">
-      <div className="flex justify-between items-center px-4 mb-3">
-        <h2 className="font-bold text-gray-800 text-base">Shop by Category</h2>
-        <span className="text-xs text-[#FF6B6B] font-semibold">View All</span>
+    <div className="py-4">
+      <div className="flex items-center justify-between px-1 mb-4">
+        <h3 className="font-bold text-gray-900 text-lg">Shop by Category</h3>
+        <Link to="/categories" className="text-sm text-blue-600 font-bold hover:underline flex items-center gap-1">
+          See All <ArrowRight size={14} />
+        </Link>
       </div>
       
       {/* Horizontal Scroll Container */}
-      <div className="flex overflow-x-auto gap-4 px-4 pb-2 scrollbar-hide">
-        {categories.map((cat, index) => (
-          <div key={index} className="flex flex-col items-center flex-shrink-0 w-[70px]">
-            <div className="w-[65px] h-[65px] rounded-full p-1 border-2 border-[#FF6B6B] flex items-center justify-center bg-white shadow-sm">
-              <div className="w-full h-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
-                 <img src={cat.img} alt={cat.name} className="w-10 h-10 object-contain" />
-              </div>
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+        {categories.map((cat) => (
+          <Link 
+            key={cat._id} 
+            to={`/shop?category=${cat._id}`}
+            className="flex flex-col items-center gap-2 min-w-[72px] snap-start group cursor-pointer"
+          >
+            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm group-hover:shadow-md group-hover:border-blue-200 transition-all transform group-hover:scale-105">
+              {/* Image Logic: Database URL -> Fallback Icon */}
+              {cat.image?.url ? (
+                <img 
+                  src={cat.image.url} 
+                  alt={cat.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 bg-white">
+                  <Package size={24} strokeWidth={1.5} />
+                </div>
+              )}
             </div>
-            <span className="text-[11px] font-medium text-gray-700 mt-2 text-center leading-tight">
+            <span className="text-xs font-medium text-gray-700 text-center truncate w-full px-1 group-hover:text-blue-600 transition-colors">
               {cat.name}
             </span>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

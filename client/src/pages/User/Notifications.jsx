@@ -1,71 +1,70 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, BellOff, CheckCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-// ✅ Fix: Import correct component
 import NotificationItem from '../../components/user/NotificationItem';
+import Loader from '../../components/common/Loader';
+import api from '../../api/axios';
 
 const Notifications = () => {
   const navigate = useNavigate();
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'order', title: 'Order Delivered', message: 'Your customized mug (Order #98212) has been delivered successfully.', time: '2h ago', read: false },
-    { id: 2, type: 'promo', title: '50% Off Sale!', message: 'Valentine special sale is live. Get flat 50% off on couple gifts.', time: '5h ago', read: false },
-    { id: 3, type: 'account', title: 'Login Alert', message: 'New login detected from iPhone 13 Pro in Mumbai.', time: '1d ago', read: true },
-    { id: 4, type: 'order', title: 'Order Shipped', message: 'Your order #88321 is on the way. Track it now.', time: '2d ago', read: true },
-  ]);
-
-  const markAllRead = () => {
-    const updated = notifications.map(n => ({ ...n, read: true }));
-    setNotifications(updated);
+  const fetchNotifications = async () => {
+    try {
+      const response = await api.get('/user/notifications');
+      setNotifications(response.data.data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const clearAll = () => {
-    if(window.confirm("Clear all notifications?")) {
-      setNotifications([]);
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const markAllRead = async () => {
+    try {
+      await api.put('/user/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({...n, isRead: true})));
+    } catch {
+      console.error("Failed to mark all read");
     }
   };
 
   return (
-    <div className="bg-[#F9F9F9] min-h-screen">
-      <div className="bg-white p-4 shadow-sm sticky top-0 z-20 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-           <button onClick={() => navigate(-1)} className="text-gray-600"><ArrowLeft size={24} /></button>
-           <h1 className="text-lg font-bold text-gray-800">Notifications</h1>
+    <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-black text-gray-900">Notifications</h1>
         </div>
-        
         {notifications.length > 0 && (
-           <div className="flex gap-3">
-              <button onClick={markAllRead} className="text-blue-600 text-[10px] font-bold flex items-center gap-1">
-                 <CheckCheck size={14} /> READ ALL
-              </button>
-              <button onClick={clearAll} className="text-gray-400 text-[10px] font-bold">
-                 CLEAR
-              </button>
-           </div>
+          <button onClick={markAllRead} className="text-blue-600 text-xs font-bold flex items-center gap-1 hover:underline">
+            <CheckCheck size={14} /> Mark all read
+          </button>
         )}
       </div>
 
-      <div className="p-0">
-        {notifications.length > 0 ? (
-          <div className="bg-white mt-2 border-y border-gray-100">
-             {notifications.map(item => (
-                <NotificationItem key={item.id} data={item} />
-             ))}
+      {loading ? (
+        <Loader />
+      ) : notifications.length === 0 ? (
+        <div className="text-center py-20 flex flex-col items-center">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
+            <BellOff size={32} />
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center pt-32 opacity-60">
-             <div className="bg-gray-100 p-6 rounded-full mb-4">
-                <BellOff size={40} className="text-gray-400" />
-             </div>
-             <h3 className="text-sm font-bold text-gray-800">No new notifications</h3>
-             <p className="text-xs text-gray-500 mt-1">You're all caught up!</p>
-          </div>
-        )}
-      </div>
-      
-      {notifications.length > 4 && (
-        <p className="text-center text-[10px] text-gray-400 mt-6 mb-10">Showing last 30 days activity</p>
+          <p className="text-gray-500 font-bold">You're all caught up!</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {notifications.map((notif) => (
+            <NotificationItem key={notif._id} notification={notif} />
+          ))}
+        </div>
       )}
     </div>
   );

@@ -1,94 +1,120 @@
 import React, { useState } from 'react';
-import { Star, Minus, Plus, Heart, Share2, Truck, ShieldCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Star, ShoppingCart, Heart, Minus, Plus, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
+import Button from '../common/Button';
+import { formatPrice, calculateDiscount } from '../../utils/formatCurrency';
+import { useCart } from '../../hooks/useCart';
+import { useWishlist } from '../../hooks/useWishlist';
 
-const ProductInfo = ({ product, onAddToCart, onToggleWishlist, isInWishlist }) => {
-  const navigate = useNavigate();
-  const [qty, setQty] = useState(1);
+const ProductInfo = ({ product }) => {
+  const [quantity, setQuantity] = useState(1);
+  const { addToCart, loading: cartLoading } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
+  
+  const isLiked = isInWishlist(product._id);
+  const discount = calculateDiscount(product.originalPrice, product.price);
 
-  // Handle Qty Change
-  const handleQty = (type) => {
-    if (type === 'inc') setQty(qty + 1);
-    else setQty(Math.max(1, qty - 1));
-  };
+  const increment = () => setQuantity(prev => (prev < product.stock ? prev + 1 : prev));
+  const decrement = () => setQuantity(prev => (prev > 1 ? prev - 1 : 1));
 
   return (
-    <div className="space-y-4">
-      {/* Title & Rating */}
+    <div className="space-y-6">
+      
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-        <div className="flex items-center gap-2 mt-2">
-          <div className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-bold flex items-center gap-1">
-            {product.rating} <Star size={10} className="fill-current" />
+        <div className="flex items-center gap-2 mb-2">
+          <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+            {product.category?.name || 'General'}
+          </span>
+          {discount > 0 && (
+            <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+              {discount}% OFF
+            </span>
+          )}
+        </div>
+        
+        <h1 className="text-2xl md:text-4xl font-black text-gray-900 mb-2">{product.name}</h1>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 text-yellow-500">
+            <Star fill="currentColor" size={18} />
+            <span className="font-bold text-gray-900">{product.rating || 4.5}</span>
+            <span className="text-gray-400 text-sm">({product.numReviews || 0} reviews)</span>
           </div>
-          <span className="text-xs text-gray-500">({product.reviews} Reviews)</span>
+          {product.stock > 0 ? (
+            <span className="text-green-600 text-sm font-bold flex items-center gap-1">In Stock</span>
+          ) : (
+            <span className="text-red-600 text-sm font-bold">Out of Stock</span>
+          )}
         </div>
       </div>
 
       {/* Price */}
-      <div className="flex items-end gap-3">
-        <span className="text-2xl font-bold text-gray-900">₹{product.price}</span>
-        <span className="text-sm text-gray-400 line-through mb-1">₹{product.originalPrice}</span>
-        <span className="text-sm font-bold text-[#FF6B6B] mb-1">({product.discount}% OFF)</span>
+      <div className="flex items-end gap-3 pb-6 border-b border-gray-100">
+        <span className="text-4xl font-black text-gray-900">{formatPrice(product.price)}</span>
+        {discount > 0 && (
+          <span className="text-xl text-gray-400 line-through mb-1">{formatPrice(product.originalPrice)}</span>
+        )}
       </div>
 
-      {/* Trust Badges */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-blue-50 text-blue-700 p-3 rounded-xl flex items-center gap-2 text-xs font-bold">
-           <Truck size={16} /> Free Delivery
+      {/* Controls */}
+      <div className="space-y-4">
+        {/* Quantity */}
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-bold text-gray-700">Quantity:</span>
+          <div className="flex items-center bg-gray-50 rounded-xl border border-gray-200">
+            <button onClick={decrement} className="p-3 hover:bg-gray-100 rounded-l-xl transition-colors"><Minus size={16} /></button>
+            <span className="w-12 text-center font-bold text-gray-900">{quantity}</span>
+            <button onClick={increment} className="p-3 hover:bg-gray-100 rounded-r-xl transition-colors"><Plus size={16} /></button>
+          </div>
         </div>
-        <div className="bg-purple-50 text-purple-700 p-3 rounded-xl flex items-center gap-2 text-xs font-bold">
-           <ShieldCheck size={16} /> 1 Year Warranty
+
+        {/* Buttons */}
+        <div className="flex gap-3">
+          <Button 
+            onClick={() => addToCart(product, quantity)}
+            isLoading={cartLoading}
+            disabled={product.stock === 0}
+            size="lg" 
+            fullWidth
+            icon={ShoppingCart}
+          >
+            {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+          </Button>
+          
+          <button 
+            onClick={() => toggleWishlist(product._id)}
+            className={`
+              p-4 rounded-xl border-2 transition-all flex-shrink-0
+              ${isLiked ? 'bg-red-50 border-red-200 text-red-500' : 'border-gray-200 text-gray-400 hover:border-blue-200 hover:text-blue-500'}
+            `}
+          >
+            <Heart fill={isLiked ? "currentColor" : "none"} size={24} />
+          </button>
         </div>
+      </div>
+
+      {/* Features */}
+      <div className="grid grid-cols-3 gap-4 pt-6">
+        <FeatureItem icon={Truck} title="Free Delivery" subtitle="On orders over ₹999" />
+        <FeatureItem icon={RotateCcw} title="Easy Returns" subtitle="7 Days Policy" />
+        <FeatureItem icon={ShieldCheck} title="Secure Payment" subtitle="100% Protected" />
       </div>
 
       {/* Description */}
-      <div>
-         <h3 className="text-sm font-bold text-gray-800 mb-1">Description</h3>
-         <p className="text-sm text-gray-500 leading-relaxed">{product.description}</p>
-      </div>
-
-      {/* Action Buttons (Sticky Bottom Logic handled in Parent, here is static for Desktop) */}
-      <div className="pt-4 pb-24">
-         
-         {/* Quantity & Wishlist Row */}
-         <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center bg-gray-100 rounded-lg">
-               <button onClick={() => handleQty('dec')} className="p-3 text-gray-600"><Minus size={16} /></button>
-               <span className="font-bold w-6 text-center">{qty}</span>
-               <button onClick={() => handleQty('inc')} className="p-3 text-gray-600"><Plus size={16} /></button>
-            </div>
-            
-            <button 
-              onClick={() => onToggleWishlist(product)}
-              className={`p-3 rounded-full border ${isInWishlist ? 'bg-red-50 border-red-200 text-[#FF6B6B]' : 'border-gray-200 text-gray-400'}`}
-            >
-               <Heart size={20} className={isInWishlist ? 'fill-current' : ''} />
-            </button>
-            
-            <button className="p-3 rounded-full border border-gray-200 text-gray-400">
-               <Share2 size={20} />
-            </button>
-         </div>
-
-         {/* Main CTA Buttons */}
-         <div className="grid grid-cols-2 gap-3">
-            <button 
-               onClick={() => onAddToCart(product, qty)}
-               className="bg-white border-2 border-gray-900 text-gray-900 py-3.5 rounded-xl font-bold active:scale-95 transition-transform"
-            >
-               Add to Cart
-            </button>
-            <button 
-               onClick={() => navigate(`/customize?productId=${product.id}`)}
-               className="bg-[#FF6B6B] text-white py-3.5 rounded-xl font-bold shadow-lg shadow-[#FF6B6B]/30 active:scale-95 transition-transform"
-            >
-               Customize Now
-            </button>
-         </div>
+      <div className="pt-6 border-t border-gray-100">
+        <h3 className="font-bold text-gray-900 mb-2">Description</h3>
+        <p className="text-gray-600 leading-relaxed text-sm">{product.description}</p>
       </div>
     </div>
   );
 };
+
+const FeatureItem = ({ icon: Icon, title, subtitle }) => (
+  <div className="text-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+    <Icon className="mx-auto text-blue-600 mb-2" size={24} />
+    <p className="font-bold text-gray-900 text-xs">{title}</p>
+    <p className="text-[10px] text-gray-500">{subtitle}</p>
+  </div>
+);
 
 export default ProductInfo;

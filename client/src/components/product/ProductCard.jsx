@@ -1,96 +1,113 @@
 import React from 'react';
-import { Star, Heart, ShoppingBag } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
-// Hooks Import
+import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Heart, Star, Eye } from 'lucide-react';
+import { formatPrice, calculateDiscount } from '../../utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { toggleWishlist, isInWishlist } = useWishlist();
+  const { isInWishlist, toggleWishlist } = useWishlist();
 
-  const isWishlisted = isInWishlist(product.id);
+  const isLiked = isInWishlist(product._id);
+  const discount = calculateDiscount(product.originalPrice, product.price);
 
-  // Navigate to Details Page
-  const handleCardClick = () => {
-    navigate(`/product/${product.id}`);
-    window.scrollTo(0, 0); // Click karne par page top par khule
-  };
-
-  // Stop Propagation functions (Button dabane par page na khule)
   const handleAddToCart = (e) => {
-    e.stopPropagation();
-    addToCart(product);
-    alert("Added to Cart!");
+    e.preventDefault(); // Prevent navigating to detail page
+    addToCart(product, 1);
   };
 
   const handleWishlist = (e) => {
-    e.stopPropagation();
-    toggleWishlist(product);
+    e.preventDefault();
+    toggleWishlist(product._id);
   };
 
   return (
-    <div 
-      onClick={handleCardClick}
-      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden group active:scale-[0.98] transition-transform duration-300 cursor-pointer relative"
-    >
+    <div className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col h-full">
       
-      {/* Image Section */}
-      <div className="h-40 w-full bg-gray-50 relative overflow-hidden">
+      {/* 1. Image Section */}
+      <Link to={`/product/${product._id}`} className="relative aspect-[4/5] overflow-hidden bg-gray-50">
         <img 
-          src={product.image} // Make sure data has 'image' key
-          alt={product.name} 
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+          src={product.images[0]?.url} 
+          alt={product.name}
+          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
         />
         
-        {/* Discount Badge */}
-        {product.discount > 0 && (
-          <span className="absolute top-2 left-2 bg-[#FF6B6B] text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-            {product.discount}% OFF
-          </span>
-        )}
-
-        {/* Wishlist Button */}
-        <button 
-          onClick={handleWishlist}
-          className={`absolute top-2 right-2 p-1.5 rounded-full shadow-sm transition-colors z-10 ${isWishlisted ? 'bg-red-50 text-[#FF6B6B]' : 'bg-white/80 text-gray-400 hover:text-[#FF6B6B]'}`}
-        >
-          <Heart size={14} className={isWishlisted ? "fill-current" : ""} />
-        </button>
-      </div>
-      
-      {/* Details Section */}
-      <div className="p-3">
-        <h3 className="text-xs font-bold text-gray-800 line-clamp-1 mb-1 group-hover:text-[#FF6B6B] transition-colors">
-          {product.name}
-        </h3>
-        
-        <div className="flex items-center gap-1 mb-2">
-          <div className="bg-green-100 text-green-700 text-[10px] px-1 rounded flex items-center font-bold">
-             {product.rating || 4.5} <Star size={8} className="fill-current ml-0.5" />
-          </div>
-          <span className="text-[10px] text-gray-400">({product.reviews || 0})</span>
+        {/* Badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1">
+          {discount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg">
+              {discount}% OFF
+            </span>
+          )}
+          {product.stock < 5 && product.stock > 0 && (
+            <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg">
+              LOW STOCK
+            </span>
+          )}
         </div>
 
-        <div className="flex justify-between items-end">
-          <div className="flex flex-col">
-             {product.originalPrice && (
-               <span className="text-[10px] text-gray-400 line-through">₹{product.originalPrice}</span>
-             )}
-             <span className="text-sm font-bold text-gray-900">₹{product.price}</span>
+        {/* Action Buttons (Desktop Overlay) */}
+        <div className="absolute right-3 top-3 flex flex-col gap-2 translate-x-12 group-hover:translate-x-0 transition-all duration-300">
+          <button 
+            onClick={handleWishlist}
+            className={`p-2 rounded-full shadow-lg transition-colors ${
+              isLiked ? 'bg-red-50 text-red-500' : 'bg-white text-gray-600 hover:bg-red-50 hover:text-red-500'
+            }`}
+          >
+            <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
+          </button>
+          {/* Quick View Button (Optional future feature) */}
+          <button className="p-2 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-full shadow-lg transition-colors md:flex hidden">
+            <Eye size={18} />
+          </button>
+        </div>
+
+        {/* Mobile Wishlist Button (Always Visible) */}
+        <button 
+          onClick={handleWishlist}
+          className="md:hidden absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full text-gray-600 shadow-sm"
+        >
+          <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-red-500" : ""} />
+        </button>
+      </Link>
+
+      {/* 2. Content Section */}
+      <div className="p-4 flex-1 flex flex-col">
+        {/* Category & Rating */}
+        <div className="flex justify-between items-start mb-2">
+          <p className="text-xs text-gray-500 font-medium">{product.category?.name || "Category"}</p>
+          <div className="flex items-center gap-1 bg-yellow-50 px-1.5 py-0.5 rounded text-yellow-700 text-xs font-bold">
+            <Star size={10} fill="currentColor" />
+            <span>{product.rating || 4.5}</span>
           </div>
-          
+        </div>
+
+        {/* Title */}
+        <Link to={`/product/${product._id}`} className="font-bold text-gray-900 line-clamp-2 hover:text-blue-600 transition-colors mb-auto">
+          {product.name}
+        </Link>
+
+        {/* Price & Cart Action */}
+        <div className="mt-4 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-black text-gray-900">{formatPrice(product.price)}</span>
+              {discount > 0 && (
+                <span className="text-xs text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
+              )}
+            </div>
+          </div>
+
           <button 
             onClick={handleAddToCart}
-            className="bg-gray-900 text-white p-2 rounded-lg shadow-md active:scale-90 transition-transform hover:bg-[#FF6B6B]"
+            className="p-2.5 bg-gray-900 text-white rounded-xl hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-200 transition-all active:scale-95"
           >
-             <ShoppingBag size={14} />
+            <ShoppingCart size={18} />
           </button>
         </div>
       </div>
-
     </div>
   );
 };

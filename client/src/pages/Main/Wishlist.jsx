@@ -1,74 +1,49 @@
-import React from 'react';
-import { Heart, ArrowLeft, ShoppingBag, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
-// ✅ Fix: Use separate hooks instead of useShop
-import { useWishlist } from '../../hooks/useWishlist';
-import { useCart } from '../../hooks/useCart';
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Link } from 'react-router-dom';
+import { Heart, ArrowRight } from 'lucide-react';
+import ProductGrid from '../../components/product/ProductGrid';
+import Loader from '../../components/common/Loader';
+import { fetchWishlist } from '../../store/wishlistSlice';
 
 const Wishlist = () => {
-  const navigate = useNavigate();
-  
-  // ✅ Get data from hooks
-  const { wishlistItems, toggleWishlist } = useWishlist();
-  const { addToCart } = useCart();
+  const dispatch = useDispatch();
+  const { items, loading } = useSelector((state) => state.wishlist);
 
-  const handleMoveToCart = (item) => {
-    addToCart(item);
-    toggleWishlist(item); // Optional: Remove from wishlist after adding
-    alert("Moved to Cart!");
-  };
+  useEffect(() => {
+    dispatch(fetchWishlist());
+  }, [dispatch]);
+
+  const products = items.map(item => item.product || item); 
+
+  if (loading) return <Loader fullScreen />;
+
+  if (products.length === 0) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-20 h-20 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-6">
+          <Heart size={32} />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 mb-2">Empty Wishlist</h2>
+        <p className="text-gray-500 max-w-sm mb-8">You haven't saved any items yet.</p>
+        <Link to="/categories" className="bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center gap-2">
+          Browse Products <ArrowRight size={16} />
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-[#F9F9F9] min-h-screen pb-24">
-      {/* Header */}
-      <div className="bg-white p-4 shadow-sm sticky top-0 z-20 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-gray-600"><ArrowLeft size={24} /></button>
-        <h1 className="text-lg font-bold text-gray-800">My Wishlist <span className="text-gray-400 text-sm">({wishlistItems.length})</span></h1>
+    <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
+      <div className="mb-8 flex items-end justify-between border-b border-gray-100 pb-4">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3">
+            <Heart className="text-pink-600 fill-pink-600" /> My Wishlist
+          </h1>
+          <p className="text-gray-500 mt-2">{items.length} items saved</p>
+        </div>
       </div>
-
-      {/* List */}
-      <div className="p-4 space-y-3">
-        {wishlistItems.length > 0 ? (
-          wishlistItems.map(item => (
-            <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-100 flex gap-3 shadow-sm animate-fade-in">
-              {/* Image */}
-              <div className="w-24 h-24 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{item.name}</h3>
-                  <p className="text-sm font-bold text-[#FF6B6B] mt-1">₹{item.price}</p>
-                </div>
-                
-                {/* Actions */}
-                <div className="flex justify-between items-center mt-2">
-                   <button 
-                     onClick={() => toggleWishlist(item)} 
-                     className="text-gray-400 hover:text-red-500 text-xs flex items-center gap-1"
-                   >
-                     <Trash2 size={14} /> Remove
-                   </button>
-                   <button 
-                     onClick={() => handleMoveToCart(item)}
-                     className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition-transform"
-                   >
-                     <ShoppingBag size={12} /> Move to Cart
-                   </button>
-                </div>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="flex flex-col items-center justify-center pt-32 opacity-50">
-            <Heart size={48} className="text-gray-300 mb-3" />
-            <p className="text-gray-500 text-sm">Your wishlist is empty.</p>
-          </div>
-        )}
-      </div>
+      <ProductGrid products={products} />
     </div>
   );
 };

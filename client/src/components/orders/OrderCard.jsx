@@ -1,96 +1,86 @@
 import React from 'react';
-import { ChevronRight, Package, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Package } from 'lucide-react';
+import { formatPrice } from '../../utils/formatCurrency';
+import { formatDate } from '../../utils/formatDate';
+import Badge from '../common/Badge';
 
-// Status Colors Helper
-const getStatusStyle = (status) => {
+const getStatusVariant = (status) => {
   switch (status) {
-    case 'Delivered': return { color: 'text-green-600 bg-green-50 border-green-100', icon: CheckCircle };
-    case 'Shipped': return { color: 'text-blue-600 bg-blue-50 border-blue-100', icon: Truck };
-    case 'Processing': return { color: 'text-orange-600 bg-orange-50 border-orange-100', icon: Clock };
-    case 'Cancelled': return { color: 'text-red-600 bg-red-50 border-red-100', icon: XCircle };
-    default: return { color: 'text-gray-600 bg-gray-50 border-gray-100', icon: Package };
+    case 'Delivered': return 'success';
+    case 'Processing': return 'info';
+    case 'Shipped': return 'warning';
+    case 'Cancelled': return 'danger';
+    default: return 'neutral';
   }
 };
 
 const OrderCard = ({ order }) => {
-  const navigate = useNavigate();
-  
-  // ✅ FIX: Safety check to prevent crash
-  if (!order) return null;
-
-  const { color, icon: StatusIcon } = getStatusStyle(order.status);
-
-  // ✅ FIX: Handle data structure correctly (Supports both styles)
-  // Agar 'items' array hai (New style) to uska pehla item lo, nahi to direct order object (Old style) use karo
-  const image = order.items ? order.items[0].image : order.image;
-  const name = order.items ? order.items[0].name : order.productName;
-  const moreItemsCount = order.items ? order.items.length - 1 : (order.moreItems || 0);
-
-  const handleCardClick = () => {
-    // Agar id '#' se start hoti hai to use hata do URL ke liye
-    const cleanId = order.id.replace('#', '');
-    navigate(`/account/orders/${cleanId}`);
-  };
-
   return (
-    <div 
-      onClick={handleCardClick}
-      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4 active:scale-[0.99] transition-transform cursor-pointer"
-    >
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden group">
       
-      {/* Header: Date & Status */}
-      <div className="flex justify-between items-start mb-3">
+      {/* Header: Order ID & Status */}
+      <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
         <div>
-          <p className="text-[10px] text-gray-400 font-medium">ORDER ID: {order.id}</p>
-          <p className="text-xs font-bold text-gray-800 mt-0.5">{order.date}</p>
+          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Order #{order._id.slice(-8)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Placed on {formatDate(order.createdAt)}</p>
         </div>
-        <div className={`px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold border ${color}`}>
-          <StatusIcon size={12} />
-          {order.status.toUpperCase()}
-        </div>
+        <Badge variant={getStatusVariant(order.status)}>
+          {order.status}
+        </Badge>
       </div>
 
-      {/* Body: Image & Details */}
-      <div className="flex gap-3">
-        {/* Product Image */}
-        <div className="w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 relative">
-          <img src={image} alt={name} className="w-full h-full object-cover" />
-          {moreItemsCount > 0 && (
-             <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs font-bold">
-               +{moreItemsCount}
-             </div>
+      {/* Body: Items Preview */}
+      <div className="p-4 flex gap-4 items-center">
+        {/* Product Images (Show max 3) */}
+        <div className="flex -space-x-3">
+          {order.items.slice(0, 3).map((item, index) => (
+            <div key={item._id || index} className="w-12 h-12 rounded-full border-2 border-white bg-gray-100 overflow-hidden relative shadow-sm">
+              {item.product?.images?.[0]?.url ? (
+                <img 
+                  src={item.product.images[0].url} 
+                  alt={item.product.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <Package size={16} />
+                </div>
+              )}
+            </div>
+          ))}
+          {/* Overflow Counter */}
+          {order.items.length > 3 && (
+            <div className="w-12 h-12 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">
+              +{order.items.length - 3}
+            </div>
           )}
         </div>
 
         {/* Info */}
-        <div className="flex-1 flex flex-col justify-center">
-          <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{name}</h3>
-          {moreItemsCount > 0 && (
-            <p className="text-[10px] text-gray-500">and {moreItemsCount} more items</p>
-          )}
-          <p className="text-sm font-bold text-[#FF6B6B] mt-1">₹{order.total}</p>
+        <div className="flex-1 pl-2">
+          <p className="text-sm font-bold text-gray-900">
+            {order.items.length} {order.items.length === 1 ? 'Item' : 'Items'}
+          </p>
+          <p className="text-xs text-gray-500 truncate max-w-[150px] sm:max-w-xs">
+            {order.items[0]?.product?.name} {order.items.length > 1 && '...'}
+          </p>
         </div>
 
-        {/* Arrow Icon */}
-        <div className="flex items-center text-gray-300">
-          <ChevronRight size={20} />
+        {/* Total Price (Desktop) */}
+        <div className="hidden sm:block text-right">
+          <p className="text-xs text-gray-400">Total Amount</p>
+          <p className="text-lg font-black text-gray-900">{formatPrice(order.totalAmount)}</p>
         </div>
       </div>
 
-      {/* Footer Button */}
-      <div className="mt-4 pt-3 border-t border-gray-50 flex gap-3">
-        {order.status === 'Delivered' ? (
-           <span className="w-full py-2 text-center text-xs font-bold text-[#FF6B6B] bg-[#FF6B6B]/5 rounded-lg">
-             Write Review
-           </span>
-        ) : (
-           <span className="w-full py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 rounded-lg">
-             View Details
-           </span>
-        )}
-      </div>
-
+      {/* Footer: Action */}
+      <Link 
+        to={`/user/orders/${order._id}`}
+        className="block bg-gray-50 p-3 text-center text-sm font-bold text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center gap-1 group-hover:text-blue-700"
+      >
+        View Order Details <ChevronRight size={16} />
+      </Link>
     </div>
   );
 };

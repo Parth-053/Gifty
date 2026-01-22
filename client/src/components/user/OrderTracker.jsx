@@ -1,54 +1,74 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
-const steps = ["Order Placed", "Processing", "Shipped", "Delivered"];
+const steps = ['Pending', 'Processing', 'Shipped', 'Delivered'];
 
-const OrderTracker = ({ currentStatus }) => {
-  // Logic to find current step index
-  const getCurrentStepIndex = () => {
-    if (currentStatus === "Cancelled") return -1;
-    return steps.indexOf(currentStatus) === -1 ? 1 : steps.indexOf(currentStatus);
-  };
+const OrderTracker = ({ status }) => {
+  // Normalize status
+  const currentStepIndex = steps.indexOf(status);
+  const isCancelled = status === 'Cancelled';
+  const isReturned = status === 'Returned';
 
-  const activeIndex = getCurrentStepIndex();
+  if (isCancelled) {
+    return (
+      <div className="w-full bg-red-50 border border-red-100 rounded-xl p-4 flex items-center gap-3 text-red-700 font-bold justify-center">
+        <div className="bg-red-100 p-1 rounded-full"><X size={20} /></div>
+        Order Cancelled
+      </div>
+    );
+  }
+
+  if (isReturned) {
+    return (
+      <div className="w-full bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-3 text-orange-700 font-bold justify-center">
+        <div className="bg-orange-100 p-1 rounded-full"><X size={20} /></div>
+        Order Returned
+      </div>
+    );
+  }
 
   return (
-    <div className="py-6 px-2">
-      <div className="flex items-center justify-between relative">
-        {/* Grey Background Line */}
-        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 -z-10"></div>
+    <div className="w-full py-4 sm:py-6 overflow-hidden">
+      <div className="relative flex justify-between items-center">
         
-        {/* Active Color Line */}
+        {/* Background Line */}
+        <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-100 -translate-y-1/2 z-0 rounded-full mx-2 sm:mx-4" />
+        
+        {/* Active Progress Line */}
         <div 
-          className="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-green-500 -z-10 transition-all duration-500"
-          style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }}
-        ></div>
+          className="absolute top-1/2 left-0 h-1 bg-green-500 -translate-y-1/2 z-0 transition-all duration-700 ease-out rounded-full mx-2 sm:mx-4"
+          style={{ width: `${(Math.max(0, currentStepIndex) / (steps.length - 1)) * 100}%` }}
+        />
 
-        {/* Steps Nodes */}
         {steps.map((step, index) => {
-          const isCompleted = index <= activeIndex;
-          
+          const isCompleted = index <= currentStepIndex;
+          const isCurrent = index === currentStepIndex;
+
           return (
-            <div key={step} className="flex flex-col items-center">
+            <div key={step} className="relative z-10 flex flex-col items-center gap-2 w-1/4">
               <div 
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold z-10 
-                  ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}`}
+                className={`
+                  w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-4 transition-all duration-300 shadow-sm
+                  ${isCompleted 
+                    ? 'bg-green-500 border-green-500 text-white scale-100 sm:scale-110' 
+                    : 'bg-white border-gray-200 text-gray-300'
+                  }
+                `}
               >
-                {isCompleted ? <Check size={14} /> : index + 1}
+                {isCompleted ? <Check size={16} strokeWidth={4} /> : <div className="w-2 h-2 bg-gray-300 rounded-full" />}
               </div>
-              <p className={`text-[10px] mt-2 font-medium ${isCompleted ? 'text-gray-800' : 'text-gray-400'}`}>
+              <span 
+                className={`
+                  text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center
+                  ${isCurrent ? 'text-green-600' : isCompleted ? 'text-gray-900' : 'text-gray-400'}
+                `}
+              >
                 {step}
-              </p>
+              </span>
             </div>
           );
         })}
       </div>
-      
-      {currentStatus === "Cancelled" && (
-        <div className="mt-4 bg-red-50 text-red-600 text-xs font-bold p-2 text-center rounded">
-          This order has been Cancelled.
-        </div>
-      )}
     </div>
   );
 };

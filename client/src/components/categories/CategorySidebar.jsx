@@ -1,40 +1,87 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
+import { fetchCategories } from '../../store/categorySlice';
+import { ChevronRight, Layers, Loader2 } from 'lucide-react';
 
-const CategorySidebar = ({ data, activeTab, onSelect }) => {
+const CategorySidebar = () => {
+  const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { items: categories, loading } = useSelector((state) => state.categories);
+  
+  const activeCategory = searchParams.get('category');
+
+  useEffect(() => {
+    if (categories.length === 0) {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categories.length]);
+
+  const handleSelect = (categoryId) => {
+    const newParams = new URLSearchParams(searchParams);
+    
+    if (activeCategory === categoryId) {
+      newParams.delete('category'); // Toggle off
+    } else {
+      newParams.set('category', categoryId);
+      newParams.set('page', 1); // Reset to page 1
+    }
+    
+    setSearchParams(newParams);
+  };
+
   return (
-    <div className="w-[28%] bg-gray-50 h-full overflow-y-auto border-r border-gray-100 no-scrollbar pb-24">
-      {data.map((cat) => (
-        <div
-          key={cat.id}
-          onClick={() => onSelect(cat.id)}
-          className={`
-            relative flex flex-col items-center justify-center py-4 px-1 cursor-pointer transition-all duration-200 border-b border-gray-100
-            ${activeTab === cat.id ? 'bg-white' : 'hover:bg-gray-100'}
-          `}
-        >
-          {/* Active Indicator (Red Strip) */}
-          {activeTab === cat.id && (
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FF6B6B] rounded-r-md transition-all duration-300" />
-          )}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <Layers size={20} className="text-blue-600" />
+        Categories
+      </h3>
 
-          {/* Icon Circle */}
-          <div className={`
-            w-10 h-10 rounded-full flex items-center justify-center mb-1 transition-all
-            ${activeTab === cat.id ? 'bg-[#FF6B6B]/10 scale-105' : 'bg-transparent'}
-          `}>
-            <img 
-              src={cat.icon} 
-              alt={cat.name} 
-              className={`w-6 h-6 object-contain transition-opacity ${activeTab === cat.id ? 'opacity-100' : 'opacity-50 grayscale'}`} 
-            />
-          </div>
-          
-          {/* Text Label */}
-          <span className={`text-[10px] font-medium text-center leading-tight ${activeTab === cat.id ? 'text-[#FF6B6B] font-bold' : 'text-gray-500'}`}>
-            {cat.name}
-          </span>
+      {loading && categories.length === 0 ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="animate-spin text-gray-400" size={20} />
         </div>
-      ))}
+      ) : (
+        <ul className="space-y-1">
+          {/* "All" Option */}
+          <li>
+            <button
+              onClick={() => handleSelect(null)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                !activeCategory 
+                  ? 'bg-blue-50 text-blue-700' 
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <span>All Products</span>
+              {!activeCategory && <ChevronRight size={16} />}
+            </button>
+          </li>
+
+          {/* Dynamic Categories */}
+          {categories.map((cat) => (
+            <li key={cat._id}>
+              <button
+                onClick={() => handleSelect(cat._id)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeCategory === cat._id
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {/* Optional: Small Icon if available */}
+                  {cat.image?.url && (
+                    <img src={cat.image.url} alt="" className="w-5 h-5 rounded-md object-cover" />
+                  )}
+                  <span>{cat.name}</span>
+                </div>
+                {activeCategory === cat._id && <ChevronRight size={16} />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

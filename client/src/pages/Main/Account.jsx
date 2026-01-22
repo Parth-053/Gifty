@@ -1,47 +1,55 @@
 import React from 'react';
-import { MapPin, Bell, ShieldCheck, HelpCircle, LogOut, Settings, CreditCard } from 'lucide-react';
-
-// Components
+import { useDispatch, useSelector } from 'react-redux';
+import { Package, MapPin, CreditCard, Bell, Shield, HelpCircle, LogOut, Ticket } from 'lucide-react';
+import { logoutUser } from '../../store/authSlice';
 import ProfileHeader from '../../components/account/ProfileHeader';
 import StatsBar from '../../components/account/StatsBar';
 import MenuLink from '../../components/account/MenuLink';
 
 const Account = () => {
-  return (
-    <div className="bg-[#F9F9F9] min-h-screen pb-28">
-      
-      {/* 1. Profile Section */}
-      <ProfileHeader />
+  const dispatch = useDispatch();
+  const { user } = useSelector(state => state.auth);
 
-      {/* 2. Stats Bar (Connects to Cart/Wishlist Hooks internally) */}
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to log out?")) {
+      dispatch(logoutUser());
+    }
+  };
+
+  if (!user) return null; // Or a loader
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-6 pb-24 md:pb-8">
+      <ProfileHeader />
       <StatsBar />
 
-      {/* 3. Menu Groups */}
-      
-      {/* Group: Shopping */}
-      <div className="mx-4 mb-4 rounded-xl overflow-hidden shadow-sm border border-gray-100">
-        <MenuLink icon={MapPin} label="Saved Addresses" subLabel="Home, Office" to="/account/addresses" />
-        <MenuLink icon={CreditCard} label="Payment Methods" subLabel="Cards, UPI" to="/account/payments" />
-        <MenuLink icon={Bell} label="Notifications" to="/account/notifications" />
-      </div>
+      <div className="space-y-6">
+        <div>
+          <h3 className="font-bold text-gray-900 mb-3 px-1">My Shopping</h3>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <MenuLink to="/user/orders" icon={Package} label="My Orders" />
+            <MenuLink to="/user/wishlist" icon={Ticket} label="My Wishlist" />
+            <MenuLink to="/user/addresses" icon={MapPin} label="Saved Addresses" />
+            <MenuLink to="/user/payment" icon={CreditCard} label="Payment Methods" />
+          </div>
+        </div>
 
-      {/* Group: Support & Settings */}
-      <div className="mx-4 mb-4 rounded-xl overflow-hidden shadow-sm border border-gray-100">
-        <MenuLink icon={Settings} label="Account Settings" to="/account/settings" />
-        <MenuLink icon={ShieldCheck} label="Privacy & Security" to="/account/privacy" />
-        <MenuLink icon={HelpCircle} label="Help & Support" to="/account/help" />
-      </div>
+        <div>
+          <h3 className="font-bold text-gray-900 mb-3 px-1">Settings</h3>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <MenuLink to="/user/notifications" icon={Bell} label="Notifications" />
+            <MenuLink to="/user/privacy" icon={Shield} label="Privacy & Security" />
+            <MenuLink to="/support" icon={HelpCircle} label="Help Center" />
+          </div>
+        </div>
 
-      {/* Group: Logout */}
-      <div className="mx-4 rounded-xl overflow-hidden shadow-sm border border-gray-100">
-        <MenuLink icon={LogOut} label="Log Out" isDestructive={true} />
+        <button 
+          onClick={handleLogout}
+          className="w-full bg-red-50 text-red-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
+        >
+          <LogOut size={20} /> Log Out
+        </button>
       </div>
-
-      {/* Version Info */}
-      <div className="text-center mt-6 mb-4">
-        <p className="text-[10px] text-gray-400 font-medium tracking-widest">GIFTY APP V1.0.0</p>
-      </div>
-
     </div>
   );
 };

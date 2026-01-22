@@ -1,122 +1,80 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag } from 'lucide-react';
-
-// Context Hooks
-import { useCart } from '../../hooks/useCart';
-import { useWishlist } from '../../hooks/useWishlist';
+import React, { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { Sparkles } from 'lucide-react';
 
 // Components
 import ProductImages from '../../components/product/ProductImages';
 import ProductInfo from '../../components/product/ProductInfo';
 import ReviewsList from '../../components/product/ReviewsList';
-import ProductCard from '../../components/product/ProductCard';
+import ProductGrid from '../../components/product/ProductGrid';
+import Loader from '../../components/common/Loader';
 
-// 🔥 DUMMY DB (Temporary Data for Page)
-const PRODUCT_DB = [
-  { 
-    id: 'p1', 
-    name: "Personalized LED Lamp with Photo", 
-    price: 999, originalPrice: 1999, discount: 50, rating: 4.5, reviews: 128,
-    image: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=500", // For Card
-    images: [ // For Slider
-      "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=500",
-      "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=500",
-      "https://images.unsplash.com/photo-1544785176-b74304db9b9c?w=500"
-    ],
-    description: "Light up your memories with this customized 3D LED lamp. Perfect for anniversaries and birthdays."
-  },
-  { 
-    id: 'p2', 
-    name: "Couple Mug Set", 
-    price: 499, originalPrice: 999, discount: 50, rating: 4.8, reviews: 45,
-    image: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=500",
-    images: ["https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=500"],
-    description: "Perfect couple mugs for coffee lovers."
-  },
-  { 
-    id: 'p3', 
-    name: "Custom T-Shirt", 
-    price: 699, originalPrice: 1299, discount: 40, rating: 4.2, reviews: 80,
-    image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500",
-    images: ["https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500"],
-    description: "High quality cotton t-shirt with custom print."
-  }
-];
+// Actions
+import { fetchProductById, clearCurrentProduct, fetchProducts } from '../../store/productSlice';
 
 const ProductDetails = () => {
-  const { productId } = useParams();
-  const navigate = useNavigate();
+  const { id } = useParams();
+  const dispatch = useDispatch();
   
-  // Context
-  const { addToCart } = useCart();
-  const { toggleWishlist, isInWishlist } = useWishlist();
-
-  const [product, setProduct] = useState(null);
-  const [similarProducts, setSimilarProducts] = useState([]);
+  // Get Current Product & List (for related items)
+  const { currentProduct, items: relatedProducts, loading } = useSelector((state) => state.products);
 
   useEffect(() => {
-    // 1. Find Current Product
-    const found = PRODUCT_DB.find(p => p.id === productId) || PRODUCT_DB[0];
-    setProduct(found);
-
-    // 2. Load Similar Products (Excluding current one)
-    const similar = PRODUCT_DB.filter(p => p.id !== found.id);
-    setSimilarProducts(similar);
-
     window.scrollTo(0, 0);
-  }, [productId]);
+    if (id) {
+      dispatch(fetchProductById(id));
+    }
+    // Cleanup on unmount
+    return () => {
+      dispatch(clearCurrentProduct());
+    };
+  }, [dispatch, id]);
 
-  if (!product) return <div className="p-10 text-center">Loading...</div>;
+  // Fetch related products when current product loads
+  useEffect(() => {
+    if (currentProduct?.category?._id) {
+      dispatch(fetchProducts({ 
+        category: currentProduct.category._id, 
+        limit: 4 
+      }));
+    }
+  }, [dispatch, currentProduct]);
+
+  if (loading || !currentProduct) {
+    return <Loader fullScreen text="Loading product..." />;
+  }
+
+  // Filter out the current product from related list
+  const filteredRelated = relatedProducts.filter(p => p._id !== currentProduct._id).slice(0, 4);
 
   return (
-    <div className="bg-white min-h-screen pb-10">
+    <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-12">
       
-      {/* 1. Sticky Header */}
-      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md p-4 flex justify-between items-center shadow-sm">
-         <button onClick={() => navigate(-1)} className="text-gray-600 p-1 rounded-full hover:bg-gray-100">
-            <ArrowLeft size={24} />
-         </button>
-         <div className="flex gap-2">
-            <button onClick={() => navigate('/cart')} className="text-gray-600 p-1 rounded-full hover:bg-gray-100">
-               <ShoppingBag size={24} />
-            </button>
-         </div>
+      {/* 1. Main Details Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 mb-16">
+        {/* Left: Gallery */}
+        <ProductImages images={currentProduct.images} />
+        
+        {/* Right: Info & Actions */}
+        <ProductInfo product={currentProduct} />
       </div>
 
-      <div className="px-4 pt-2">
-         {/* 2. Images Section */}
-         <ProductImages images={product.images} />
-
-         {/* 3. Info Section */}
-         <div className="mt-6">
-            <ProductInfo 
-               product={product} 
-               onAddToCart={(p, qty) => {
-                  addToCart(p, qty);
-                  alert("Added to Cart!");
-               }}
-               onToggleWishlist={toggleWishlist}
-               isInWishlist={isInWishlist(product.id)}
-            />
-         </div>
-
-         {/* 4. Reviews Section */}
-         <ReviewsList />
-
-         {/* 5. Similar Products Section (Uses ProductCard) */}
-         {similarProducts.length > 0 && (
-           <div className="mt-8 pt-6 border-t border-gray-100">
-             <h3 className="text-lg font-bold text-gray-800 mb-4">You Might Also Like</h3>
-             <div className="grid grid-cols-2 gap-4">
-                {similarProducts.map(p => (
-                   <ProductCard key={p.id} product={p} />
-                ))}
-             </div>
-           </div>
-         )}
+      {/* 2. Reviews Section */}
+      <div className="max-w-4xl mx-auto mb-16">
+        <ReviewsList reviews={currentProduct.reviews} />
       </div>
 
+      {/* 3. Related Products */}
+      {filteredRelated.length > 0 && (
+        <div className="border-t border-gray-100 pt-12">
+          <div className="flex items-center gap-2 mb-6">
+            <Sparkles className="text-yellow-500" size={20} />
+            <h2 className="text-xl font-black text-gray-900">You might also like</h2>
+          </div>
+          <ProductGrid products={filteredRelated} />
+        </div>
+      )}
     </div>
   );
 };
