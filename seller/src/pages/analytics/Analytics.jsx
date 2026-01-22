@@ -12,11 +12,9 @@ import { formatPrice } from '../../utils/formatPrice';
 const Analytics = () => {
   const dispatch = useDispatch();
   
-  // Redux store se data fetch karna
   const { salesData, revenueData, overview, loading } = useSelector((state) => state.analytics);
 
   useEffect(() => {
-    // Initial data fetch call
     dispatch(fetchDashboardData());
   }, [dispatch]);
 
@@ -27,6 +25,9 @@ const Analytics = () => {
       </div>
     );
   }
+
+  // FIX: Create a safe fallback object if overview is undefined
+  const safeOverview = overview || { totalRevenue: 0, totalOrders: 0, totalProducts: 0 };
 
   return (
     <div className="space-y-6">
@@ -55,7 +56,8 @@ const Analytics = () => {
                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">+12.5%</span>
             </div>
             <p className="text-sm font-bold text-gray-500">Total Revenue</p>
-            <h3 className="text-2xl font-black text-gray-900">{formatPrice(overview.totalRevenue)}</h3>
+            {/* FIX: Use safeOverview here */}
+            <h3 className="text-2xl font-black text-gray-900">{formatPrice(safeOverview.totalRevenue)}</h3>
          </div>
 
          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -64,7 +66,8 @@ const Analytics = () => {
                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">+8.2%</span>
             </div>
             <p className="text-sm font-bold text-gray-500">Total Orders</p>
-            <h3 className="text-2xl font-black text-gray-900">{overview.totalOrders}</h3>
+            {/* FIX: Use safeOverview here */}
+            <h3 className="text-2xl font-black text-gray-900">{safeOverview.totalOrders}</h3>
          </div>
 
          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -72,7 +75,8 @@ const Analytics = () => {
                <div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Package size={24} /></div>
             </div>
             <p className="text-sm font-bold text-gray-500">Active Products</p>
-            <h3 className="text-2xl font-black text-gray-900">{overview.totalProducts}</h3>
+            {/* FIX: Use safeOverview here */}
+            <h3 className="text-2xl font-black text-gray-900">{safeOverview.totalProducts}</h3>
          </div>
       </div>
 
@@ -80,11 +84,13 @@ const Analytics = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
             <h3 className="font-bold text-gray-800 mb-6">Revenue Growth</h3>
-            <RevenueChart data={revenueData} />
+            {/* Pass empty array fallback */}
+            <RevenueChart data={revenueData || []} />
          </div>
          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
             <h3 className="font-bold text-gray-800 mb-6">Sales Volume</h3>
-            <SalesChart data={salesData} />
+            {/* Pass empty array fallback */}
+            <SalesChart data={salesData || []} />
          </div>
       </div>
 

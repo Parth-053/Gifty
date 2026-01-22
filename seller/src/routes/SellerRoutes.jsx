@@ -1,21 +1,22 @@
-import React, { lazy } from 'react';
+import React from 'react';
+import { Navigate } from 'react-router-dom';
 import SellerLayout from '../components/layout/SellerLayout';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 
-// Lazy loading pages for better performance
-const Dashboard = lazy(() => import('../pages/dashboard/Dashboard'));
-const ProductList = lazy(() => import('../pages/products/ProductList'));
-const AddProduct = lazy(() => import('../pages/products/AddProduct'));
-const EditProduct = lazy(() => import('../pages/products/EditProduct'));
-const ProductDetails = lazy(() => import('../pages/products/ProductDetails'));
-const OrderList = lazy(() => import('../pages/orders/OrderList'));
-const OrderDetails = lazy(() => import('../pages/orders/OrderDetails'));
-const Analytics = lazy(() => import('../pages/analytics/Analytics'));
-const SellerProfile = lazy(() => import('../pages/profile/SellerProfile'));
-const StoreSettings = lazy(() => import('../pages/profile/StoreSettings'));
-const BankDetails = lazy(() => import('../pages/profile/BankDetails'));
-const PayoutHistory = lazy(() => import('../pages/finance/PayoutHistory'));
-const HelpCenter = lazy(() => import('../pages/support/HelpCenter'));
+// --- CHANGE: Use Direct Imports instead of lazy() ---
+import Dashboard from '../pages/dashboard/Dashboard';
+import ProductList from '../pages/products/ProductList';
+import AddProduct from '../pages/products/AddProduct';
+import EditProduct from '../pages/products/EditProduct';
+import ProductDetails from '../pages/products/ProductDetails';
+import OrderList from '../pages/orders/OrderList';
+import OrderDetails from '../pages/orders/OrderDetails';
+import Analytics from '../pages/analytics/Analytics';
+import SellerProfile from '../pages/profile/SellerProfile';
+import StoreSettings from '../pages/profile/StoreSettings';
+import BankDetails from '../pages/profile/BankDetails';
+import PayoutHistory from '../pages/finance/PayoutHistory';
+import HelpCenter from '../pages/support/HelpCenter';
 
 const SellerRoutes = {
   path: '/',
@@ -25,6 +26,9 @@ const SellerRoutes = {
     </ProtectedRoute>
   ),
   children: [
+    // Redirect root '/' to '/dashboard'
+    { index: true, element: <Navigate to="dashboard" replace /> },
+    
     { path: 'dashboard', element: <Dashboard /> },
     { path: 'products', element: <ProductList /> },
     { path: 'products/add', element: <AddProduct /> },

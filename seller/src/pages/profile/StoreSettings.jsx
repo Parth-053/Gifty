@@ -41,7 +41,7 @@ const StoreSettings = () => {
                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${store.vacationMode ? 'left-7' : 'left-1'}`} />
             </button>
          </div>
-         {/* Name & Description fields follow same pattern */}
+         
          <button onClick={handleSave} disabled={loading} className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
             {loading ? <Loader2 className="animate-spin" size={20} /> : <><Save size={18} /> Save Settings</>}
          </button>
@@ -49,3 +49,5 @@ const StoreSettings = () => {
     </div>
   );
 };
+ 
+export default StoreSettings;
