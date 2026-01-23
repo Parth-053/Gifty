@@ -4,16 +4,15 @@ const whitelist = envConfig.cors.origin;
 
 export const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (whitelist.indexOf(origin) !== -1 || whitelist.includes("*")) {
+    if (whitelist.includes(origin) || whitelist.includes("*")) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
-  credentials: true, // Essential for Cookies
+  credentials: true,  
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 };
