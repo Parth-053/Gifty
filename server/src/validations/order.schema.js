@@ -1,15 +1,18 @@
 import Joi from "joi";
 
+// Validate Individual Order Item
 const orderItemSchema = Joi.object({
   productId: Joi.string().hex().length(24).required(),
   quantity: Joi.number().integer().min(1).required(),
   
-  // Customization Data (Optional)
-  customization: Joi.object({
-    text: Joi.string().allow(""),
-    color: Joi.string().allow(""),
-    image: Joi.string().uri().allow("")
-  }).optional()
+  // FIXED: Matches new Dynamic Array structure
+  customizationDetails: Joi.array().items(
+    Joi.object({
+      optionName: Joi.string().required(), 
+      type: Joi.string().valid('text', 'image', 'color').default('text'),
+      value: Joi.string().required() 
+    })
+  ).optional()
 });
 
 export const createOrderSchema = Joi.object({
@@ -17,16 +20,12 @@ export const createOrderSchema = Joi.object({
   
   shippingAddress: Joi.object({
     fullName: Joi.string().required(),
-    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    phone: Joi.string().pattern(/^[0-9]{10,15}$/).required(),
     addressLine1: Joi.string().required(),
     city: Joi.string().required(),
     state: Joi.string().required(),
-    pincode: Joi.string().pattern(/^[0-9]{6}$/).required(),
+    pincode: Joi.string().required()
   }).required(),
   
   paymentMethod: Joi.string().valid("cod", "online").required()
-});
-
-export const updateOrderStatusSchema = Joi.object({
-  status: Joi.string().valid("placed", "processing", "shipped", "delivered", "cancelled").required()
 });
