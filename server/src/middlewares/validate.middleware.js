@@ -1,35 +1,27 @@
 import { ApiError } from "../utils/ApiError.js";
 
 /**
- * Generic Validator Middleware
+ * Middleware to validate Request Body using Joi
  * @param {Object} schema - Joi Schema Object
- * @param {String} source - 'body', 'query', or 'params'
  */
-const validate = (schema, source = "body") => (req, res, next) => {
-  // Select the part of request to validate
-  const objectToValidate = req[source];
-
-  // Joi validation options
-  const options = {
-    abortEarly: false, // Show all errors, not just the first one
-    allowUnknown: true, // Allow extra fields (optional, set false for strict mode)
-    stripUnknown: true, // Remove unknown fields
-  };
-
-  const { error, value } = schema.validate(objectToValidate, options);
+const validate = (schema) => (req, res, next) => {
+  // 'abortEarly: false' ensures we get ALL errors, not just the first one
+  const { error, value } = schema.validate(req.body, { 
+    abortEarly: false, 
+    stripUnknown: true // Remove fields not present in schema
+  });
 
   if (error) {
-    // Collect all error messages
-    const errorMessage = error.details
-      .map((details) => details.message.replace(/"/g, ""))
-      .join(", ");
+    // Extract error messages into a clean array
+    const errors = error.details.map((detail) => detail.message.replace(/"/g, ''));
     
-    return next(new ApiError(400, `Validation Error: ${errorMessage}`));
+    // Throw 422 (Unprocessable Entity)
+    return next(new ApiError(422, "Validation Error", errors));
   }
 
-  // Replace req.body with validated (and cleaned) value
-  req[source] = value;
-  return next();
+  // Replace req.body with sanitized value (converted types, defaults applied)
+  req.body = value;
+  next();
 };
 
 export default validate;
