@@ -1,24 +1,24 @@
-import Review from "../models/Review.model.js";
+import { Review } from "../models/Review.model.js";
 import { Product } from "../models/Product.model.js";
-import Order from "../models/Order.model.js";
-import { ApiError } from "../utils/apiError.js";
+import { Order } from "../models/Order.model.js";
+import { ApiError } from "../utils/ApiError.js";
 
 /**
  * Add Review
  */
 export const addReview = async (userId, { productId, rating, comment }) => {
-  // 1. Check if user actually bought the product
-  const hasPurchased = await Order.exists({
+  // 1. Verify Purchase (Must be Delivered)
+  const hasPurchased = await Order.findOne({
     userId,
     "items.productId": productId,
-    orderStatus: "delivered"
+    orderStatus: "delivered" // Simplest check
   });
 
   if (!hasPurchased) {
     throw new ApiError(403, "You can only review products you have purchased and received.");
   }
 
-  // 2. Check existing review
+  // 2. Check for Duplicate
   const existingReview = await Review.findOne({ userId, productId });
   if (existingReview) {
     throw new ApiError(400, "You have already reviewed this product.");
@@ -34,8 +34,17 @@ export const addReview = async (userId, { productId, rating, comment }) => {
   });
 
   // 4. Update Product Average Rating (Aggregation)
+  await updateProductRating(productId);
+
+  return review;
+};
+
+/**
+ * Helper: Recalculate Product Rating
+ */
+const updateProductRating = async (productId) => {
   const stats = await Review.aggregate([
-    { $match: { productId: review.productId } },
+    { $match: { productId: productId } },
     {
       $group: {
         _id: "$productId",
@@ -48,20 +57,9 @@ export const addReview = async (userId, { productId, rating, comment }) => {
   if (stats.length > 0) {
     await Product.findByIdAndUpdate(productId, {
       rating: {
-        average: Math.round(stats[0].averageRating * 10) / 10, // Round to 1 decimal
+        average: Math.round(stats[0].averageRating * 10) / 10,
         count: stats[0].numReviews
       }
     });
   }
-
-  return review;
-};
-
-/**
- *  Get Product Reviews
- */
-export const getProductReviews = async (productId) => {
-  return await Review.find({ productId })
-    .populate("userId", "name avatar")
-    .sort({ createdAt: -1 });
 };

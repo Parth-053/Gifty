@@ -1,80 +1,69 @@
-import Razorpay from "razorpay";
 import crypto from "crypto";
+import { razorpay } from "../config/payment.js";
 import { envConfig } from "../config/env.config.js";
-import { ApiError } from "../utils/apiError.js";
-import { Transaction } from "../models/Transaction.model.js";
-import Order from "../models/Order.model.js";
-
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: envConfig.payment.razorpayId, 
-  key_secret: envConfig.payment.razorpaySecret,
-});
+import { ApiError } from "../utils/ApiError.js";
+import { Order } from "../models/Order.model.js";
+import { Transaction } from "../models/Transaction.model.js"; 
+import { generateTransactionId } from "../utils/helpers.js";
 
 /**
- * Create Payment Order (Razorpay)
+ * Create Razorpay Order
  */
 export const createPaymentOrder = async (orderId, amount) => {
   try {
     const options = {
-      amount: Math.round(amount * 100), // Amount in smallest currency unit (paise)
+      amount: Math.round(amount * 100),  
       currency: "INR",
-      receipt: orderId, // Our internal Order ID
-      payment_capture: 1 // Auto capture
+      receipt: orderId.toString()
     };
 
     const order = await razorpay.orders.create(options);
     return order;
   } catch (error) {
-    throw new ApiError(500, "Razorpay Error: " + error.message);
+    throw new ApiError(500, "Payment Gateway Error: " + error.message);
   }
 };
 
 /**
- * Verify Payment Signature
- */
-export const verifyPayment = async (razorpay_order_id, razorpay_payment_id, razorpay_signature) => {
-  const body = razorpay_order_id + "|" + razorpay_payment_id;
-
-  const expectedSignature = crypto
-    .createHmac("sha256", envConfig.payment.razorpaySecret)
-    .update(body.toString())
-    .digest("hex");
-
-  return expectedSignature === razorpay_signature;
-};
-
-/**
- * Process Successful Payment
+ * Verify & Process Payment
  */
 export const processPaymentSuccess = async (userId, paymentData) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = paymentData;
 
   // 1. Verify Signature
-  const isValid = await verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
-  if (!isValid) throw new ApiError(400, "Invalid Payment Signature");
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", envConfig.razorpay.keySecret)
+    .update(body.toString())
+    .digest("hex");
+
+  if (expectedSignature !== razorpay_signature) {
+    throw new ApiError(400, "Invalid Payment Signature");
+  }
 
   // 2. Find Order
-  const order = await Order.findOne({ orderId });
+  const order = await Order.findOne({ _id: orderId });
   if (!order) throw new ApiError(404, "Order not found");
 
-  // 3. Update Order Status
+  // 3. Update Order
   order.paymentInfo = {
     razorpayOrderId: razorpay_order_id,
     razorpayPaymentId: razorpay_payment_id,
     status: "paid"
   };
-  order.orderStatus = "processing"; // Move from 'placed' to 'processing'
+  order.orderStatus = "processing";  
   await order.save();
 
-  // 4. Record Transaction
+  // 4. Create Transaction Record (Audit Trail)
   await Transaction.create({
-    orderId: order._id,
+    transactionId: generateTransactionId(),  
     userId,
-    paymentMethod: "razorpay",
-    paymentGatewayId: razorpay_payment_id,
+    orderId: order._id,
+    paymentId: razorpay_payment_id,
     amount: order.totalAmount,
-    status: "success"
+    status: "success",
+    type: "credit", 
+    gateway: "razorpay"
   });
 
   return order;

@@ -1,13 +1,15 @@
-import Order from "../models/Order.model.js";
-import { Product } from "../models/Product.model.js";
-import Cart from "../models/Cart.model.js";
-import { ApiError } from "../utils/apiError.js";
 import mongoose from "mongoose";
+import { Order } from "../models/Order.model.js";
+import { Product } from "../models/Product.model.js";
+import { Cart } from "../models/Cart.model.js";
+import { ApiError } from "../utils/ApiError.js";
+import { generateOrderId } from "../utils/helpers.js";
 
 /**
- * Create Order (Direct Buy or Cart Checkout)
+ * Create Order
+ * Handles Stock Deduction, Price Verification, and Snapshotting
  */
-export const createOrder = async (userId, { items, address, paymentMethod }) => {
+export const createOrder = async (userId, { items, shippingAddress, paymentMethod }) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -15,71 +17,87 @@ export const createOrder = async (userId, { items, address, paymentMethod }) => 
     let orderItems = [];
     let totalAmount = 0;
 
-    // 1. Process Each Item (Fetch REAL Price & Check Stock)
     for (const item of items) {
       const product = await Product.findById(item.productId).session(session);
 
       if (!product) throw new ApiError(404, `Product ${item.productId} not found`);
+      
+      // 1. Stock Check
       if (product.stock < item.quantity) {
         throw new ApiError(400, `Out of stock: ${product.name}`);
       }
 
-      // Security: Use DB Price, NOT Frontend Price
-      const finalPrice = product.discountPrice || product.price;
+      // 2. Price Check (Always use DB price)
+      const price = product.discountPrice || product.price;
 
-      // Create Snapshot (Immutable record of what was bought)
       orderItems.push({
         productId: product._id,
         sellerId: product.sellerId,
         name: product.name,
         image: product.images[0]?.url,
-        price: finalPrice,
-        quantity: item.quantity,
-        customization: item.customization,
+        price: price,
+        quantity: item.quantity, 
+        customizationDetails: item.customizationDetails || [], 
         status: "pending"
       });
 
-      totalAmount += finalPrice * item.quantity;
+      totalAmount += price * item.quantity;
 
-      // Deduct Stock (Atomic Operation)
+      // 3. Deduct Stock
       product.stock -= item.quantity;
       await product.save({ session });
     }
 
-    // 2. Create Order
-    // Generate Random Order ID 
-    const orderId = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
-
+    // 4. Create Order
+    const orderId = generateOrderId();  
+    
     const order = await Order.create([{
       orderId,
       userId,
       items: orderItems,
       totalAmount,
-      shippingAddress: address,
+      shippingAddress, // Embedded object
       paymentMethod,
       paymentInfo: {
-        status: paymentMethod === "cod" ? "pending" : "pending" // If online, updated via webhook later
+        status: paymentMethod === "cod" ? "pending" : "pending"
       }
     }], { session });
 
-    // 3. Clear Cart if success
+    // 5. Clear Cart
     await Cart.findOneAndUpdate({ userId }, { items: [] }).session(session);
 
     await session.commitTransaction();
-    session.endSession();
-
     return order[0];
 
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
     throw error;
+  } finally {
+    session.endSession();
   }
 };
 
 /**
  * Get User Orders
  */
-export const getUserOrders = async (userId) => {
-  return await Order.find({ userId }).sort({ createdAt: -1 });
+export const getUserOrders = async (userId, query) => {
+  const { page = 1, limit = 10 } = query;
+  
+  const orders = await Order.find({ userId })
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit);
+    
+  const total = await Order.countDocuments({ userId });
+  
+  return { orders, total };
+};
+
+/**
+ * Get Order Details
+ */
+export const getOrderById = async (orderId) => {
+  const order = await Order.findById(orderId).populate("items.productId", "slug");
+  if (!order) throw new ApiError(404, "Order not found");
+  return order;
 };

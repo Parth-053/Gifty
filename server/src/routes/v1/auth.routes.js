@@ -1,16 +1,29 @@
-// server/src/routes/v1/auth.routes.js
-import { Router } from 'express';
-import { verifyAuth } from '../../middlewares/auth.middleware.js';
-import { syncUser, syncSeller, getMe } from '../../controllers/auth/auth.controller.js';
+import { Router } from "express";
+import * as authController from "../../controllers/auth/auth.controller.js";
+import { verifyAuth } from "../../middlewares/auth.middleware.js";
+import validate from "../../middlewares/validate.middleware.js";
+import { syncUserSchema, syncSellerSchema } from "../../validations/auth.schema.js";
 
 const router = Router();
 
-// Public Routes (Verified by Firebase Token in Header)
-// Frontend sends token -> Backend verifies & Syncs/Creates User in DB
-router.post('/sync', verifyAuth, syncUser);
-router.post('/sync-seller', verifyAuth, syncSeller);
 
-// Protected Routes
-router.get('/me', verifyAuth, getMe);
+router.post(
+  "/sync/user",
+  verifyAuth,
+  validate(syncUserSchema),
+  authController.syncUser
+);
+
+router.post(
+  "/sync/seller",
+  verifyAuth,
+  validate(syncSellerSchema),
+  authController.syncSeller
+);
+
+// --- Protected Routes (DB record must exist) ---
+
+router.get("/me", verifyAuth, authController.getMe);
+router.post("/logout", verifyAuth, authController.logout);
 
 export default router;

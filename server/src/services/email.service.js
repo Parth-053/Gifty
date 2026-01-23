@@ -1,35 +1,36 @@
-import nodemailer from "nodemailer";
+import { transporter } from "../config/email.js";
 import { envConfig } from "../config/env.config.js";
 import { logger } from "../config/logger.js";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail", // Or use SMTP host/port from env
-  auth: {
-    user: process.env.SMTP_EMAIL, // Add to .env
-    pass: process.env.SMTP_PASSWORD // Add to .env (App Password)
-  }
-});
-
 /**
- *  Send Email Utility
- * @param {Object} options - { email, subject, message, html }
+ * Generic Send Email Function
+ * @param {Object} options - { to, subject, html }
  */
-export const sendEmail = async (options) => {
+export const sendEmail = async ({ to, subject, html }) => {
   try {
     const mailOptions = {
-      from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_EMAIL}>`,
-      to: options.email,
-      subject: options.subject,
-      text: options.message,
-      html: options.html 
+      from: `"Gifty Support" <${envConfig.email.smtpUser}>`,
+      to,
+      subject,
+      html
     };
 
     const info = await transporter.sendMail(mailOptions);
-    logger.info(`Email sent: ${info.messageId}`);
+    logger.info(`📧 Email sent: ${info.messageId} to ${to}`);
     return true;
   } catch (error) {
-    logger.error("Email send failed:", error);
-    // Don't throw error to prevent crashing main flow, just return false
+    logger.error(`❌ Email send failed to ${to}: ${error.message}`);
     return false;
   }
+};
+
+/**
+ * Template: Welcome Email
+ */
+export const sendWelcomeEmail = async (email, name) => {
+  const html = `
+    <h1>Welcome to Gifty, ${name}!</h1>
+    <p>We are excited to have you on board. Start exploring unique gifts now.</p>
+  `;
+  await sendEmail({ to: email, subject: "Welcome to Gifty! 🎁", html });
 };

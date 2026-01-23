@@ -1,49 +1,51 @@
-import Address from "../models/Address.model.js";
-import { ApiError } from "../utils/apiError.js";
+import { Address } from "../models/Address.model.js";
+import { ApiError } from "../utils/ApiError.js";
 
 /**
  * Add New Address
- * Automatically sets as default if it's the first address.
+ * @param {String} ownerId - ID of User or Seller
+ * @param {String} ownerModel - "User" or "Seller"
+ * @param {Object} addressData
  */
-export const addAddress = async (userId, addressData) => {
-  // Check if this is the first address
-  const addressCount = await Address.countDocuments({ userId });
+export const addAddress = async (ownerId, ownerModel, addressData) => {
+  // Check if this is the first address for this owner
+  const addressCount = await Address.countDocuments({ ownerId });
   
+  // If first address, force default
   if (addressCount === 0) {
     addressData.isDefault = true;
   }
 
-  // If new address is marked as default, unset previous default
+  // If new address is marked default, unset previous default
   if (addressData.isDefault) {
     await Address.updateMany(
-      { userId, isDefault: true },
+      { ownerId, isDefault: true },
       { isDefault: false }
     );
   }
 
   const address = await Address.create({
     ...addressData,
-    userId
+    ownerId,
+    ownerModel // Dynamic reference
   });
 
   return address;
 };
 
 /**
- * Get All Addresses
- * Returns default address first.
+ * Get All Addresses for Owner
  */
-export const getAddressList = async (userId) => {
-  return await Address.find({ userId })
-    .sort({ isDefault: -1, createdAt: -1 }); // Default first, then new ones
+export const getAddressList = async (ownerId) => {
+  return await Address.find({ ownerId })
+    .sort({ isDefault: -1, createdAt: -1 }); // Default first
 };
 
 /**
  * Update Address
- * Handles default toggle logic.
  */
-export const updateAddress = async (userId, addressId, updateData) => {
-  const address = await Address.findOne({ _id: addressId, userId });
+export const updateAddress = async (ownerId, addressId, updateData) => {
+  const address = await Address.findOne({ _id: addressId, ownerId });
 
   if (!address) {
     throw new ApiError(404, "Address not found");
@@ -52,7 +54,7 @@ export const updateAddress = async (userId, addressId, updateData) => {
   // If setting as default, unset others
   if (updateData.isDefault === true) {
     await Address.updateMany(
-      { userId, _id: { $ne: addressId } }, // All except current
+      { ownerId, _id: { $ne: addressId } },
       { isDefault: false }
     );
   }
@@ -65,11 +67,8 @@ export const updateAddress = async (userId, addressId, updateData) => {
 /**
  * Delete Address
  */
-export const deleteAddress = async (userId, addressId) => {
-  const address = await Address.findOneAndDelete({ _id: addressId, userId });
-
-  if (!address) {
-    throw new ApiError(404, "Address not found");
-  }
+export const deleteAddress = async (ownerId, addressId) => {
+  const address = await Address.findOneAndDelete({ _id: addressId, ownerId });
+  if (!address) throw new ApiError(404, "Address not found");
   return true;
 };

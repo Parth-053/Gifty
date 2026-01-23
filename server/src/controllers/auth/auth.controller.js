@@ -1,78 +1,85 @@
-// server/src/controllers/auth/auth.controller.js
-import { User } from "../../models/User.model.js";
-import { Seller } from "../../models/Seller.model.js";
-import{ asyncHandler} from "../../utils/asyncHandler.js";
-import {ApiResponse }from "../../utils/apiResponse.js";
-import {ApiError} from "../../utils/apiError.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import * as authService from "../../services/auth.service.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
-// @desc    Sync User (Create if new, Return if exists)
-// @route   POST /api/v1/auth/sync
+/**
+ * @desc    Sync User (Login/Register)
+ * @route   POST /api/v1/auth/sync/user
+ * @access  Private (Valid Firebase Token required)
+ */
 export const syncUser = asyncHandler(async (req, res) => {
-    const { uid, email, emailVerified } = req;
-    const { fullName, phone, avatar } = req.body;
+  // req.uid and req.email come from verifyAuth middleware
+  const userData = {
+    firebaseUid: req.uid,
+    email: req.email,
+    isEmailVerified: req.emailVerified,
+    fullName: req.body.fullName,
+    phone: req.body.phone,
+    avatar: req.body.avatar, // Expecting { url, publicId }
+  };
 
-    let user = await User.findOne({ firebaseUid: uid });
+  const { user, isNewUser } = await authService.syncUser(userData);
 
-    if (!user) {
-        // Create New User
-        user = await User.create({
-            firebaseUid: uid,
-            email,
-            fullName: fullName || 'New User',
-            phone,
-            avatar,
-            isEmailVerified: emailVerified
-        });
-    } else {
-        // Optional: Update verification status if changed
-        if (user.isEmailVerified !== emailVerified) {
-            user.isEmailVerified = emailVerified;
-            await user.save();
-        }
-    }
+  const message = isNewUser 
+    ? "User registered successfully" 
+    : "User login successful";
 
-    return res.status(200).json(
-        new ApiResponse(200, { user, role: 'user' }, "User synced successfully")
-    );
+  return res
+    .status(isNewUser ? httpStatus.CREATED : httpStatus.OK)
+    .json(new ApiResponse(isNewUser ? httpStatus.CREATED : httpStatus.OK, user, message));
 });
 
-// @desc    Sync Seller
-// @route   POST /api/v1/auth/sync-seller
+/**
+ * @desc    Sync Seller (Login/Register)
+ * @route   POST /api/v1/auth/sync/seller
+ * @access  Private (Valid Firebase Token required)
+ */
 export const syncSeller = asyncHandler(async (req, res) => {
-    const { uid, email, emailVerified } = req;
-    const { fullName, storeName, phone, gstin } = req.body;
+  const sellerData = {
+    firebaseUid: req.uid,
+    email: req.email,
+    fullName: req.body.fullName,
+    storeName: req.body.storeName,
+    phone: req.body.phone,
+    gstin: req.body.gstin
+  };
 
-    let seller = await Seller.findOne({ firebaseUid: uid });
+  const { seller, isNewSeller } = await authService.syncSeller(sellerData);
 
-    if (!seller) {
-        if (!storeName || !phone) {
-            throw new ApiError(400, "Store Name and Phone are required for Seller Registration");
-        }
+  const message = isNewSeller 
+    ? "Seller application submitted successfully" 
+    : "Seller login successful";
 
-        seller = await Seller.create({
-            firebaseUid: uid,
-            email,
-            fullName,
-            storeName,
-            phone,
-            gstin,
-            isEmailVerified: emailVerified,
-            status: 'pending'
-        });
-    }
-
-    return res.status(200).json(
-        new ApiResponse(200, { seller, role: 'seller' }, "Seller synced successfully")
-    );
+  return res
+    .status(isNewSeller ? httpStatus.CREATED : httpStatus.OK)
+    .json(new ApiResponse(isNewSeller ? httpStatus.CREATED : httpStatus.OK, seller, message));
 });
 
-// @desc    Get Current Profile
-// @route   GET /api/v1/auth/me
+/**
+ * @desc    Get Current User/Seller Profile
+ * @route   GET /api/v1/auth/me
+ * @access  Private
+ */
 export const getMe = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        throw new ApiError(404, "User not found");
-    }
-    return res.status(200).json(
-        new ApiResponse(200, { user: req.user, role: req.role }, "Profile fetched")
-    );
+  // req.role is attached by verifyAuth middleware if user exists in DB
+  const role = req.role || "user"; 
+  const profile = await authService.getProfile(req.uid, role);
+
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, profile, "Profile fetched successfully"));
+});
+
+/**
+ * @desc    Logout User
+ * @route   POST /api/v1/auth/logout
+ * @access  Private
+ */
+export const logout = asyncHandler(async (req, res) => {
+  // Since we use stateless Firebase Tokens, backend logout isn't strictly necessary 
+  // unless we track sessions. But we return success for frontend consistency.
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, {}, "Logged out successfully"));
 });

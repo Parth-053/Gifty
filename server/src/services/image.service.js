@@ -1,37 +1,44 @@
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.util.js";
-import { ApiError } from "../utils/apiError.js";
+import { ApiError } from "../utils/ApiError.js";
 
 /**
- * Handle Image Uploads
- * Supports single or multiple files
+ * Upload Multiple Images
+ * @param {Array} files - Array of Multer file objects
+ * @param {String} folder - Cloudinary folder name
  */
 export const uploadImages = async (files, folder = "products") => {
   if (!files || files.length === 0) return [];
 
-  const uploadPromises = files.map((file) => 
-    uploadOnCloudinary(file.buffer, folder)
-  );
-
   try {
+    const uploadPromises = files.map((file) => 
+      uploadOnCloudinary(file.buffer, folder)
+    );
+
     const results = await Promise.all(uploadPromises);
+    
     return results.map((res) => ({
       url: res.url,
       publicId: res.publicId
     }));
   } catch (error) {
-    throw new ApiError(500, "Image upload failed: " + error.message);
+    throw new ApiError(500, "Image upload failed", [], error.message);
   }
 };
 
 /**
- * Handle Image Deletion
+ * Delete Multiple Images
+ * @param {Array} images - Array of objects { publicId: "..." }
  */
 export const deleteImages = async (images) => {
   if (!images || images.length === 0) return;
 
-  const deletePromises = images.map((img) => 
-    deleteFromCloudinary(img.publicId)
-  );
+  try {
+    const deletePromises = images.map((img) => 
+      img.publicId ? deleteFromCloudinary(img.publicId) : Promise.resolve()
+    );
 
-  await Promise.all(deletePromises);
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error("Image deletion error:", error);
+  }
 };
