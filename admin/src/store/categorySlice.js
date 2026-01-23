@@ -1,44 +1,33 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../api/axios"; 
+import api from "../api/axios";
 
-/**
- * 1. Fetch All Categories (Tree Structure)
- * Backend should return nested categories or flat list (we can handle both)
- */
+// Fetch All Categories
 export const fetchCategories = createAsyncThunk(
   "categories/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      // Assuming GET /categories returns the full tree
-      const response = await api.get("/categories"); 
-      return response.data.data; // Expecting array of categories
+      const response = await api.get("/categories");
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch categories");
+      return rejectWithValue(error.message);
     }
   }
 );
 
-/**
- * 2. Add New Category
- * Supports Image Upload (FormData)
- */
+// Create Category
 export const createCategory = createAsyncThunk(
-  "categories/add",
+  "categories/create",
   async (formData, { rejectWithValue }) => {
     try {
-      // Content-Type: multipart/form-data is handled automatically by axios when passing FormData
       const response = await api.post("/categories", formData);
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Failed to create category");
+      return rejectWithValue(error.message);
     }
   }
 );
 
-/**
- * 3. Update Category
- * Supports Image Update
- */
+// Update Category
 export const updateCategory = createAsyncThunk(
   "categories/update",
   async ({ id, formData }, { rejectWithValue }) => {
@@ -46,14 +35,12 @@ export const updateCategory = createAsyncThunk(
       const response = await api.put(`/categories/${id}`, formData);
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Failed to update category");
+      return rejectWithValue(error.message);
     }
   }
 );
 
-/**
- * 4. Delete Category
- */
+// Delete Category
 export const deleteCategory = createAsyncThunk(
   "categories/delete",
   async (id, { rejectWithValue }) => {
@@ -61,115 +48,45 @@ export const deleteCategory = createAsyncThunk(
       await api.delete(`/categories/${id}`);
       return id;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Failed to delete category");
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// ==========================================
-// Helper: Recursive Update Logic
-// ==========================================
-
-const deleteFromTree = (categories, idToDelete) => {
-  return categories
-    .filter((cat) => cat._id !== idToDelete)
-    .map((cat) => ({
-      ...cat,
-      children: cat.children ? deleteFromTree(cat.children, idToDelete) : [],
-    }));
-};
-
-const updateInTree = (categories, updatedCat) => {
-  return categories.map((cat) => {
-    if (cat._id === updatedCat._id) return updatedCat;
-    if (cat.children) {
-      return { ...cat, children: updateInTree(cat.children, updatedCat) };
-    }
-    return cat;
-  });
-};
-
-// ==========================================
-//  Slice Definition
-// ==========================================
-
 const categorySlice = createSlice({
   name: "categories",
   initialState: {
-    list: [], // The Category Tree
+    categories: [],
     loading: false,
     error: null,
-    successMessage: null,
   },
-  reducers: {
-    clearMessages: (state) => {
-      state.successMessage = null;
-      state.error = null;
-    }
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      // --- Fetch All ---
-      .addCase(fetchCategories.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // Fetch
+      .addCase(fetchCategories.pending, (state) => { state.loading = true; })
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload;
+        state.categories = action.payload;
       })
       .addCase(fetchCategories.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // --- Add Category ---
-      .addCase(createCategory.pending, (state) => {
-        state.loading = true;
-      })
+      // Create
       .addCase(createCategory.fulfilled, (state, action) => {
-        state.loading = false;
-        state.successMessage = "Category added successfully";
-        // Option A: Refetch list (Easiest) -> dispatch(fetchCategories()) in UI
-        // Option B: Push to list (if it's a root category)
-        // Since it's a tree, refetching is safer.
+        state.categories.push(action.payload);
       })
-      .addCase(createCategory.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
-      // --- Update Category ---
-      .addCase(updateCategory.pending, (state) => {
-        state.loading = true;
-      })
+      // Update
       .addCase(updateCategory.fulfilled, (state, action) => {
-        state.loading = false;
-        state.successMessage = "Category updated successfully";
-        // Update local state recursively
-        state.list = updateInTree(state.list, action.payload);
+        const index = state.categories.findIndex(c => c._id === action.payload._id);
+        if (index !== -1) state.categories[index] = action.payload;
       })
-      .addCase(updateCategory.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
-      // --- Delete Category ---
-      .addCase(deleteCategory.pending, (state) => {
-        state.loading = true;
-      })
+      // Delete
       .addCase(deleteCategory.fulfilled, (state, action) => {
-        state.loading = false;
-        state.successMessage = "Category deleted successfully";
-        // Remove from local state recursively
-        state.list = deleteFromTree(state.list, action.payload);
-      })
-      .addCase(deleteCategory.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
+        state.categories = state.categories.filter(c => c._id !== action.payload);
       });
   },
 });
 
-export const { clearMessages } = categorySlice.actions;
 export default categorySlice.reducer;

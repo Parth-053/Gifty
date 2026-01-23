@@ -1,29 +1,30 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../api/axios"; // Ensure you created this file in previous turn
+import api from "../api/axios";
+import { auth } from "../config/firebase";
+import { signOut } from "firebase/auth";
 
-// Async Thunk for Login
-export const loginAdmin = createAsyncThunk(
-  "auth/login",
-  async (credentials, { rejectWithValue }) => {
+// Fetch Current Admin Profile  
+export const fetchAdminProfile = createAsyncThunk(
+  "auth/fetchProfile",
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await api.post("/auth/login", credentials);
-      // Assuming response.data.data contains { user, accessToken }
-      return response.data.data;
+      const response = await api.get("/auth/me");
+      return response.data.data;  
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Login failed");
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Async Thunk for Logout
+// Logout
 export const logoutAdmin = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      await api.post("/auth/logout");
+      await signOut(auth); 
       return true;
-    } catch  {
-      return rejectWithValue("Logout failed");
+    } catch (error) {
+      return rejectWithValue(error.message);
     }
   }
 );
@@ -31,53 +32,45 @@ export const logoutAdmin = createAsyncThunk(
 const authSlice = createSlice({
   name: "auth",
   initialState: {
-    user: JSON.parse(localStorage.getItem("adminUser")) || null,
-    accessToken: localStorage.getItem("adminToken") || null,
-    isAuthenticated: !!localStorage.getItem("adminToken"),
-    loading: false,
+    user: null,
+    isAuthenticated: false,
+    loading: true,
     error: null,
   },
   reducers: {
-    // Manual logout action (for token expiry)
-    resetAuth: (state) => {
-      state.user = null;
-      state.accessToken = null;
-      state.isAuthenticated = false;
-      localStorage.removeItem("adminUser");
-      localStorage.removeItem("adminToken");
+    setUser: (state, action) => {
+      state.user = action.payload;
+      state.isAuthenticated = !!action.payload;
+      state.loading = false;
+    },
+    setLoading: (state, action) => {
+      state.loading = action.payload;
     },
   },
   extraReducers: (builder) => {
     builder
-      // Login
-      .addCase(loginAdmin.pending, (state) => {
+      // Fetch Profile
+      .addCase(fetchAdminProfile.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(loginAdmin.fulfilled, (state, action) => {
+      .addCase(fetchAdminProfile.fulfilled, (state, action) => {
         state.loading = false;
+        state.user = action.payload;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.accessToken = action.payload.accessToken;
-        
-        // Persist (Securely)
-        localStorage.setItem("adminUser", JSON.stringify(action.payload.user));
-        localStorage.setItem("adminToken", action.payload.accessToken);
       })
-      .addCase(loginAdmin.rejected, (state, action) => {
+      .addCase(fetchAdminProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        state.isAuthenticated = false;
+        state.user = null;
       })
       // Logout
       .addCase(logoutAdmin.fulfilled, (state) => {
         state.user = null;
-        state.accessToken = null;
         state.isAuthenticated = false;
-        localStorage.removeItem("adminUser");
-        localStorage.removeItem("adminToken");
       });
   },
 });
 
-export const { resetAuth } = authSlice.actions;
+export const { setUser, setLoading } = authSlice.actions;
 export default authSlice.reducer;

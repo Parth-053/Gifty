@@ -1,49 +1,69 @@
-import axios from 'axios';
+import axios from "axios";
+import { auth } from "../config/firebase";
 
-// 1. Create Axios Instance
+// Create Axios Instance
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api/v1', 
-  withCredentials: true,
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
-// ... rest of the code (interceptors) remains the same
+// Request Interceptor (Security Layer)
+
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    try {
+      // 1. Check if a user is logged in via Firebase
+      const user = auth.currentUser;
+
+      if (user) {
+        // 2. Get the latest ID Token (Force refresh if needed)
+        const token = await user.getIdToken();
+        
+        // 3. Attach to Headers
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      
+      return config;
+    } catch (error) {
+      console.error("Error attaching auth token:", error);
+      return Promise.reject(error);
     }
-    return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
+// Response Interceptor (Global Error Handling)
+
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
+  (response) => {
+    // Return the full response (or just response.data if you prefer)
+    return response;
+  },
+  (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        // 👇 UPDATE THIS PORT TO 8000 TOO
-        const { data } = await axios.post(
-          'http://localhost:8000/api/v1/auth/refresh-token',
-          {},
-          { withCredentials: true }
-        );
-        localStorage.setItem('adminToken', data.data.accessToken);
-        originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        localStorage.removeItem('adminToken');
-        window.location.href = '/login'; 
-        return Promise.reject(refreshError);
+
+    // Handle 401 (Unauthorized) & 403 (Forbidden)
+    if (error.response) {
+      const { status } = error.response;
+
+      if (status === 401 || status === 403) {
+        console.warn("Unauthorized access. Redirecting to login...");
+        window.location.href = "/login"; 
       }
     }
-    return Promise.reject(error);
+
+    // Standardize Error Message
+    const errorMessage = 
+      error.response?.data?.message || 
+      error.message || 
+      "Something went wrong";
+
+    // Reject with a clean error object
+    return Promise.reject({ ...error, message: errorMessage });
   }
 );
 

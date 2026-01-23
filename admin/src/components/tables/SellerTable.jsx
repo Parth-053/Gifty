@@ -1,48 +1,62 @@
-import React from 'react';
-import { Eye, ShieldCheck, AlertCircle } from 'lucide-react';
+import React from "react";
+import { EyeIcon } from "@heroicons/react/24/outline";
+import Badge from "../common/Badge";
 
-const SellerTable = ({ sellers, onView }) => {
+const SellerTable = ({ sellers, onView, isPending = false }) => {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase border-b border-gray-100">
-              <th className="py-4 px-6">Store Name</th>
-              <th className="py-4 px-6">Owner</th>
-              <th className="py-4 px-6">Email</th>
-              <th className="py-4 px-6">Status</th>
-              <th className="py-4 px-6 text-right">Action</th>
+    <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+      <table className="min-w-full divide-y divide-gray-200 bg-white">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store Name</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner / Email</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GSTIN</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200">
+          {sellers.map((seller) => (
+            <tr key={seller._id} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-bold text-gray-900">{seller.storeName}</div>
+                {isPending && <div className="text-xs text-orange-600">Pending Approval</div>}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-gray-900">{seller.fullName}</div>
+                <div className="text-xs text-gray-500">{seller.email}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                {seller.gstin || "N/A"}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <Badge 
+                  variant={
+                    seller.status === "approved" ? "success" :
+                    seller.status === "suspended" ? "danger" :
+                    seller.status === "rejected" ? "danger" : "warning"
+                  }
+                >
+                  {seller.status.toUpperCase()}
+                </Badge>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {new Date(seller.createdAt).toLocaleDateString()}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button
+                  onClick={() => onView(seller._id)}
+                  className="text-indigo-600 hover:text-indigo-900 p-2 hover:bg-indigo-50 rounded-full"
+                  title="View Details"
+                >
+                  <EyeIcon className="h-5 w-5" />
+                </button>
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {sellers.map((seller) => (
-              <tr key={seller._id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="py-4 px-6 font-bold text-gray-800">
-                    {seller.storeName || "N/A"}
-                </td>
-                <td className="py-4 px-6 text-sm text-gray-600">{seller.name}</td>
-                <td className="py-4 px-6 text-sm text-gray-500">{seller.email}</td>
-                <td className="py-4 px-6">
-                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1 ${
-                    seller.isVerified 
-                        ? 'bg-green-50 text-green-600 border-green-100' 
-                        : 'bg-orange-50 text-orange-600 border-orange-100'
-                  }`}>
-                    {seller.isVerified ? <ShieldCheck size={12}/> : <AlertCircle size={12}/>}
-                    {seller.isVerified ? "Verified" : "Pending"}
-                  </span>
-                </td>
-                <td className="py-4 px-6 text-right">
-                  <button onClick={() => onView(seller._id)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm flex items-center gap-1 ml-auto">
-                    <Eye size={16} /> View
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

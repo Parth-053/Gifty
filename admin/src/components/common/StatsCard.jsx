@@ -1,39 +1,37 @@
-import React from 'react';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import React from "react";
 
-const StatsCard = ({ title, value, icon: Icon, trend, trendValue, color = "blue" }) => {
+const StatsCard = ({ title, value, icon: Icon, color, trend }) => {
+  // trend: { value: 12, isPositive: true }
   
-  const colors = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    purple: "bg-purple-50 text-purple-600",
-    orange: "bg-orange-50 text-orange-600",
+  const colorClasses = {
+    blue: "bg-blue-100 text-blue-600",
+    green: "bg-green-100 text-green-600",
+    purple: "bg-purple-100 text-purple-600",
+    orange: "bg-orange-100 text-orange-600",
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start">
+    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-          <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <h3 className="text-2xl font-bold text-gray-900 mt-1">{value}</h3>
         </div>
-        <div className={`p-3 rounded-lg ${colors[color]}`}>
-          <Icon size={24} />
+        <div className={`p-3 rounded-full ${colorClasses[color] || "bg-gray-100"}`}>
+          <Icon className="w-6 h-6" />
         </div>
       </div>
       
       {trend && (
-        <div className="flex items-center gap-1 mt-4 text-xs font-medium">
-          {trend === 'up' ? (
-            <span className="text-green-600 flex items-center bg-green-50 px-1.5 py-0.5 rounded">
-              <ArrowUpRight size={12} className="mr-1" /> {trendValue}
-            </span>
-          ) : (
-            <span className="text-red-600 flex items-center bg-red-50 px-1.5 py-0.5 rounded">
-              <ArrowDownRight size={12} className="mr-1" /> {trendValue}
-            </span>
-          )}
-          <span className="text-gray-400">vs last month</span>
+        <div className="flex items-center text-sm">
+          <span
+            className={`font-medium ${
+              trend.isPositive ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {trend.isPositive ? "+" : "-"}{Math.abs(trend.value)}%
+          </span>
+          <span className="text-gray-500 ml-2">from last month</span>
         </div>
       )}
     </div>

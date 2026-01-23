@@ -1,64 +1,58 @@
-import React from 'react';
-import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { Menu, Bell, Search, User } from 'lucide-react';
+import React from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { logoutAdmin } from "../../store/authSlice";
+import { useNavigate } from "react-router-dom";
+import { Menu, Transition } from "@headlessui/react";
+import { UserCircleIcon } from "@heroicons/react/24/outline";
 
-const Topbar = ({ onMenuClick }) => {
-  const { user } = useSelector((state) => state.auth);
+const Topbar = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+
+  const handleLogout = async () => {
+    await dispatch(logoutAdmin());
+    navigate("/login");
+  };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shadow-sm">
+    <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 fixed top-0 right-0 left-64 z-10">
+      <h2 className="text-lg font-medium text-gray-800">Admin Dashboard</h2>
       
-      {/* Left: Menu Toggle & Search */}
       <div className="flex items-center gap-4">
-        <button 
-          onClick={onMenuClick} 
-          className="lg:hidden p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-        >
-          <Menu size={24} />
-        </button>
-
-        {/* Global Search (Visual Only for now) */}
-        <div className="hidden md:flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-transparent focus-within:border-blue-100 focus-within:bg-white transition-all w-72">
-          <Search size={18} className="text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            className="bg-transparent border-none outline-none text-sm ml-2 w-full text-gray-700 placeholder-gray-400"
-          />
-        </div>
-      </div>
-
-      {/* Right: Actions */}
-      <div className="flex items-center gap-4">
-        
-        {/* Notification Bell */}
-        <button className="relative p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-        </button>
-
-        <div className="h-8 w-px bg-gray-100 hidden sm:block"></div>
-
-        {/* Admin Profile */}
-        <div 
-          onClick={() => navigate('/settings/profile')}
-          className="flex items-center gap-3 cursor-pointer group"
-        >
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-gray-800 leading-none">{user?.name || 'Admin'}</p>
-            <p className="text-[10px] text-gray-500 mt-1 uppercase">{user?.role || 'Administrator'}</p>
-          </div>
-          <div className="w-9 h-9 bg-gray-900 text-white rounded-full flex items-center justify-center font-bold border-2 border-white shadow-sm group-hover:shadow-md transition-all overflow-hidden">
-             {user?.avatar?.url ? (
-               <img src={user.avatar.url} alt="" className="w-full h-full object-cover" />
-             ) : (
-               <User size={18} />
-             )}
-          </div>
-        </div>
-
+        <Menu as="div" className="relative ml-3">
+          <Menu.Button className="flex items-center gap-2 text-sm focus:outline-none">
+            <span className="font-medium text-gray-700">{user?.name || "Admin"}</span>
+            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+              <UserCircleIcon className="h-6 w-6 text-gray-500" />
+            </div>
+          </Menu.Button>
+          <Transition
+            enter="transition ease-out duration-100"
+            enterFrom="transform opacity-0 scale-95"
+            enterTo="transform opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="transform opacity-100 scale-100"
+            leaveTo="transform opacity-0 scale-95"
+          >
+            <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+              <div className="py-1">
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={handleLogout}
+                      className={`${
+                        active ? "bg-gray-100" : ""
+                      } block w-full text-left px-4 py-2 text-sm text-gray-700`}
+                    >
+                      Sign out
+                    </button>
+                  )}
+                </Menu.Item>
+              </div>
+            </Menu.Items>
+          </Transition>
+        </Menu>
       </div>
     </header>
   );

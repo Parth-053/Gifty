@@ -1,15 +1,16 @@
 import { configureStore } from "@reduxjs/toolkit";
-
-// Import all slices
 import authReducer from "./authSlice";
 import userReducer from "./userSlice";
-import sellerReducer from "./sellerSlice"; 
-import productReducer from "./productSlice"; 
-import categoryReducer from "./categorySlice"; 
-import orderReducer from "./orderSlice";     
-import financeReducer from "./financeSlice";   
-import dashboardReducer from "./dashboardSlice"; 
-import bannerReducer from "./bannerSlice";     
+import sellerReducer from "./sellerSlice";
+import productReducer from "./productSlice";
+import orderReducer from "./orderSlice";
+import categoryReducer from "./categorySlice";
+import bannerReducer from "./bannerSlice";
+import financeReducer from "./financeSlice";
+import dashboardReducer from "./dashboardSlice";
+import couponReducer from "./couponSlice";           
+import settingsReducer from "./settingsSlice";   
+import returnReducer from "./returnSlice";    
 
 const store = configureStore({
   reducer: {
@@ -17,17 +18,18 @@ const store = configureStore({
     users: userReducer,
     sellers: sellerReducer,
     products: productReducer,
-    categories: categoryReducer,
     orders: orderReducer,
+    categories: categoryReducer,
+    banners: bannerReducer,
     finance: financeReducer,
     dashboard: dashboardReducer,
-    banners: bannerReducer,
+    coupons: couponReducer,
+    settings: settingsReducer,
+    returns: returnReducer,
   },
-  // Disable serializableCheck for complex data types (like Dates/Files) if needed, 
-  // though usually Redux Toolkit handles it well.
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false,
+      serializableCheck: false, // Helps with complex data/Date objects
     }),
 });
 

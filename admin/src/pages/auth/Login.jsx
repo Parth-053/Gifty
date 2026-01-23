@@ -1,89 +1,142 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { loginAdmin } from "../../store/authSlice";
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
-import { FiLock, FiMail } from "react-icons/fi";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../config/firebase";
+import { fetchAdminProfile } from "../../store/authSlice"; 
+import useForm from "../../hooks/useForm";
+import { validateEmail, validatePassword } from "../../utils/validation";
+
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, isAuthenticated } = useSelector((state) => state.auth);
+  const [authError, setAuthError] = useState(null);
 
-  // If already logged in, redirect to dashboard
-  useEffect(() => {
-    if (isAuthenticated) navigate("/dashboard");
-  }, [isAuthenticated, navigate]);
+  // Form Validation Logic
+  // Optimization: Moved inside but ideally should be outside or useCallback to prevent re-creation
+  const validate = (values) => {
+    const errors = {};
+    if (!validateEmail(values.email)) errors.email = "Invalid email address";
+    if (!validatePassword(values.password)) errors.password = "Password must be at least 6 characters";
+    return errors;
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !password) return toast.error("Please fill all fields");
+  // Use Custom Hook
+  const { values, errors, isSubmitting, handleChange, handleSubmit } = useForm(
+    { email: "", password: "" },
+    validate
+  );
 
-    const result = await dispatch(loginAdmin({ email, password }));
-    
-    if (loginAdmin.fulfilled.match(result)) {
-      toast.success("Welcome back, Admin!");
-      navigate("/dashboard");
-    } else {
-      toast.error(result.payload || "Login failed");
+  const onSubmit = async (formValues) => {
+    setAuthError(null);
+    try {
+      // 1. Firebase Login
+      await signInWithEmailAndPassword(
+        auth,
+        formValues.email,
+        formValues.password
+      );
+
+      // 2. Sync with Backend & Get Profile
+      const resultAction = await dispatch(fetchAdminProfile());
+
+      if (fetchAdminProfile.fulfilled.match(resultAction)) {
+        const adminData = resultAction.payload;
+        
+        // 3. Verify Role (Security Check)
+        // FIXED: Added optional chaining (adminData.role OR adminData.user.role)
+        // This handles cases where backend returns { user: { role: 'admin' } }
+        const role = adminData?.role || adminData?.user?.role;
+        
+        if (role !== "admin") {
+          throw new Error("Access Denied: You do not have admin privileges.");
+        }
+
+        // 4. Success -> Redirect
+        navigate("/dashboard");
+      } else {
+        throw new Error(resultAction.payload || "Failed to fetch admin profile");
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      let message = "Login failed. Please check your credentials.";
+      
+      // Handle Firebase specific errors
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        message = "Invalid email or password.";
+      } else if (error.code === "auth/too-many-requests") {
+        message = "Too many failed attempts. Please try again later.";
+      } else if (error.message) {
+        message = error.message;
+      }
+      
+      setAuthError(message);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-blue-600 p-8 text-center">
-          <h2 className="text-3xl font-bold text-white">Gifty Admin</h2>
-          <p className="text-blue-100 mt-2">Sign in to manage your store</p>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Gifty Admin Panel
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Sign in to manage your platform
+        </p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <FiMail />
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit); }}>
+            
+            {/* Email Field */}
+            <Input
+              label="Email Address"
+              type="email"
+              name="email"
+              placeholder="admin@gifty.com"
+              value={values.email}
+              onChange={handleChange}
+              error={errors.email}
+            />
+
+            {/* Password Field */}
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              value={values.password}
+              onChange={handleChange}
+              error={errors.password}
+            />
+
+            {/* Global Error Message */}
+            {authError && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-4">
+                <div className="flex">
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{authError}</p>
+                  </div>
+                </div>
               </div>
-              <input
-                type="email"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="admin@gifty.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-          </div>
+            )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <FiLock />
-              </div>
-              <input
-                type="password"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+            {/* Submit Button */}
+            <div>
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full"
+                isLoading={isSubmitting}
+              >
+                Sign In
+              </Button>
             </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {loading ? "Signing in..." : "Login to Dashboard"}
-          </button>
-        </form>
-        
-        <div className="bg-gray-50 p-4 text-center text-xs text-gray-500">
-          Secure Admin Panel • Gifty E-commerce
+          </form>
         </div>
       </div>
     </div>

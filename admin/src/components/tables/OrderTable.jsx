@@ -1,58 +1,82 @@
-import React from 'react';
-import { Eye } from 'lucide-react';
+import React from "react";
+import { EyeIcon } from "@heroicons/react/24/outline";
+import Badge from "../common/Badge";
+import formatCurrency from "../../utils/formatCurrency";
+import { formatDate } from "../../utils/formatDate";
 
 const OrderTable = ({ orders, onView }) => {
-  
-  const getStatusColor = (status) => {
-      switch(status?.toLowerCase()) {
-          case 'delivered': return 'bg-green-50 text-green-600 border-green-100';
-          case 'pending': return 'bg-orange-50 text-orange-600 border-orange-100';
-          case 'cancelled': return 'bg-red-50 text-red-600 border-red-100';
-          case 'shipped': return 'bg-blue-50 text-blue-600 border-blue-100';
-          default: return 'bg-gray-50 text-gray-600 border-gray-100';
-      }
-  };
-
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase border-b border-gray-100">
-              <th className="py-4 px-6">Order ID</th>
-              <th className="py-4 px-6">Date</th>
-              <th className="py-4 px-6">Customer</th>
-              <th className="py-4 px-6">Total</th>
-              <th className="py-4 px-6">Status</th>
-              <th className="py-4 px-6 text-right">Action</th>
+    <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+      <table className="min-w-full divide-y divide-gray-200 bg-white">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200">
+          {orders.map((order) => (
+            <tr key={order._id} className="hover:bg-gray-50 transition-colors">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-bold text-gray-900">#{order.orderId}</div>
+                <div className="text-xs text-gray-500">{order.items?.length} items</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-gray-900">
+                  {order.userId?.fullName || "Guest User"}
+                </div>
+                <div className="text-xs text-gray-500">{order.userId?.email}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {formatDate(order.createdAt)}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                {formatCurrency(order.finalAmount)}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium uppercase text-gray-700">{order.paymentMethod}</span>
+                  <Badge 
+                    variant={
+                      order.paymentInfo?.status === "paid" ? "success" :
+                      order.paymentInfo?.status === "failed" ? "danger" :
+                      order.paymentInfo?.status === "refunded" ? "warning" : "info"
+                    }
+                    size="sm"
+                  >
+                    {order.paymentInfo?.status || "Pending"}
+                  </Badge>
+                </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <Badge 
+                  variant={
+                    order.orderStatus === "delivered" ? "success" :
+                    order.orderStatus === "cancelled" ? "danger" :
+                    order.orderStatus === "placed" ? "info" : "warning"
+                  }
+                >
+                  {order.orderStatus.toUpperCase()}
+                </Badge>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button
+                  onClick={() => onView(order._id)}
+                  className="text-indigo-600 hover:text-indigo-900 p-2 hover:bg-indigo-50 rounded-full"
+                  title="View Details"
+                >
+                  <EyeIcon className="h-5 w-5" />
+                </button>
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {orders.map((order) => (
-              <tr key={order._id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="py-4 px-6 font-bold text-gray-800 text-sm">#{order.orderId}</td>
-                <td className="py-4 px-6 text-sm text-gray-500">
-                    {new Date(order.createdAt).toLocaleDateString()}
-                </td>
-                <td className="py-4 px-6 text-sm font-medium text-gray-700">
-                    {order.userId?.name || "Guest User"}
-                </td>
-                <td className="py-4 px-6 font-bold text-gray-900">₹{order.totalAmount}</td>
-                <td className="py-4 px-6">
-                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${getStatusColor(order.orderStatus)}`}>
-                    {order.orderStatus}
-                  </span>
-                </td>
-                <td className="py-4 px-6 text-right">
-                  <button onClick={() => onView(order._id)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

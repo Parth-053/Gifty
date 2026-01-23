@@ -1,57 +1,84 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchDashboardStats, fetchSalesGraph } from "../../store/dashboardSlice";
-import { FiUsers, FiShoppingBag, FiDollarSign, FiBox } from "react-icons/fi";
+import { fetchOrders } from "../../store/orderSlice";  
+// Components
+import StatsGrid from "../../components/dashboard/StatsGrid";
+import RecentOrders from "../../components/dashboard/RecentOrders";
+import SalesChart from "../../components/charts/SalesChart";
+import RevenueChart from "../../components/charts/RevenueChart";
 import Loader from "../../components/common/Loader";
-import SalesChart from "../../components/charts/SalesChart"; 
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const { stats, graphData, loading } = useSelector((state) => state.dashboard);
+
+  // Selectors
+  const { stats, salesGraph, loading: dashboardLoading } = useSelector((state) => state.dashboard);
+  const { orders: recentOrders, loading: ordersLoading } = useSelector((state) => state.orders);
+  
+  // Local State
+  const [graphPeriod, setGraphPeriod] = useState("monthly");
 
   useEffect(() => {
+    // 1. Fetch Key Stats
     dispatch(fetchDashboardStats());
-    dispatch(fetchSalesGraph());
-  }, [dispatch]);
+    
+    // 2. Fetch Graph Data
+    dispatch(fetchSalesGraph(graphPeriod));
 
-  if (loading) return <Loader />;
+    // 3. Fetch Recent Orders (Limit 5)
+    // We reuse the existing fetchOrders action but pass params
+    dispatch(fetchOrders({ page: 1, limit: 5, sort: "-createdAt" }));
+  }, [dispatch, graphPeriod]);
 
-  const cards = [
-    { title: "Total Revenue", value: `₹${stats.totalRevenue}`, icon: <FiDollarSign />, color: "bg-green-100 text-green-600" },
-    { title: "Total Orders", value: stats.totalOrders, icon: <FiShoppingBag />, color: "bg-blue-100 text-blue-600" },
-    { title: "Total Users", value: stats.totalUsers, icon: <FiUsers />, color: "bg-purple-100 text-purple-600" },
-    { title: "Active Sellers", value: stats.totalSellers, icon: <FiBox />, color: "bg-orange-100 text-orange-600" },
-  ];
+  // Loading State
+  const isLoading = dashboardLoading || ordersLoading;
+
+  if (isLoading && !stats) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader size="lg" text="Loading dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, index) => (
-          <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">{card.title}</p>
-                <h3 className="text-2xl font-bold text-gray-800">{card.value}</h3>
-              </div>
-              <div className={`p-3 rounded-full ${card.color} text-xl`}>
-                {card.icon}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Graphs */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-lg font-bold mb-4">Sales Analytics</h2>
-        <div className="h-80">
-           {/* Pass real data to chart */}
-           <SalesChart data={graphData} />
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Welcome back, Admin! Here's what's happening with your store today.
+          </p>
+        </div>
+        
+        {/* Time Filter for Graphs */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">View:</span>
+          <select
+            value={graphPeriod}
+            onChange={(e) => setGraphPeriod(e.target.value)}
+            className="bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 shadow-sm"
+          >
+            <option value="weekly">Last 7 Days</option>
+            <option value="monthly">This Year (Monthly)</option>
+          </select>
         </div>
       </div>
+
+      {/* 1. Key Statistics Grid */}
+      <StatsGrid stats={stats} loading={dashboardLoading} />
+
+      {/* 2. Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SalesChart data={salesGraph || []} />
+        <RevenueChart data={salesGraph || []} />
+      </div>
+
+      {/* 3. Recent Orders Table */}
+      <RecentOrders orders={recentOrders} loading={ordersLoading} />
+      
     </div>
   );
 };

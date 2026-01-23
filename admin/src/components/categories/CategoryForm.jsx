@@ -1,156 +1,229 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, X, Save, Image as ImageIcon } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { fetchCategories } from "../../store/categorySlice";  
+import { PhotoIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
-const CategoryForm = ({ initialData, onSubmit, isLoading, categories = [], isEdit = false }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [parentId, setParentId] = useState('');
-  const [isActive, setIsActive] = useState('true');
-  const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState(null);
+// Components
+import Input from "../common/Input";
+import Button from "../common/Button";
+import Select from "../common/Select"; 
 
-  // Populate form if Editing
+const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  
+  // Fetch existing categories for the "Parent" dropdown
+  const { categories } = useSelector((state) => state.categories);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    parentId: "", // Corresponds to model: parentId
+    isActive: true,
+  });
+
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [validationError, setValidationError] = useState("");
+
+  // Populate form if Edit Mode
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || '');
-      setDescription(initialData.description || '');
-      setParentId(initialData.parentId || '');
-      setIsActive(initialData.isActive ? 'true' : 'false');
-      // If image exists from backend
-      if (initialData.image?.url) setPreview(initialData.image.url);
+      setFormData({
+        name: initialData.name || "",
+        description: initialData.description || "",
+        parentId: initialData.parentId?._id || initialData.parentId || "", // Handle populated or unpopulated ID
+        isActive: initialData.isActive !== undefined ? initialData.isActive : true,
+      });
+      // Handle existing image preview
+      if (initialData.image?.url) {
+        setPreviewUrl(initialData.image.url);
+      }
     }
   }, [initialData]);
 
-  // Handle Image Selection
+  // Load categories for dropdown on mount
+  useEffect(() => {
+    dispatch(fetchCategories());
+  }, [dispatch]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
+      if (file.size > 2 * 1024 * 1024) { // 2MB Limit
+        setValidationError("Image size must be less than 2MB");
+        return;
+      }
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setValidationError("");
     }
   };
 
-  // Handle Form Submit
   const handleSubmit = (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('description', description);
-    if (parentId) formData.append('parentId', parentId);
-    formData.append('isActive', isActive === 'true');
-    if (image) formData.append('image', image);
+    setValidationError("");
 
-    onSubmit(formData);
+    if (!formData.name) {
+      setValidationError("Category Name is required");
+      return;
+    }
+
+    // For Add Mode: Image is required
+    if (!isEdit && !imageFile) {
+      setValidationError("Category Image is required");
+      return;
+    }
+
+    // Prepare FormData to match Backend Controller
+    const data = new FormData();
+    data.append("name", formData.name);
+    data.append("description", formData.description);
+    data.append("isActive", formData.isActive);
+    
+    // Only append parentId if it's selected (Backend expects null or valid ObjectId)
+    if (formData.parentId) {
+      data.append("parentId", formData.parentId);
+    }
+
+    // Append Image if changed
+    if (imageFile) {
+      data.append("image", imageFile);
+    }
+
+    onSubmit(data);
   };
 
+  // Filter out the current category from Parent dropdown (prevent circular parent: A cannot be parent of A)
+  const parentOptions = categories
+    .filter(cat => !isEdit || cat._id !== initialData?._id)
+    .map(cat => ({ value: cat._id, label: cat.name }));
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      
-      {/* Image Upload Section */}
-      <div className="space-y-2">
-        <label className="block text-sm font-bold text-gray-700">Category Image</label>
-        <div className={`h-40 w-40 border-2 border-dashed rounded-xl flex flex-col items-center justify-center overflow-hidden relative transition-all ${preview ? 'border-blue-500 bg-white' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
+    <div className="space-y-6">
+      <div className="bg-white shadow sm:rounded-lg p-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {preview ? (
-            <>
-              <img src={preview} className="w-full h-full object-cover" alt="Preview" />
-              <button 
-                type="button"
-                onClick={() => { setPreview(null); setImage(null); }}
-                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full shadow hover:bg-red-600 transition"
+          {/* Image Upload Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category Image { !isEdit && <span className="text-red-500">*</span> }
+            </label>
+            <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md ${validationError && !imageFile && !isEdit ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-indigo-500'}`}>
+              <div className="space-y-1 text-center">
+                {previewUrl ? (
+                  <div className="relative">
+                    <img src={previewUrl} alt="Preview" className="mx-auto h-32 w-32 object-cover rounded-md" />
+                    <button
+                      type="button"
+                      onClick={() => { setImageFile(null); setPreviewUrl(null); }}
+                      className="absolute -top-2 -right-2 bg-red-100 text-red-600 p-1 rounded-full hover:bg-red-200"
+                    >
+                      <span className="sr-only">Remove</span>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    <div className="flex text-sm text-gray-600 justify-center">
+                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                        <span>Upload a file</span>
+                        <input id="file-upload" name="file-upload" type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500">PNG, JPG up to 2MB</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Name */}
+            <Input
+              label="Category Name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="e.g. Electronics"
+              required
+            />
+
+            {/* Parent Category (Sub-category Logic) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category (Optional)</label>
+              <select
+                name="parentId"
+                value={formData.parentId}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
-                <X size={14} />
-              </button>
-            </>
-          ) : (
-            <div className="text-center text-gray-400 pointer-events-none">
-              <Upload size={24} className="mx-auto mb-1" />
-              <span className="text-xs font-medium">Upload Image</span>
+                <option value="">None (Top Level)</option>
+                {parentOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Select a parent to make this a sub-category.</p>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              name="description"
+              rows={3}
+              value={formData.description}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Short description of the category..."
+            />
+          </div>
+
+          {/* Active Toggle */}
+          <div className="flex items-center">
+            <input
+              id="isActive"
+              name="isActive"
+              type="checkbox"
+              checked={formData.isActive}
+              onChange={handleChange}
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
+              Active (Visible to users)
+            </label>
+          </div>
+
+          {/* Validation Error */}
+          {validationError && (
+            <div className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">
+              {validationError}
             </div>
           )}
-          
-          {!preview && (
-            <input 
-              type="file" 
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
-              onChange={handleImageChange} 
-              accept="image/*" 
-            />
-          )}
-        </div>
-      </div>
 
-      {/* Input Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1.5">Name <span className="text-red-500">*</span></label>
-          <input 
-            type="text" 
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full p-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            placeholder="e.g. Electronics"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1.5">Parent Category</label>
-          <div className="relative">
-            <select 
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-              className="w-full p-2.5 border border-gray-200 rounded-xl outline-none bg-white focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
-            >
-              <option value="">None (Top Level)</option>
-              {categories
-                .filter(c => c._id !== initialData?._id) // Prevent self-parenting
-                .map(c => (
-                <option key={c._id} value={c._id}>{c.name}</option>
-              ))}
-            </select>
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <Button variant="secondary" onClick={() => navigate("/categories")} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={loading}>
+              {isEdit ? "Update Category" : "Create Category"}
+            </Button>
           </div>
-        </div>
+        </form>
       </div>
-
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-1.5">Description</label>
-        <textarea 
-          rows="3"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full p-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
-          placeholder="Short description of the category..."
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-1.5">Status</label>
-        <select 
-          value={isActive}
-          onChange={(e) => setIsActive(e.target.value)}
-          className="w-full p-2.5 border border-gray-200 rounded-xl outline-none bg-white focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
-        </select>
-      </div>
-
-      {/* Action Button */}
-      <button 
-        type="submit" 
-        disabled={isLoading}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-      >
-        {isLoading ? (
-          <span>Saving...</span>
-        ) : (
-          <>
-            <Save size={20} /> {isEdit ? 'Update Category' : 'Save Category'}
-          </>
-        )}
-      </button>
-    </form>
+    </div>
   );
 };
 

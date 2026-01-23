@@ -1,120 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchOrders } from '../../store/orderSlice';
-import { Search, Download, Eye } from 'lucide-react';
-import Pagination from '../../components/common/Pagination';
-import Loader from '../../components/common/Loader';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { fetchOrders } from "../../store/orderSlice";
+import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+
+// Components
+import OrderTable from "../../components/tables/OrderTable";
+import Loader from "../../components/common/Loader";
+import Pagination from "../../components/common/Pagination";
+import EmptyState from "../../components/common/EmptyState";
+import Button from "../../components/common/Button";
 
 const OrdersList = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  
-  const { list: orders, totalPages, loading } = useSelector((state) => state.orders);
-  
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  const navigate = useNavigate();
+  const { orders, totalOrders, loading, error } = useSelector((state) => state.orders);
+
+  // Pagination & Filter State
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState(""); // placed, processing, etc.
+  const limit = 10;
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      dispatch(fetchOrders({ page, status, search }));
-    }, 500); // Debounce search
-    return () => clearTimeout(timer);
-  }, [dispatch, page, status, search]);
+    // Construct Query Params matching ApiFeatures in backend
+    const params = { page, limit, sort: "-createdAt" };
+    if (statusFilter) params.orderStatus = statusFilter;
 
-  const getStatusColor = (status) => {
-    switch(status.toLowerCase()) {
-      case 'delivered': return 'bg-green-100 text-green-700';
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'cancelled': return 'bg-red-100 text-red-700';
-      case 'shipped': return 'bg-blue-100 text-blue-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
+    dispatch(fetchOrders(params));
+  }, [dispatch, page, statusFilter]);
+
+  const handleViewOrder = (id) => {
+    navigate(`/orders/${id}`);
   };
 
+  if (loading && orders.length === 0) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader size="lg" text="Loading orders..." />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Orders</h1>
-          <p className="text-sm text-gray-500">Track and manage customer orders.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
+          <p className="mt-1 text-sm text-gray-500">Track and manage customer orders.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50">
-           <Download size={18} /> Export CSV
-        </button>
+        {/* Filter Dropdown */}
+        <div className="flex items-center gap-3">
+            <select 
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+            >
+                <option value="">All Statuses</option>
+                <option value="placed">Placed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            {/* Optional Export Button */}
+            <Button variant="outline" size="sm">
+                <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                Export
+            </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white p-2 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-3">
-         <div className="flex items-center gap-2 px-3 bg-gray-50 rounded-lg py-2.5 w-full sm:w-80 border border-transparent focus-within:border-blue-100 focus-within:bg-white transition-all">
-            <Search size={18} className="text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search Order ID..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent outline-none text-sm w-full font-medium"
-            />
-         </div>
-         <select 
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="px-4 py-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-600 outline-none cursor-pointer border border-transparent hover:bg-gray-100"
-         >
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-         </select>
-      </div>
-
-      {/* Table */}
-      {loading ? <Loader /> : (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase">
-              <tr>
-                <th className="px-6 py-4">Order ID</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Total</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {orders.length === 0 ? (
-                <tr><td colSpan="6" className="p-8 text-center text-gray-500">No orders found</td></tr>
-              ) : orders.map((order) => (
-                <tr key={order._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-gray-800">#{order.orderId}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-sm font-medium">{order.userId?.name || "Guest"}</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">₹{order.totalAmount}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(order.orderStatus)}`}>
-                      {order.orderStatus}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => navigate(`/orders/${order._id}`)}
-                      className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition"
-                    >
-                      <Eye size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
+          Error: {error}
         </div>
       )}
-      
-      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+
+      {orders.length > 0 ? (
+        <>
+          <OrderTable orders={orders} onView={handleViewOrder} />
+          <div className="mt-4">
+            <Pagination
+              currentPage={page}
+              totalItems={totalOrders}
+              itemsPerPage={limit}
+              onPageChange={setPage}
+            />
+          </div>
+        </>
+      ) : (
+        !loading && (
+          <EmptyState
+            title="No orders found"
+            description={statusFilter ? `No orders found with status "${statusFilter}"` : "You haven't received any orders yet."}
+          />
+        )
+      )}
     </div>
   );
 };

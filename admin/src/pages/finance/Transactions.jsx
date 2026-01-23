@@ -1,58 +1,87 @@
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchTransactions } from '../../store/financeSlice';
-import { Search } from 'lucide-react';
-import Loader from '../../components/common/Loader';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchTransactions } from "../../store/financeSlice";
+import { ArrowPathIcon } from "@heroicons/react/24/outline";
+
+// Components
+import TransactionTable from "../../components/tables/TransactionTable";
+import Loader from "../../components/common/Loader";
+import Pagination from "../../components/common/Pagination";
+import StatsCard from "../../components/common/StatsCard";
+import EmptyState from "../../components/common/EmptyState";
+import formatCurrency from "../../utils/formatCurrency";
 
 const Transactions = () => {
   const dispatch = useDispatch();
-  const { transactions, loading } = useSelector((state) => state.finance);
+  const { transactions, totalTransactions, loading, error } = useSelector((state) => state.finance);
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   useEffect(() => {
-    dispatch(fetchTransactions({ page: 1 }));
-  }, [dispatch]);
+    dispatch(fetchTransactions({ page, limit }));
+  }, [dispatch, page]);
 
-  if (loading) return <Loader />;
+  // Calculate Total Volume (Client side approximation or fetch from backend analytics)
+  const totalVolume = transactions.reduce((acc, curr) => acc + (curr.status === 'success' ? curr.amount : 0), 0);
+
+  if (loading && transactions.length === 0) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader size="lg" text="Loading transactions..." />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Transactions</h1>
-        <div className="flex items-center gap-2 px-3 bg-white border border-gray-200 rounded-lg py-2">
-           <Search size={18} className="text-gray-400" />
-           <input type="text" placeholder="Search..." className="bg-transparent outline-none text-sm" />
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
+        <p className="mt-1 text-sm text-gray-500">Monitor all incoming payments and refunds.</p>
+      </div>
+
+      {/* Quick Stats Row (Optional) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+          <p className="text-sm text-gray-500">Recent Volume (Page)</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalVolume)}</p>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+          <p className="text-sm text-gray-500">Total Count</p>
+          <p className="text-2xl font-bold text-gray-900">{totalTransactions}</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-xs font-bold text-gray-500 uppercase border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4">Transaction ID</th>
-              <th className="px-6 py-4">Order ID</th>
-              <th className="px-6 py-4">Date</th>
-              <th className="px-6 py-4">Amount</th>
-              <th className="px-6 py-4">Type</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {transactions.map((txn) => (
-              <tr key={txn._id} className="hover:bg-gray-50/50">
-                <td className="px-6 py-4 text-sm font-bold text-gray-800">{txn._id.substring(0, 10)}...</td>
-                <td className="px-6 py-4 text-sm text-blue-600">#{txn.orderId || "N/A"}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{new Date(txn.createdAt).toLocaleDateString()}</td>
-                <td className="px-6 py-4 font-bold text-gray-900">₹{txn.amount}</td>
-                <td className="px-6 py-4">
-                   <span className={`px-2 py-1 rounded-full text-xs font-bold ${txn.type === 'credit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {txn.type.toUpperCase()}
-                   </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {transactions.length === 0 && <div className="p-6 text-center text-gray-500">No transactions found.</div>}
-      </div>
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg">
+          Error loading transactions: {error}
+        </div>
+      )}
+
+      {/* Table Content */}
+      {transactions.length > 0 ? (
+        <>
+          <TransactionTable transactions={transactions} />
+          <div className="mt-4">
+            <Pagination
+              currentPage={page}
+              totalItems={totalTransactions}
+              itemsPerPage={limit}
+              onPageChange={setPage}
+            />
+          </div>
+        </>
+      ) : (
+        !loading && (
+          <EmptyState
+            title="No transactions found"
+            description="All payment records will appear here."
+          />
+        )
+      )}
     </div>
   );
 };

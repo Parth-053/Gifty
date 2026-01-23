@@ -1,108 +1,192 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { updateProductStatus } from "../../store/productSlice";
-import api from "../../api/axios";
-import { FiArrowLeft, FiTag, FiLayers, FiCheckCircle, FiXCircle } from "react-icons/fi";
+import { useDispatch, useSelector } from "react-redux";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { fetchProductDetails, updateProductStatus, clearCurrentProduct } from "../../store/productSlice";
+import { ArrowLeftIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
+
+// Components
+import Button from "../../components/common/Button";
+import Badge from "../../components/common/Badge";
 import Loader from "../../components/common/Loader";
-import toast from "react-hot-toast";
+import Modal from "../../components/common/Modal";
+import formatCurrency from "../../utils/formatCurrency";
 
 const ProductDetails = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isApprovalMode = searchParams.get("mode") === "approval";
+
+  const { currentProduct: product, loading } = useSelector((state) => state.products);
+  
+  // Local State for Rejection
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    api.get(`/admin/products/${id}`)
-      .then(res => setProduct(res.data.data))
-      .catch(() => toast.error("Product not found"))
-      .finally(() => setLoading(false));
-  }, [id]);
+    dispatch(fetchProductDetails(id));
+    return () => { dispatch(clearCurrentProduct()); };
+  }, [dispatch, id]);
 
-  const handleStatus = async (status) => {
-    try {
-        await dispatch(updateProductStatus({ id, status })).unwrap();
-        toast.success(`Product ${status}`);
-        navigate(-1);
-    } catch  {
-        toast.error("Update failed");
-    }
+  const handleStatusChange = async (status, reason = "") => {
+    setActionLoading(true);
+    await dispatch(updateProductStatus({ id: product._id, status, reason }));
+    setActionLoading(false);
+    
+    if (status === "rejected") setRejectModalOpen(false);
+    // Navigate back to approval list if in approval mode
+    if (isApprovalMode) navigate("/products/approvals");
   };
 
-  if (loading) return <Loader />;
-  if (!product) return <div>Product not found</div>;
+  if (loading || !product) {
+    return <div className="flex justify-center h-[80vh] items-center"><Loader size="lg" /></div>;
+  }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-2 text-gray-500 hover:text-black">
-        <FiArrowLeft /> Back to Products
-      </button>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full">
+            <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
+            <p className="text-sm text-gray-500">Seller: {product.sellerId?.storeName}</p>
+          </div>
+        </div>
+        
+        <Badge variant={product.verificationStatus === "approved" ? "success" : product.verificationStatus === "rejected" ? "danger" : "warning"}>
+          {product.verificationStatus.toUpperCase()}
+        </Badge>
+      </div>
 
+      {/* Verification Actions (Only if Pending or specific mode) */}
+      {product.verificationStatus === "pending" && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-yellow-100 rounded-full text-yellow-700">!</div>
+             <div>
+                <h3 className="font-semibold text-gray-900">Verification Required</h3>
+                <p className="text-sm text-gray-600">This product is pending admin approval.</p>
+             </div>
+          </div>
+          <div className="flex gap-3">
+            <Button 
+              variant="danger" 
+              onClick={() => setRejectModalOpen(true)}
+              disabled={actionLoading}
+            >
+              <XCircleIcon className="h-5 w-5 mr-2" />
+              Reject
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => handleStatusChange("approved")}
+              isLoading={actionLoading}
+            >
+              <CheckCircleIcon className="h-5 w-5 mr-2" />
+              Approve
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Product Info Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: Image Gallery */}
+        {/* Left: Images */}
         <div className="space-y-4">
-          <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+          <div className="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
             <img 
               src={product.images?.[0]?.url} 
               alt={product.name} 
-              className="w-full h-full object-cover"
+              className="object-cover w-full h-full"
             />
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-4">
             {product.images?.slice(1).map((img, idx) => (
-              <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
-                <img src={img.url} alt="" className="w-full h-full object-cover" />
+              <div key={idx} className="aspect-w-1 aspect-h-1 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+                <img src={img.url} alt="" className="object-cover w-full h-full" />
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right: Info & Actions */}
+        {/* Right: Details */}
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
-            <p className="text-gray-500 mt-2">{product.description}</p>
-          </div>
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+            <h3 className="font-semibold text-gray-900 border-b pb-2">Product Details</h3>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Price</p>
+                <p className="font-bold text-lg text-gray-900">{formatCurrency(product.price)}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Discount Price</p>
+                <p className="font-medium text-gray-900">{product.discountPrice ? formatCurrency(product.discountPrice) : "-"}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Stock</p>
+                <p className="font-medium text-gray-900">{product.stock} units</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Category</p>
+                <p className="font-medium text-gray-900">{product.categoryId?.name}</p>
+              </div>
+            </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
-            <div className="flex justify-between border-b pb-2">
-              <span className="text-gray-600 flex items-center gap-2"><FiTag /> Price</span>
-              <span className="font-bold text-xl">₹{product.price}</span>
+            <div>
+              <p className="text-gray-500 text-sm mb-1">Description</p>
+              <p className="text-gray-700 text-sm leading-relaxed">{product.description}</p>
             </div>
-            <div className="flex justify-between border-b pb-2">
-              <span className="text-gray-600 flex items-center gap-2"><FiLayers /> Stock</span>
-              <span className="font-bold">{product.stock} units</span>
-            </div>
-            <div className="flex justify-between pb-2">
-               <span className="text-gray-600">Category</span>
-               <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-sm">
-                 {product.category?.name || "Uncategorized"}
-               </span>
-            </div>
-          </div>
-
-          {/* Admin Actions */}
-          <div className="pt-4 border-t border-gray-200">
-            <h3 className="font-bold mb-3 text-gray-700">Admin Actions</h3>
-            <div className="flex gap-4">
-              <button 
-                onClick={() => handleStatus('active')}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium flex justify-center items-center gap-2"
-              >
-                <FiCheckCircle /> Approve Product
-              </button>
-              <button 
-                onClick={() => handleStatus('rejected')}
-                className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 py-3 rounded-xl font-medium flex justify-center items-center gap-2"
-              >
-                <FiXCircle /> Reject
-              </button>
-            </div>
+            
+            {product.isCustomizable && (
+              <div className="bg-indigo-50 p-3 rounded-lg">
+                <p className="text-xs font-bold text-indigo-700 uppercase mb-1">Customization Available</p>
+                <div className="flex flex-wrap gap-2">
+                   {product.customizationOptions?.map(opt => (
+                     <span key={opt} className="px-2 py-1 bg-white text-indigo-600 text-xs rounded border border-indigo-100">{opt}</span>
+                   ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Reject Modal */}
+      <Modal 
+        isOpen={rejectModalOpen} 
+        onClose={() => setRejectModalOpen(false)}
+        title="Reject Product"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Please provide a reason for rejecting this product. This will be sent to the seller.
+          </p>
+          <textarea
+            className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-500 outline-none"
+            rows="4"
+            placeholder="e.g., Image quality is too low, Inappropriate content..."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setRejectModalOpen(false)}>Cancel</Button>
+            <Button 
+              variant="danger" 
+              onClick={() => handleStatusChange("rejected", rejectReason)}
+              disabled={!rejectReason.trim()}
+              isLoading={actionLoading}
+            >
+              Confirm Rejection
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

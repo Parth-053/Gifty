@@ -1,21 +1,24 @@
-import { Navigate, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
-import Loader from "../components/common/Loader"; // Ensure you have a loader
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { Navigate, Outlet } from "react-router-dom";
+import { fetchAdminProfile } from "../store/authSlice";
+import Loader from "../components/common/Loader";
 
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useSelector((state) => state.auth);
-  const location = useLocation();
+const ProtectedRoute = () => {
+  const dispatch = useDispatch();
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (!user) {
+      dispatch(fetchAdminProfile());
+    }
+  }, [dispatch, user]);
 
   if (loading) {
-    return <Loader />; // Show spinner while checking auth status
+    return <div className="h-screen flex items-center justify-center"><Loader /></div>;
   }
 
-  if (!isAuthenticated) {
-    // Redirect to login but save where they were trying to go
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

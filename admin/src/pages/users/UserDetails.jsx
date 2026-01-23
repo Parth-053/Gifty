@@ -1,97 +1,147 @@
 import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../../api/axios"; 
-import { FiArrowLeft, FiMail, FiPhone, FiMapPin, FiCalendar } from "react-icons/fi";
+import { fetchUserDetails, updateUserStatus, clearCurrentUser } from "../../store/userSlice";
+import { ArrowLeftIcon, MapPinIcon, ShieldExclamationIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
+
+// Components
+import Button from "../../components/common/Button";
+import Badge from "../../components/common/Badge";
 import Loader from "../../components/common/Loader";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 
 const UserDetails = () => {
   const { id } = useParams();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  const { currentUser: user, loading } = useSelector((state) => state.users);
+  
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data } = await api.get(`/admin/users/${id}`);
-        setUser(data.data);
-      } catch  {
-        console.error("Failed to fetch user");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUser();
-  }, [id]);
+    dispatch(fetchUserDetails(id));
+    return () => { dispatch(clearCurrentUser()); };
+  }, [dispatch, id]);
 
-  if (loading) return <Loader />;
-  if (!user) return <div className="p-6">User not found</div>;
+  const toggleBlockStatus = async () => {
+    if (!user) return;
+    setActionLoading(true);
+    // Toggle logic: If user is active (or verify flag is true), we allow blocking.
+    // Note: Adjust 'isActive' logic based on your exact backend implementation.
+    const newStatus = !user.isActive; 
+    
+    await dispatch(updateUserStatus({ id: user._id, isActive: newStatus }));
+    setActionLoading(false);
+    setBlockModalOpen(false);
+  };
+
+  if (loading || !user) {
+    return <div className="flex justify-center h-[80vh] items-center"><Loader size="lg" /></div>;
+  }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Back Button */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-600 mb-6 hover:text-gray-900">
-        <FiArrowLeft /> Back to Users
-      </button>
-
-      {/* Profile Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6 flex items-center gap-6">
-        <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden">
-          {user.avatar ? (
-            <img src={user.avatar.url} alt={user.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-400">
-              {user.name.charAt(0)}
-            </div>
-          )}
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full">
+            <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">User Profile</h1>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium mt-2 inline-block ${
-             user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-          }`}>
-            {user.role.toUpperCase()}
-          </span>
-        </div>
+        
+        {user.role !== "admin" && (
+          <Button 
+            variant={user.isActive === false ? "success" : "danger"} 
+            onClick={() => setBlockModalOpen(true)}
+          >
+            {user.isActive === false ? (
+               <> <ShieldExclamationIcon className="h-5 w-5 mr-2" /> Unblock User </>
+            ) : (
+               <> <NoSymbolIcon className="h-5 w-5 mr-2" /> Block User </>
+            )}
+          </Button>
+        )}
       </div>
 
-      {/* Details Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Personal Info */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-bold text-lg mb-4 text-gray-800">Contact Info</h3>
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-gray-600">
-              <FiMail /> <span>{user.email}</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Profile Card */}
+        <div className="md:col-span-1 bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center">
+          <img 
+            src={user.avatar?.url || "https://via.placeholder.com/150"} 
+            alt={user.fullName} 
+            className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-gray-100 mb-4"
+          />
+          <h2 className="text-xl font-bold text-gray-900">{user.fullName}</h2>
+          <p className="text-gray-500 text-sm">{user.email}</p>
+          
+          <div className="mt-4 flex justify-center gap-2">
+            <Badge variant={user.isEmailVerified ? "success" : "warning"}>
+              {user.isEmailVerified ? "Verified" : "Unverified"}
+            </Badge>
+            <Badge variant="blue">{user.role}</Badge>
+          </div>
+
+          <div className="mt-6 border-t pt-4 text-left text-sm space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Phone:</span>
+              <span className="font-medium">{user.phone || "N/A"}</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <FiPhone /> <span>{user.phone || "No phone provided"}</span>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Joined:</span>
+              <span className="font-medium">{new Date(user.createdAt).toLocaleDateString()}</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <FiCalendar /> <span>Joined: {new Date(user.createdAt).toLocaleDateString()}</span>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Last Login:</span>
+              <span className="font-medium">{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never"}</span>
             </div>
           </div>
         </div>
 
-        {/* Addresses (If any) */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-bold text-lg mb-4 text-gray-800">Saved Addresses</h3>
-          {user.addresses && user.addresses.length > 0 ? (
-            <ul className="space-y-3">
-              {user.addresses.map((addr, index) => (
-                <li key={index} className="flex gap-2 items-start text-sm text-gray-600 border-b pb-2 last:border-0">
-                  <FiMapPin className="mt-1 flex-shrink-0" />
-                  <span>
-                    {addr.street}, {addr.city}, {addr.state} - {addr.pincode}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No addresses found.</p>
-          )}
+        {/* Addresses & Activity */}
+        <div className="md:col-span-2 space-y-6">
+          
+          {/* Addresses */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="font-semibold text-gray-900 border-b pb-2 mb-4 flex items-center gap-2">
+              <MapPinIcon className="h-5 w-5 text-gray-400" />
+              Saved Addresses
+            </h3>
+            
+            {user.addresses && user.addresses.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {user.addresses.map((addr, idx) => (
+                  <div key={idx} className="p-4 border border-gray-100 rounded-lg bg-gray-50 text-sm">
+                    <p className="font-medium text-gray-900 mb-1">{addr.name || user.fullName}</p>
+                    <p className="text-gray-600">{addr.addressLine1}</p>
+                    <p className="text-gray-600">{addr.city}, {addr.state} - {addr.pincode}</p>
+                    <p className="text-gray-600 mt-1 text-xs">Phone: {addr.phone}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm italic">No addresses saved.</p>
+            )}
+          </div>
+
+          {/* Activity / Orders Placeholder */}
+          {/* Note: You can embed the RecentOrders component here passing user.orders if populated */}
         </div>
       </div>
+
+      <ConfirmDialog 
+        isOpen={blockModalOpen}
+        onClose={() => setBlockModalOpen(false)}
+        onConfirm={toggleBlockStatus}
+        title={user.isActive === false ? "Unblock User?" : "Block User?"}
+        message={user.isActive === false 
+          ? "This will restore the user's access to the platform." 
+          : "This will prevent the user from logging in or placing new orders."}
+        isLoading={actionLoading}
+      />
     </div>
   );
 };

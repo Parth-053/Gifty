@@ -1,28 +1,30 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
 
-// Fetch Dashboard Stats (Cards)
+// Fetch Dashboard Cards Stats (Total Users, Sales, Orders)
 export const fetchDashboardStats = createAsyncThunk(
   "dashboard/fetchStats",
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get("/admin/analytics/dashboard");
-      return response.data.data; // { totalUsers, totalRevenue, ... }
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message);
+      return rejectWithValue(error.message);
     }
   }
 );
 
-// Fetch Sales Graph Data
+// Fetch Sales Graph Data (for Charts)
 export const fetchSalesGraph = createAsyncThunk(
   "dashboard/fetchGraph",
-  async (_, { rejectWithValue }) => {
+  async (period = "monthly", { rejectWithValue }) => {
     try {
-      const response = await api.get("/admin/analytics/graph");
+      const response = await api.get("/admin/analytics/graph", {
+        params: { type: period }
+      });
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message);
+      return rejectWithValue(error.message);
     }
   }
 );
@@ -30,13 +32,8 @@ export const fetchSalesGraph = createAsyncThunk(
 const dashboardSlice = createSlice({
   name: "dashboard",
   initialState: {
-    stats: {
-      totalUsers: 0,
-      totalSellers: 0,
-      totalOrders: 0,
-      totalRevenue: 0,
-    },
-    graphData: [],
+    stats: null,       
+    salesGraph: [],    
     loading: false,
     error: null,
   },
@@ -49,9 +46,13 @@ const dashboardSlice = createSlice({
         state.loading = false;
         state.stats = action.payload;
       })
+      .addCase(fetchDashboardStats.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // Graph
       .addCase(fetchSalesGraph.fulfilled, (state, action) => {
-        state.graphData = action.payload;
+        state.salesGraph = action.payload;
       });
   },
 });
