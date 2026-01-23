@@ -1,62 +1,68 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import compression from "compression";
 
-// Config & Utils
+// Configs & Middlewares
 import { envConfig } from "./config/env.config.js";
-import { corsOptions } from "./config/cors.config.js";
-import { apiLimiter } from "./config/rateLimit.js";
-import { logger } from "./config/logger.js";
+import { limiter } from "./config/rateLimit.js"; 
+import { requestLogger } from "./middlewares/requestLogger.middleware.js";
+import { errorHandler } from "./middlewares/errorHandler.middleware.js";
+import { notFound } from "./middlewares/notFound.middleware.js";
 
-// Custom Middlewares
-import { requestLogger } from "./middlewares/logger.middleware.js";
-import { securityMiddleware, sanitizeInputs } from "./middlewares/security.middleware.js";
-import { errorHandler } from "./middlewares/error.middleware.js";
-
-// Routes Import
+// Routes
 import routes from "./routes/index.js";
 
 const app = express();
 
+// 1. Global Middlewares (Security & Performance)
 
-// 1. Logging (Morgan + Winston)
-app.use(requestLogger);
+// Set Security HTTP Headers
+app.use(helmet());
 
-// 2. Security Headers (Helmet + XSS + MongoSanitize)
-securityMiddleware(app);
-
-// 3. CORS (Cross-Origin Resource Sharing)
-app.use(cors(corsOptions));
-
-// 4. Rate Limiting (Prevent Brute Force/DDoS)
-app.use("/api", apiLimiter);
-
-// 5. Data Sanitization (Prevent NoSQL Injection)
-app.use(sanitizeInputs);
-
-// 6. Compression (Gzip response bodies)
+// Enable Gzip Compression
 app.use(compression());
 
-// 7. Body Parsers
-app.use(express.json({ limit: "16kb" })); // Prevent large payloads
+// CORS Configuration
+app.use(cors({
+  origin: envConfig.cors.origin, // Allow requests from Frontend
+  credentials: true, // Allow cookies/headers
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
+
+// Body Parsing
+app.use(express.json({ limit: "16kb" })); // Prevent huge payloads
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(cookieParser());
 
-// Health Check (Public)
+// 2. Custom Middlewares (Logging & Limits)
+
+// Log every request (Method, URL, Status, Time)
+app.use(requestLogger);
+
+// Rate Limiting (Prevent DDoS/Spam)
+app.use("/api", limiter);
+
+// 3. Routes
+
+// Health Check (For Load Balancers/Uptime Monitors)
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK", service: "Gifty Backend", env: envConfig.env });
+  res.status(200).json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString(), 
+    uptime: process.uptime() 
+  });
 });
 
-// Mount All API Routes
+// Main API Entry Point
 app.use("/api/v1", routes);
 
-// 404 Handler (Route Not Found)
-app.use((req, res, next) => {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
-  error.statusCode = 404;
-  next(error);
-});
+// 4. Error Handling (Must be last)
+
+// Handle 404 Routes
+app.use(notFound);
 
 // Global Error Handler
 app.use(errorHandler);

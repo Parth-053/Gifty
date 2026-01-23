@@ -1,22 +1,14 @@
 import admin from "firebase-admin";
-import { envConfig } from "./env.config.js";
 
-// Handle newline characters in private key (Common issue with .env files)
-const privateKey = envConfig.firebase.privateKey 
-  ? envConfig.firebase.privateKey.replace(/\\n/g, '\n') 
-  : undefined;
-
-const serviceAccount = {
-  projectId: envConfig.firebase.projectId,
-  clientEmail: envConfig.firebase.clientEmail,
-  privateKey: privateKey,
-};
-
-// Prevent multiple initializations (Singleton pattern)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY 
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') 
+      : undefined,
+  }),
+});
 
 export default admin;
