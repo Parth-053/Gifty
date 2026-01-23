@@ -1,10 +1,9 @@
-// server/src/routes/v1/seller.routes.js
 import { Router } from "express";
 import { 
   addProduct, 
   getMyInventory, 
   editProduct, 
-  removeProduct,
+  deleteProduct,
   getProductDetails  
 } from "../../controllers/seller/inventory.controller.js";
 import { 
@@ -19,27 +18,27 @@ import {
 } from "../../controllers/seller/finance.controller.js";
 import { 
   updateSellerProfile, 
-  updateStoreSettings 
+  updateStoreSettings,
+  updateBankDetails,
+  getSellerProfile
 } from "../../controllers/seller/profile.controller.js";  
 
-import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js"; // Changed from verifyJWT
+import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import { upload } from "../../middlewares/multer.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
-
-// Note: Ensure these schemas are updated to reflect any model changes
 import { createProductSchema, updateProductSchema } from "../../validations/product.schema.js";
-import { updateSellerProfileSchema } from "../../validations/seller.schema.js"; 
+import { updateSellerProfileSchema, updateStoreSettingsSchema } from "../../validations/seller.schema.js";
 
 const router = Router();
  
 // Protect all routes: Must be Authenticated AND have 'seller' role
 router.use(verifyAuth, authorizeRoles("seller"));
 
-// 1. Inventory Management
+// --- 1. Inventory Management ---
 router.route("/inventory")
-  .get(getMyInventory) // Supports Search & Pagination
+  .get(getMyInventory)
   .post(
-    upload.array("images", 5), // Matches frontend: Add Photo
+    upload.array("images", 5), 
     validate(createProductSchema), 
     addProduct
   );
@@ -51,21 +50,22 @@ router.route("/inventory/:id")
     validate(updateProductSchema), 
     editProduct
   )
-  .delete(removeProduct); // Soft delete implementation
+  .delete(deleteProduct);
 
-// 2. Order Management
-router.get("/orders", getSellerOrders); // For OrderList.jsx
-router.put("/orders/:orderId/item/:itemId", updateOrderItemStatus); // Logic for processing/shipped
+// --- 2. Order Management ---
+router.get("/orders", getSellerOrders);
+router.patch("/orders/:orderId/items/:itemId", updateOrderItemStatus);
 
-// 3. Finance & Payouts
-router.get("/finance/stats", getFinanceStats); // For Dashboard stats
+// --- 3. Finance & Payouts ---
+router.get("/finance/stats", getFinanceStats);
 router.get("/finance/transactions", getTransactionHistory);
-router.get("/finance/payouts", getPayoutHistory); // For PayoutHistory.jsx
+router.get("/finance/payouts", getPayoutHistory);
 router.post("/finance/withdraw", requestPayout);
 
-// 4. Profile & Store Settings
-// Note: Removed updateStoreSettingsSchema validation temporarily if schema not updated
-router.put("/profile/me", validate(updateSellerProfileSchema), updateSellerProfile); 
-router.put("/profile/store", updateStoreSettings); 
+// --- 4. Profile & Settings ---
+router.get("/profile", getSellerProfile);
+router.patch("/profile", validate(updateSellerProfileSchema), updateSellerProfile); 
+router.patch("/store", validate(updateStoreSettingsSchema), updateStoreSettings);
+router.patch("/bank", updateBankDetails);  
 
 export default router;

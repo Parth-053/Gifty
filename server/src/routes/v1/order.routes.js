@@ -4,13 +4,13 @@ import {
   getUserOrders, 
   getOrderDetails 
 } from "../../controllers/user/order.controller.js";
-import { verifyJWT } from "../../middlewares/auth.middleware.js";
+import { verifyAuth } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
 import { createOrderSchema } from "../../validations/order.schema.js";
 
 const router = Router();
 
-router.use(verifyJWT);
+router.use(verifyAuth);  
 
 router.post("/", validate(createOrderSchema), createOrder);
 router.get("/", getUserOrders);

@@ -1,21 +1,25 @@
-// server/src/routes/v1/user.routes.js
 import { Router } from "express";
 import { 
   getMyProfile, 
   updateUserProfile, 
   deactivateAccount 
 } from "../../controllers/user/profile.controller.js";
-import { verifyAuth } from "../../middlewares/auth.middleware.js"; // Changed from verifyJWT
+import { verifyAuth } from "../../middlewares/auth.middleware.js";
 import { upload } from "../../middlewares/multer.middleware.js";
+import validate from "../../middlewares/validate.middleware.js";
+import { updateUserProfileSchema } from "../../validations/user.schema.js";
 
 const router = Router();
 
-// Apply Authentication Middleware globally for user routes
 router.use(verifyAuth); 
 
 router.route("/profile")
   .get(getMyProfile)
-  .put(upload.single("avatar"), updateUserProfile) // Handle image upload
+  .put(
+    upload.single("avatar"), 
+    validate(updateUserProfileSchema),
+    updateUserProfile
+  )
   .delete(deactivateAccount);
 
 export default router;

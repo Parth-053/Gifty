@@ -6,7 +6,7 @@ import { syncUserSchema, syncSellerSchema } from "../../validations/auth.schema.
 
 const router = Router();
 
-
+// Public / Hybrid
 router.post(
   "/sync/user",
   verifyAuth,
@@ -21,8 +21,7 @@ router.post(
   authController.syncSeller
 );
 
-// --- Protected Routes (DB record must exist) ---
-
+// Protected
 router.get("/me", verifyAuth, authController.getMe);
 router.post("/logout", verifyAuth, authController.logout);
 

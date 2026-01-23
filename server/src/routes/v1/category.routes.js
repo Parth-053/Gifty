@@ -5,40 +5,38 @@ import {
   updateCategory, 
   deleteCategory 
 } from "../../controllers/admin/category.controller.js";
-import { verifyJWT, authorizeRoles } from "../../middlewares/auth.middleware.js";
+import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import { upload } from "../../middlewares/multer.middleware.js";  
+import validate from "../../middlewares/validate.middleware.js";
+import { createCategorySchema, updateCategorySchema } from "../../validations/category.schema.js";
 
 const router = Router();
 
-// Public Routes
-
-// Get All Categories (Nested/Tree structure support inside controller)
+// Public: Get All Categories
 router.get("/", getCategories);
 
-// Protected Admin Routes (Requires Login + 'admin' Role)
-
-// 1. Create Category (Supports Image Upload)
-// field name 'image' must match frontend FormData key
+// Protected: Admin Management
 router.post(
   "/", 
-  verifyJWT, 
+  verifyAuth, 
   authorizeRoles("admin"), 
   upload.single("image"),
+  validate(createCategorySchema),
   createCategory
 );
 
-// 2. Update Category (Supports Image Update)
 router.put(
   "/:id", 
-  verifyJWT, 
+  verifyAuth, 
   authorizeRoles("admin"), 
   upload.single("image"), 
+  validate(updateCategorySchema),
   updateCategory
 );
 
 router.delete(
   "/:id", 
-  verifyJWT, 
+  verifyAuth, 
   authorizeRoles("admin"), 
   deleteCategory
 );

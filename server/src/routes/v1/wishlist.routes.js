@@ -3,13 +3,15 @@ import {
   getWishlist, 
   toggleWishlistItem 
 } from "../../controllers/user/wishlist.controller.js";
-import { verifyJWT } from "../../middlewares/auth.middleware.js";
+import { verifyAuth } from "../../middlewares/auth.middleware.js";
+import validate from "../../middlewares/validate.middleware.js";
+import { toggleWishlistSchema } from "../../validations/wishlist.schema.js";
 
 const router = Router();
 
-router.use(verifyJWT);
+router.use(verifyAuth);
 
 router.get("/", getWishlist);
-router.post("/toggle", toggleWishlistItem);
+router.post("/toggle", validate(toggleWishlistSchema), toggleWishlistItem);
 
 export default router;
