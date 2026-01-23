@@ -1,10 +1,10 @@
-import { v2 as cloudinary } from "cloudinary";
+import { cloudinary } from "../config/cloudinary.js";
 import { logger } from "../config/logger.js"; 
 
 /**
  * Upload Image to Cloudinary (from Buffer)
  * @param {Buffer} buffer - File buffer from Multer
- * @param {String} folder - Folder name in Cloudinary (e.g. "products", "avatars")
+ * @param {String} folder - Folder name in Cloudinary 
  */
 export const uploadOnCloudinary = async (buffer, folder = "general") => {
   return new Promise((resolve, reject) => {
@@ -15,7 +15,7 @@ export const uploadOnCloudinary = async (buffer, folder = "general") => {
       },
       (error, result) => {
         if (error) {
-          logger.error("Cloudinary Upload Error:", error);
+          logger.error(`Cloudinary Upload Error: ${error.message}`);
           return reject(error);
         }
         resolve({
@@ -38,7 +38,7 @@ export const deleteFromCloudinary = async (publicId) => {
     if (!publicId) return null;
     return await cloudinary.uploader.destroy(publicId);
   } catch (error) {
-    logger.error("Cloudinary Delete Error:", error);
+    logger.error(`Cloudinary Delete Error: ${error.message}`);
     return null;
   }
 };
