@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-// Item Schema (Snapshot of product at time of purchase)
+// Embedded Schema for Order Items (Snapshot logic)
 const orderItemSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -13,29 +13,31 @@ const orderItemSchema = new mongoose.Schema({
     required: true
   },
   name: { type: String, required: true },
-  price: { type: Number, required: true }, 
+  price: { type: Number, required: true },  
   image: { type: String, required: true },
   
   quantity: { type: Number, required: true, min: 1 },
   
-  // Customization Data
-  customization: { 
-    text: String,
-    image: String,
-    color: String,
-    note: String
-  }, 
+  //Dynamic Customization Handling
+  customizationDetails: [
+    {
+      optionName: { type: String, required: true },  
+      type: { type: String, default: "text" },     
+      value: { type: String, required: true },     
+      additionalPrice: { type: Number, default: 0 }  
+    }
+  ],
   
   status: {
     type: String,
-    enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+    enum: ["pending", "processing", "shipped", "delivered", "cancelled", "returned"],
     default: "pending"
   }
 }, { _id: false });
 
 const orderSchema = new mongoose.Schema(
   {
-    orderId: { type: String, unique: true, required: true, index: true }, // ORD-8273
+    orderId: { type: String, unique: true, required: true, index: true },  
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -47,14 +49,16 @@ const orderSchema = new mongoose.Schema(
     
     totalAmount: { type: Number, required: true },
     shippingAmount: { type: Number, default: 0 },
+    discountAmount: { type: Number, default: 0 },
+    finalAmount: { type: Number, required: true },  
     
     shippingAddress: {
-      fullName: String,
-      addressLine1: String,
-      city: String,
-      state: String,
-      pincode: String,
-      phone: String
+      fullName: { type: String, required: true },
+      addressLine1: { type: String, required: true },
+      city: { type: String, required: true },
+      state: { type: String, required: true },
+      pincode: { type: String, required: true },
+      phone: { type: String, required: true }
     },
     
     paymentMethod: {
@@ -66,18 +70,25 @@ const orderSchema = new mongoose.Schema(
     paymentInfo: {
       razorpayOrderId: String,
       razorpayPaymentId: String,
-      status: { type: String, enum: ["pending", "paid", "failed"], default: "pending" }
+      razorpaySignature: String,
+      status: { type: String, enum: ["pending", "paid", "failed", "refunded"], default: "pending" }
     },
 
-    orderStatus: { // Aggregate Status
-        type: String,
-        enum: ["placed", "processing", "shipped", "delivered", "cancelled"],
-        default: "placed",
-        index: true
-    }
+    // Global Order Status
+    orderStatus: {
+      type: String,
+      enum: ["placed", "processing", "shipped", "delivered", "cancelled"],
+      default: "placed",
+      index: true
+    },
+    
+    trackingId: { type: String },
+    courierPartner: { type: String }
   },
   { timestamps: true }
 );
 
-const Order = mongoose.model("Order", orderSchema);
-export default Order;
+// Index for sorting orders by date (Dashboard)
+orderSchema.index({ createdAt: -1 });
+
+export const Order = mongoose.model("Order", orderSchema);

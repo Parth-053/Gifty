@@ -20,7 +20,7 @@ const transactionSchema = new mongoose.Schema(
     },
     paymentGatewayId: { 
       type: String, 
-      required: true //  razorpay_payment_id
+      required: true  
     },
     amount: {
       type: Number,
@@ -37,7 +37,10 @@ const transactionSchema = new mongoose.Schema(
       index: true
     },
     metadata: {
-      type: Object // Extra details from gateway
+      type: Object  
+    },
+    errorReason: {
+        type: String 
     }
   },
   { timestamps: true }

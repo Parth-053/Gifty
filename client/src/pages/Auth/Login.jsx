@@ -1,113 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import Input from '../../components/common/Input';
-import Button from '../../components/common/Button';
-import { APP_NAME } from '../../utils/constants';
+// client/src/pages/auth/Login.jsx
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
+import { auth, googleProvider } from "../../config/firebase";
+import toast from 'react-hot-toast';
 
 const Login = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { login, isAuthenticated, loading, error } = useAuth();
-  
-  // Where to redirect after login (default to home or the page they tried to visit)
-  const from = location.state?.from?.pathname || '/';
+    const navigate = useNavigate();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
 
-  // If already logged in, redirect
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate(from, { replace: true });
+            // Check Verification Status
+            if (!user.emailVerified) {
+                toast("Please verify your email first.", { icon: '📧' });
+                navigate('/verify-email');
+            } else {
+                toast.success("Welcome back!");
+                navigate('/'); 
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Invalid email or password");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        try {
+            await signInWithPopup(auth, googleProvider);
+            toast.success("Logged in with Google!");
+            navigate('/');
+        } catch (error) {
+            console.error(error);
+            toast.error("Google login failed");
+        }
     }
-  }, [isAuthenticated, navigate, from]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
+            <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
+                <h2 className="text-2xl font-bold mb-6 text-center">Login to Gifty</h2>
+                
+                <form onSubmit={handleLogin} className="space-y-4">
+                    <input 
+                        type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required 
+                        className="w-full p-3 border rounded-lg"
+                    />
+                    <input 
+                        type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required 
+                        className="w-full p-3 border rounded-lg"
+                    />
+                    <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                        {loading ? "Logging in..." : "Login"}
+                    </button>
+                </form>
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await login(formData);
-  };
+                <div className="mt-4 flex items-center justify-between">
+                   <hr className="w-full border-gray-300" />
+                   <span className="px-2 text-gray-500 text-sm">OR</span>
+                   <hr className="w-full border-gray-300" />
+                </div>
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-        
-        {/* Header */}
-        <div className="bg-gray-900 p-8 text-center">
-          <h2 className="text-3xl font-black text-white mb-2">Welcome Back</h2>
-          <p className="text-gray-400 text-sm">Sign in to continue to {APP_NAME}</p>
-        </div>
+                <button onClick={handleGoogleLogin} className="w-full mt-4 border border-gray-300 p-3 rounded-lg flex items-center justify-center hover:bg-gray-50">
+                    Sign in with Google
+                </button>
 
-        {/* Form */}
-        <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Input
-              label="Email Address"
-              type="email"
-              name="email"
-              placeholder="you@example.com"
-              value={formData.email}
-              onChange={handleChange}
-              icon={Mail}
-              required
-            />
-
-            <div>
-              <Input
-                label="Password"
-                type="password"
-                name="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                icon={Lock}
-                required
-              />
-              <div className="flex justify-end mt-2">
-                <Link 
-                  to="/auth/forgot-password" 
-                  className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
+                <p className="mt-4 text-center text-sm">
+                    Don't have an account? <Link to="/register" className="text-blue-600 font-bold">Sign up</Link>
+                </p>
+                <p className="mt-2 text-center text-sm">
+                    <Link to="/forgot-password" className="text-gray-500 hover:underline">Forgot Password?</Link>
+                </p>
             </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 text-red-600 text-sm font-bold rounded-xl text-center border border-red-100">
-                {error}
-              </div>
-            )}
-
-            <Button 
-              type="submit" 
-              fullWidth 
-              size="lg" 
-              isLoading={loading}
-              icon={ArrowRight}
-            >
-              Sign In
-            </Button>
-          </form>
-
-          {/* Footer */}
-          <div className="mt-8 text-center text-sm text-gray-500">
-            Don't have an account?{' '}
-            <Link to="/auth/register" className="font-bold text-blue-600 hover:underline">
-              Create Account
-            </Link>
-          </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default Login;

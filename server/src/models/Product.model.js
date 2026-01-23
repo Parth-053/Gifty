@@ -14,7 +14,7 @@ const productSchema = new mongoose.Schema(
       required: true,
       trim: true,
       maxlength: 200,
-      index: "text" // Full-text search
+      index: "text"  
     },
     slug: {
       type: String,
@@ -30,7 +30,9 @@ const productSchema = new mongoose.Schema(
       type: Number, 
       min: 0,
       validate: {
-        validator: function(val) { return !val || val < this.price; },
+        validator: function(val) {
+           return !val || val < this.price; 
+        },
         message: "Discount price must be less than regular price"
       }
     },
@@ -49,16 +51,16 @@ const productSchema = new mongoose.Schema(
       }
     ],
     
-    stock: { type: Number, required: true, min: 0 },
+    stock: { type: Number, required: true, min: 0, default: 0 },
     
-    // Customization (For Gifting)
+    // Customization (For Gifting Platform)
     isCustomizable: { type: Boolean, default: false },
-    customizationOptions: [{ type: String }], // e.g. ["text", "image", "color"]
+    customizationOptions: [{ type: String }], 
     
     tags: [String],
     
     rating: {
-      average: { type: Number, default: 0, index: true },
+      average: { type: Number, default: 0, min: 0, max: 5 },
       count: { type: Number, default: 0 }
     },
 
@@ -69,21 +71,30 @@ const productSchema = new mongoose.Schema(
       default: "pending",
       index: true
     },
-    isActive: { type: Boolean, default: true, index: true }, // Seller toggle
-    isDeleted: { type: Boolean, default: false }, // Soft delete
+    isActive: { type: Boolean, default: true, index: true },  
+    isDeleted: { type: Boolean, default: false },  
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
-// Indexes for Filtering
+// 1. Indexes for High Performance Filtering
 productSchema.index({ categoryId: 1, isActive: 1, price: 1 });
+productSchema.index({ slug: 1 });
 
+// 2. Auto-generate Slug before saving
 productSchema.pre("save", function (next) {
-  if (this.isModified("name")) {
-    this.slug = slugify(this.name, { lower: true, strict: true }) + "-" + Date.now();
-  }
+  if (!this.isModified("name")) return next();
+  
+  this.slug = slugify(this.name, { lower: true, strict: true }) + 
+              "-" + 
+              Math.floor(Math.random() * 1000);  
   next();
 });
 
+// 3. Virtual for Calculating Percentage Off
+productSchema.virtual("percentageOff").get(function () {
+  if (!this.discountPrice || this.discountPrice >= this.price) return 0;
+  return Math.round(((this.price - this.discountPrice) / this.price) * 100);
+});
+
 export const Product = mongoose.model("Product", productSchema);
-export default Product; // Default export for compatibility

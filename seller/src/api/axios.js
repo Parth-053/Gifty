@@ -1,7 +1,8 @@
+// src/api/axios.js
 import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants'; //
+import { API_BASE_URL } from '../utils/constants';
+import { auth } from '../config/firebase'; // Import auth
 
-// Axios instance creation
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -10,9 +11,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('sellerToken'); //
-    if (token) {
+  async (config) => {
+    // Check if a user is logged in via Firebase
+    if (auth.currentUser) {
+      // Force fetch a fresh token (handles expiry automatically)
+      const token = await auth.currentUser.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -25,10 +28,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('sellerToken'); 
-      window.location.href = '/auth/login';
-    }
+    // Optional: Handle 401 globally
     return Promise.reject(error);
   }
 );

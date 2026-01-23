@@ -1,15 +1,17 @@
+// server/src/routes/v1/user.routes.js
 import { Router } from "express";
 import { 
   getMyProfile, 
   updateUserProfile, 
   deactivateAccount 
 } from "../../controllers/user/profile.controller.js";
-import { verifyJWT } from "../../middlewares/auth.middleware.js";
+import { verifyAuth } from "../../middlewares/auth.middleware.js"; // Changed from verifyJWT
 import { upload } from "../../middlewares/multer.middleware.js";
 
 const router = Router();
 
-router.use(verifyJWT); // Apply verifyJWT to all routes below
+// Apply Authentication Middleware globally for user routes
+router.use(verifyAuth); 
 
 router.route("/profile")
   .get(getMyProfile)

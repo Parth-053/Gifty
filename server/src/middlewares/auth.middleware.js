@@ -1,59 +1,60 @@
-import jwt from "jsonwebtoken";
+// server/src/middlewares/auth.middleware.js
+import admin from "../config/firebase.js";
 import { User } from "../models/User.model.js";
-import { envConfig } from "../config/env.config.js";
-import { ApiError } from "../utils/ApiError.js"; 
-import { asyncHandler } from "../utils/asyncHandler.js"; 
+import { Seller } from "../models/Seller.model.js"; // Ensure filename matches case on disk
+import {ApiError} from "../utils/apiError.js"; 
+import {asyncHandler} from "../utils/asyncHandler.js";
 
-/**
-    Verify JWT Access Token
-    Checks cookies or Authorization header
- */
-export const verifyJWT = asyncHandler(async (req, res, next) => {
-  // 1. Get token from Cookie OR Header
-  const token =
-    req.cookies?.accessToken ||
-    req.header("Authorization")?.replace("Bearer ", "");
+// Middleware to verify Firebase Token & Attach User/Seller to Req
+export const verifyAuth = asyncHandler(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
-    throw new ApiError(401, "Unauthorized request. Please login first.");
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new ApiError(401, 'Unauthorized: No token provided');
   }
 
+  const idToken = authHeader.split(' ')[1];
+
   try {
-    // 2. Verify Token
-    const decodedToken = jwt.verify(token, envConfig.jwt.accessSecret);
+    // 1. Verify Token with Firebase
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    req.uid = decodedToken.uid;
+    req.email = decodedToken.email;
+    req.emailVerified = decodedToken.email_verified;
 
-    // 3. Find User (Select only necessary fields)
-    const user = await User.findById(decodedToken._id).select(
-      "-password -refresh_token -loginAttempts -lockUntil"
-    );
+    // 2. Check User Collection
+    let account = await User.findOne({ firebaseUid: decodedToken.uid });
+    let role = 'user';
 
-    if (!user) {
-      throw new ApiError(401, "Invalid Access Token. User not found.");
+    // 3. If not found, Check Seller Collection
+    if (!account) {
+        account = await Seller.findOne({ firebaseUid: decodedToken.uid });
+        role = 'seller';
     }
 
-    // 4. Attach user to request object
-    req.user = user;
+    if (!account) {
+        // Only allow if it's the specific Sync/Register endpoint
+        if (req.originalUrl.includes('/sync') || req.originalUrl.includes('/register')) {
+            return next();
+        }
+        throw new ApiError(404, 'Account not found in database. Please register/sync.');
+    }
+
+    req.user = account;
+    req.role = role;
     next();
+
   } catch (error) {
-    throw new ApiError(401, error?.message || "Invalid Access Token");
+    console.error("Auth Error:", error);
+    throw new ApiError(401, 'Unauthorized: Invalid token');
   }
 });
 
-/**
- * Role Based Access Control (RBAC)
- * @param {...string} roles - Allowed roles (e.g. "admin", "seller")
- */
-export const authorizeRoles = (...roles) => {
+// Role checking middleware
+export const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
-    if (!req.user) {
-      throw new ApiError(401, "Authentication required");
-    }
-
-    if (!roles.includes(req.user.role)) {
-      throw new ApiError(
-        403,
-        `Access Forbidden: You do not have permission to access this resource. Required: ${roles.join(" or ")}`
-      );
+    if (!req.role || !allowedRoles.includes(req.role)) {
+      throw new ApiError(403, `Access denied. Role '${req.role}' is not allowed.`);
     }
     next();
   };

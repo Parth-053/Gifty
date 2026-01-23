@@ -1,16 +1,26 @@
+// src/pages/auth/PendingApproval.jsx
 import React from 'react';
-import { Clock, ShieldCheck, Mail, LogOut, ArrowRight } from 'lucide-react';
+import { Clock, ShieldCheck, Mail, LogOut } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../store/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { signOut } from "firebase/auth";
+import { auth } from "../../config/firebase";
 
 const PendingApproval = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/auth/login');
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase first
+      await signOut(auth);
+      // Then clear Redux state
+      dispatch(logout());
+      navigate('/auth/login');
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
   };
 
   return (
@@ -38,9 +48,9 @@ const PendingApproval = () => {
 
         <button 
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 text-gray-500 font-bold text-sm hover:text-red-600 transition-colors"
+          className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-red-600 font-bold text-sm transition-colors py-2"
         >
-          <LogOut size={18} /> Sign Out & Check Later
+          <LogOut size={16} /> Sign Out
         </button>
       </div>
     </div>

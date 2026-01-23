@@ -1,3 +1,4 @@
+// server/src/config/env.config.js
 import dotenv from "dotenv";
 import Joi from "joi";
 
@@ -6,16 +7,17 @@ dotenv.config();
 
 // Define Schema for Environment Variables
 const envSchema = Joi.object({
-  PORT: Joi.number().default(8000),
+  PORT: Joi.number().default(5000),
   NODE_ENV: Joi.string()
     .valid("development", "production", "test")
     .default("development"),
   MONGODB_URI: Joi.string().required().description("Database URL"),
   CORS_ORIGIN: Joi.string().default("*").description("Allowed Origins"),
   
-  // Security Secrets
-  ACCESS_TOKEN_SECRET: Joi.string().required(),
-  REFRESH_TOKEN_SECRET: Joi.string().required(),
+  // Firebase Config (NEW)
+  FIREBASE_PROJECT_ID: Joi.string().required(),
+  FIREBASE_PRIVATE_KEY: Joi.string().required(),
+  FIREBASE_CLIENT_EMAIL: Joi.string().email().required(),
   
   // Admin Setup
   ADMIN_EMAIL: Joi.string().email().required(),
@@ -47,32 +49,26 @@ export const envConfig = {
   env: envVars.NODE_ENV,
   mongoose: {
     url: envVars.MONGODB_URI,
-    options: {
-      // Modern Mongoose options are default in v7+, keeping empty for now
-    },
   },
   cors: {
     origin: envVars.CORS_ORIGIN.split(","), 
     credentials: true,
   },
-  jwt: {
-    accessSecret: envVars.ACCESS_TOKEN_SECRET,
-    refreshSecret: envVars.REFRESH_TOKEN_SECRET,
-    accessExpiration: "15m",
-    refreshExpiration: "7d",
-  },
   adminEmail: envVars.ADMIN_EMAIL,
+  firebase: {
+    projectId: envVars.FIREBASE_PROJECT_ID,
+    privateKey: envVars.FIREBASE_PRIVATE_KEY,
+    clientEmail: envVars.FIREBASE_CLIENT_EMAIL,
+  },
   cloudinary: {
-    name: envVars.CLOUDINARY_CLOUD_NAME,
-    key: envVars.CLOUDINARY_API_KEY,
-    secret: envVars.CLOUDINARY_API_SECRET
+    cloud_name: envVars.CLOUDINARY_CLOUD_NAME,
+    api_key: envVars.CLOUDINARY_API_KEY,
+    api_secret: envVars.CLOUDINARY_API_SECRET,
   },
-  // 👇 Added Missing Payment Config
-  payment: {
-    razorpayId: envVars.RAZORPAY_KEY_ID,
-    razorpaySecret: envVars.RAZORPAY_KEY_SECRET
+  razorpay: {
+    keyId: envVars.RAZORPAY_KEY_ID,
+    keySecret: envVars.RAZORPAY_KEY_SECRET,
   },
-  // 👇 Added Missing AI Config
   ai: {
     geminiKey: envVars.GEMINI_API_KEY
   }

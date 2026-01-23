@@ -4,9 +4,15 @@ const notificationSchema = new mongoose.Schema(
   {
     recipientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // Can be User or Seller (via User ID)
       required: true,
+      refPath: 'recipientModel',  
       index: true
+    },
+    recipientModel: {
+      type: String,
+      required: true,
+      enum: ['User', 'Seller'],  
+      default: 'User'
     },
     type: {
       type: String,
@@ -15,14 +21,15 @@ const notificationSchema = new mongoose.Schema(
     },
     title: {
       type: String,
-      required: true
+      required: true,
+      trim: true
     },
     message: {
       type: String,
       required: true
     },
     data: {
-      type: Object // Link to OrderID or ProductID
+      type: Object  
     },
     isRead: {
       type: Boolean,
@@ -32,7 +39,7 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-delete notifications older than 30 days (TTL Index)
+// Auto-delete notifications older than 30 days to save DB space
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export const Notification = mongoose.model("Notification", notificationSchema);

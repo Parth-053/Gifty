@@ -3,10 +3,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import ProtectedRoute from './ProtectedRoute';
 
-// --- AUTH PAGES ---
+// --- Auth PAGES ---
 import Login from '../pages/Auth/Login';
 import Register from '../pages/Auth/Register';
 import ForgotPassword from '../pages/Auth/ForgotPassword';
+import VerifyEmail from '../pages/Auth/VerifyEmail'; // [ADDED] New Page
 
 // --- MAIN PAGES ---
 import Home from '../pages/Main/Home';
@@ -37,51 +38,42 @@ import Settings from '../pages/User/Settings';
 // --- UTILITY PAGES ---
 import About from '../pages/Utility/About';
 import Contact from '../pages/Utility/Contact';
-import Terms from '../pages/Utility/Terms';
-import NotFound from '../pages/Utility/NotFound';
+
+// --- ERROR PAGE ---
+import NotFound from '../pages/NotFound'; // Ensure you have this or remove
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* AppLayout wraps pages with Navbar and Footer */}
+      {/* 1. Public Routes (No Layout or Different Layout) */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} /> {/* [ADDED] */}
+
+      {/* 2. App Layout Routes (Navbar, Footer, etc.) */}
       <Route element={<AppLayout />}>
         
-        {/* === PUBLIC ROUTES === */}
+        {/* Public Pages inside Layout */}
         <Route path="/" element={<Home />} />
         <Route path="/categories" element={<Categories />} />
+        <Route path="/customize" element={<Customize />} />
         <Route path="/search" element={<Search />} />
         <Route path="/product/:id" element={<ProductDetails />} />
-        
-        {/* Cart can be public, but checkout requires login */}
         <Route path="/cart" element={<Cart />} />
-
+        
         {/* Utility Pages */}
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/support" element={<Contact />} />
 
-        {/* Auth Routes */}
-        <Route path="/auth/login" element={<Login />} />
-        <Route path="/auth/register" element={<Register />} />
-        <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-
-        {/* === PROTECTED ROUTES (Login Required) === */}
-        
-        {/* Main User Features */}
-        <Route path="/customize" element={
-          <ProtectedRoute>
-            <Customize />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/user/wishlist" element={
+        {/* --- PROTECTED ROUTES --- */}
+        <Route path="/wishlist" element={
           <ProtectedRoute>
             <Wishlist />
           </ProtectedRoute>
         } />
 
-        <Route path="/user/orders" element={
+        <Route path="/my-orders" element={
           <ProtectedRoute>
             <MyOrders />
           </ProtectedRoute>

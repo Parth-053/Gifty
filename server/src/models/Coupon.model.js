@@ -7,7 +7,8 @@ const couponSchema = new mongoose.Schema(
       required: true,
       unique: true,
       uppercase: true,
-      trim: true
+      trim: true,
+      index: true
     },
     description: String,
     discountType: {
@@ -24,19 +25,29 @@ const couponSchema = new mongoose.Schema(
       default: 0
     },
     maxDiscountAmount: {
-      type: Number // For percentage based coupons (e.g. 20% off upto ₹500)
+      type: Number  
     },
+    
+    // Restrictions
+    applicableCategories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
+    applicableProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
+    
     startDate: {
       type: Date,
       default: Date.now
     },
     expirationDate: {
       type: Date,
-      required: true
+      required: true,
+      index: true  
     },
     usageLimit: {
       type: Number,
-      default: 100 // Total times this coupon can be used
+      default: 100 
+    },
+    perUserLimit: {
+      type: Number,
+      default: 1
     },
     usedCount: {
       type: Number,
@@ -50,7 +61,7 @@ const couponSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Check if coupon is valid
+// Method to check validity
 couponSchema.methods.isValid = function () {
   return (
     this.isActive &&

@@ -22,10 +22,14 @@ const reviewSchema = new mongoose.Schema(
     comment: {
       type: String,
       required: true,
-      maxlength: 500
+      maxlength: 1000,
+      trim: true
     },
     images: [{ url: String }],
-    isVerifiedPurchase: { type: Boolean, default: false }
+    isVerifiedPurchase: { type: Boolean, default: false },
+    
+    // Admin Moderation
+    isHidden: { type: Boolean, default: false } 
   },
   { timestamps: true }
 );
@@ -33,5 +37,4 @@ const reviewSchema = new mongoose.Schema(
 // Prevent duplicate reviews from same user on same product
 reviewSchema.index({ productId: 1, userId: 1 }, { unique: true });
 
-const Review = mongoose.model("Review", reviewSchema);
-export default Review;
+export const Review = mongoose.model("Review", reviewSchema);

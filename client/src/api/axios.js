@@ -1,45 +1,27 @@
-import axios from "axios";
+// client/src/api/axios.js
+import axios from 'axios';
+import { auth } from '../config/firebase';
 
-// Create axios instance with base URL from environment variables
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1",
-  withCredentials: true, 
+  // Ensure this matches your VITE_API_URL or backend URL
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
- 
+
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    // Current user check
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      // Get fresh token (handles expiry automatically)
+      const token = await currentUser.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
-  (error) => Promise.reject(error)
-);
-
-// Response Interceptor: Handle Token Expiry
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    
-    // If 401 Unauthorized (Token Expired) & not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        // Attempt to refresh token
-        await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/refresh-token`,
-          {},
-          { withCredentials: true }
-        );
-        // Retry original request
-        return api(originalRequest);
-      } catch (refreshError) {
-        // If refresh fails, redirect to login
-        window.location.href = "/auth/login";
-        return Promise.reject(refreshError);
-      }
-    }
+  (error) => {
     return Promise.reject(error);
   }
 );

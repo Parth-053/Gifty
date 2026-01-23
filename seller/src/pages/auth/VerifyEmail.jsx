@@ -1,98 +1,108 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { Mail, RefreshCw, Loader2 } from 'lucide-react';
-import { verifySellerEmail, clearAuthError } from '../../store/authSlice';
+// src/pages/auth/VerifyEmail.jsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Mail, RefreshCw, Loader2, LogOut } from 'lucide-react';
+import { sendEmailVerification, signOut } from "firebase/auth";
+import { auth } from "../../config/firebase";
+import { useDispatch } from 'react-redux';
+import { logout } from '../../store/authSlice';
 import toast from 'react-hot-toast';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const dispatch = useDispatch();
-  
-  // Ensure we handle case where state might be null (e.g. page refresh)
-  const email = location.state?.email;
-  const { loading, isEmailVerified } = useSelector((state) => state.auth);
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const inputRefs = useRef([]);
-
-  // Redirect if email is missing (e.g. direct access without registration)
+  // Check if user is already verified every few seconds
   useEffect(() => {
-    if (!email) {
-      toast.error("Email not found. Please register again.");
-      navigate('/auth/register');
-    }
-  }, [email, navigate]);
+    const interval = setInterval(async () => {
+      const user = auth.currentUser;
+      if (user) {
+        await user.reload(); // Refresh user state from Firebase
+        if (user.emailVerified) {
+          toast.success("Email Verified!");
+          navigate('/'); // Redirect to dashboard
+        }
+      }
+    }, 3000);
 
-  useEffect(() => {
-    if (isEmailVerified) {
-      navigate('/', { replace: true });
-    }
-  }, [isEmailVerified, navigate]);
+    return () => clearInterval(interval);
+  }, [navigate]);
 
-  const handleChange = (index, value) => {
-    if (isNaN(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    if (value && index < 5) inputRefs.current[index + 1].focus();
+  const handleResend = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      await sendEmailVerification(user);
+      toast.success("Verification link sent again!");
+    } catch (error) {
+      if (error.code === 'auth/too-many-requests') {
+        toast.error("Please wait before requesting again.");
+      } else {
+        toast.error("Failed to send link.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1].focus();
-    }
+  const handleLogout = async () => {
+    await signOut(auth);
+    dispatch(logout());
+    navigate('/auth/login');
   };
 
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    const enteredOtp = otp.join('');
-    if (enteredOtp.length !== 6) return toast.error("Enter 6-digit code");
-
-    // FIX IS HERE: Rename 'otp' to 'code' to match backend expectation
-    const resultAction = await dispatch(verifySellerEmail({ 
-      email: email, 
-      code: enteredOtp 
-    }));
-
-    if (verifySellerEmail.fulfilled.match(resultAction)) {
-      toast.success("Account Verified!");
-      navigate('/auth/login');
+  const checkManually = async () => {
+    setChecking(true);
+    const user = auth.currentUser;
+    await user.reload();
+    if (user?.emailVerified) {
+      navigate('/');
     } else {
-      // Show backend error message
-      toast.error(resultAction.payload || "Verification failed");
+      toast.error("Not verified yet. Please check your inbox.");
     }
-  };
+    setChecking(false);
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F8F9FC] px-4">
       <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center">
-        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <Mail size={28} />
+        <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Mail size={40} />
         </div>
+        
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify your email</h1>
-        <p className="text-gray-500 text-sm mb-8">OTP sent to <span className="font-bold text-gray-800">{email || "your email"}</span></p>
+        <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+          We've sent a verification link to<br/>
+          <span className="font-bold text-gray-800">{auth.currentUser?.email}</span>
+        </p>
 
-        <form onSubmit={handleVerify}>
-          <div className="flex justify-center gap-2 mb-8">
-            {otp.map((digit, index) => (
-              <input
-                key={index} ref={(el) => (inputRefs.current[index] = el)}
-                type="text" maxLength={1} value={digit}
-                onChange={(e) => handleChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
-                className="w-12 h-14 border border-gray-200 rounded-xl text-center text-xl font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-              />
-            ))}
-          </div>
-          <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-70">
-            {loading ? <Loader2 className="animate-spin" size={20} /> : "Verify Account"}
+        <div className="space-y-3">
+          <button 
+            onClick={checkManually} 
+            disabled={checking}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-blue-700 transition-all"
+          >
+            {checking ? <Loader2 className="animate-spin" size={18} /> : "I've Clicked the Link"}
           </button>
-        </form>
 
-        <button className="mt-6 flex items-center justify-center gap-2 mx-auto text-sm font-bold text-blue-600 hover:underline">
-          <RefreshCw size={16} /> Resend OTP
+          <button 
+            onClick={handleResend} 
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 py-3.5 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all"
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <><RefreshCw size={18} /> Resend Link</>}
+          </button>
+        </div>
+
+        <button 
+          onClick={handleLogout}
+          className="mt-8 text-sm text-gray-500 hover:text-red-600 font-medium flex items-center justify-center gap-2 mx-auto"
+        >
+          <LogOut size={16} /> Sign Out
         </button>
       </div>
     </div>

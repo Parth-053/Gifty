@@ -1,22 +1,24 @@
+// src/pages/auth/Login.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Loader2, Store } from 'lucide-react';
-import { loginSeller } from '../../store/authSlice';
-import { useAuth } from '../../hooks/useAuth';
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../config/firebase";
+import { useSelector } from 'react-redux'; // Use Redux to check state
 import toast from 'react-hot-toast';
 
 const Login = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { loading, isAuthenticated } = useAuth();
+  // We read state from Redux, which is updated by our Context automatically
+  const { isAuthenticated } = useSelector(state => state.auth); 
 
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/', { replace: true }); // Redirect to Dashboard root
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -26,13 +28,17 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const resultAction = await dispatch(loginSeller(formData));
-    
-    if (loginSeller.fulfilled.match(resultAction)) {
-      toast.success("Welcome back to Gifty!");
-      navigate('/', { replace: true });
-    } else {
-      toast.error(resultAction.payload || "Invalid credentials");
+    setLoading(true);
+    try {
+      // 1. Firebase Login
+      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      // 2. Context will pick up the change, sync with DB, and update Redux
+      // We just wait or let the useEffect redirect us.
+      toast.success("Welcome back!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Invalid email or password");
+      setLoading(false);
     }
   };
 
@@ -48,6 +54,7 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Email Input */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">Email Address</label>
             <div className="relative group">
@@ -61,6 +68,7 @@ const Login = () => {
             </div>
           </div>
 
+          {/* Password Input */}
           <div>
             <div className="flex justify-between mb-2 ml-1">
               <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">Password</label>
