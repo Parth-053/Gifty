@@ -1,56 +1,45 @@
-import  Order from "../../models/Order.model.js";
+import { Order } from "../../models/Order.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { ApiFeatures } from "../../utils/ApiFeatures.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
-// 1. Get All Orders (With Pagination & Filters)
+/**
+ * @desc    Get All Orders (Admin)
+ * @route   GET /api/v1/admin/orders
+ */
 export const getAllOrders = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, status, search } = req.query;
-  
-  // Build Query
-  const query = {};
-  
-  if (status && status !== "All") {
-    query.status = status;
-  }
+  // Use ApiFeatures for automatic sort, filter, paginate
+  const features = new ApiFeatures(Order.find().populate("userId", "fullName email"), req.query)
+    .filter()
+    .sort()
+    .paginate();
 
-  if (search) {
-    query._id = search; 
-  }
+  const orders = await features.query;
+  const totalOrders = await Order.countDocuments(); // Should ideally match filter
 
-  const orders = await Order.find(query)
-    .populate("userId", "name email")  
-    .sort({ createdAt: -1 }) 
-    .skip((page - 1) * limit)
-    .limit(parseInt(limit));
-
-  const totalOrders = await Order.countDocuments(query);
-
-  return res.status(200).json(
-    new ApiResponse(200, { orders, totalOrders, currentPage: page }, "All orders fetched successfully")
+  return res.status(httpStatus.OK).json(
+    new ApiResponse(httpStatus.OK, { orders, totalOrders }, "Orders fetched successfully")
   );
 });
 
+/**
+ * @desc    Update Order Status (Admin Override)
+ * @route   PATCH /api/v1/admin/orders/:id/status
+ */
 export const updateAdminOrderStatus = asyncHandler(async (req, res) => {
-  const { id } = req.params;
   const { status } = req.body;
-
-  const validStatuses = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
-  if (!validStatuses.includes(status)) {
-    throw new ApiError(400, "Invalid order status");
-  }
-
+  
   const order = await Order.findByIdAndUpdate(
-    id,
-    { status },
+    req.params.id,
+    { orderStatus: status },
     { new: true }
   );
 
-  if (!order) {
-    throw new ApiError(404, "Order not found");
-  }
+  if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Order not found");
 
-  return res.status(200).json(
-    new ApiResponse(200, order, `Order status updated to ${status}`)
-  );
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, order, "Order status updated"));
 });

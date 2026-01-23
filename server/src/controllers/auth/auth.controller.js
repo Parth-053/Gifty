@@ -6,17 +6,17 @@ import { httpStatus } from "../../constants/httpStatus.js";
 /**
  * @desc    Sync User (Login/Register)
  * @route   POST /api/v1/auth/sync/user
- * @access  Private (Valid Firebase Token required)
+ * @access  Private (Requires valid Firebase Token)
  */
 export const syncUser = asyncHandler(async (req, res) => {
-  // req.uid and req.email come from verifyAuth middleware
+  // req.uid, req.email, req.emailVerified come from verifyAuth middleware
   const userData = {
     firebaseUid: req.uid,
     email: req.email,
     isEmailVerified: req.emailVerified,
     fullName: req.body.fullName,
     phone: req.body.phone,
-    avatar: req.body.avatar, // Expecting { url, publicId }
+    avatar: req.body.avatar, // Expecting object: { url, publicId }
   };
 
   const { user, isNewUser } = await authService.syncUser(userData);
@@ -31,9 +31,9 @@ export const syncUser = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Sync Seller (Login/Register)
+ * @desc    Sync Seller (Application/Login)
  * @route   POST /api/v1/auth/sync/seller
- * @access  Private (Valid Firebase Token required)
+ * @access  Private (Requires valid Firebase Token)
  */
 export const syncSeller = asyncHandler(async (req, res) => {
   const sellerData = {
@@ -57,13 +57,15 @@ export const syncSeller = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get Current User/Seller Profile
+ * @desc    Get Current Profile (User or Seller)
  * @route   GET /api/v1/auth/me
  * @access  Private
  */
 export const getMe = asyncHandler(async (req, res) => {
-  // req.role is attached by verifyAuth middleware if user exists in DB
+  // req.role is determined by the verifyAuth middleware (checks DB)
+  // If role is missing (e.g. first sync call), default to 'user' lookup or handle gracefully
   const role = req.role || "user"; 
+  
   const profile = await authService.getProfile(req.uid, role);
 
   return res
@@ -77,8 +79,9 @@ export const getMe = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const logout = asyncHandler(async (req, res) => {
-  // Since we use stateless Firebase Tokens, backend logout isn't strictly necessary 
-  // unless we track sessions. But we return success for frontend consistency.
+  // Since Firebase tokens are stateless, the backend doesn't store a session to "destroy".
+  // However, we return a success response so the frontend can clear its local state (Context/Redux).
+  
   return res
     .status(httpStatus.OK)
     .json(new ApiResponse(httpStatus.OK, {}, "Logged out successfully"));

@@ -1,92 +1,62 @@
 import { User } from "../../models/User.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
-import { ApiError } from "../../utils/apiError.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import { ApiError } from "../../utils/ApiError.js";
+import { ApiFeatures } from "../../utils/ApiFeatures.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
- * @desc    Get All Users (Pagination + Search)
+ * @desc    Get All Users (Search, Filter, Paginate)
  * @route   GET /api/v1/admin/users
  */
 export const getAllUsers = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, search, role } = req.query;
+  // Backend 2.0: Use ApiFeatures for automatic pagination & filtering
+  const features = new ApiFeatures(User.find({ role: "user" }), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
 
-  const query = {};
-  
-  // Search by Name or Email
-  if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: "i" } },
-      { email: { $regex: search, $options: "i" } }
-    ];
-  }
+  const users = await features.query;
+  const total = await User.countDocuments({ role: "user" }); // Approximate count
 
-  // Filter by Role (user/seller/admin)
-  if (role) {
-    query.role = role;
-  }
-
-  const users = await User.find(query)
-    .select("-password -refreshToken") // Exclude sensitive info
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(Number(limit));
-
-  const total = await User.countDocuments(query);
-
-  return res.status(200).json(new ApiResponse(200, {
-    users,
-    total,
-    page: Number(page),
-    pages: Math.ceil(total / limit)
-  }, "Users fetched successfully"));
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, { users, total }, "Users fetched successfully"));
 });
 
 /**
- * @desc    Get Single User Details
+ * @desc    Get Single User
  * @route   GET /api/v1/admin/users/:id
  */
 export const getUserDetails = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select("-password");
-  if (!user) throw new ApiError(404, "User not found");
+  const user = await User.findById(req.params.id).populate("addresses");
+  if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
 
-  return res.status(200).json(new ApiResponse(200, user, "User details fetched"));
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, user, "User details fetched"));
 });
 
 /**
- * @desc    Ban/Unban User (Soft Block)
- * @route   PUT /api/v1/admin/users/:id/status
+ * @desc    Block/Unblock User
+ * @route   PATCH /api/v1/admin/users/:id/status
  */
 export const updateUserStatus = asyncHandler(async (req, res) => {
-  const { isActive } = req.body; // true/false
+  const { isActive } = req.body;
   
-  // Assuming User model has isActive field (Or use isEmailVerified as proxy if strict ban needed)
-  // Ideally, add `isBanned: { type: Boolean, default: false }` to User Model if not present.
-  // For now, let's assume we toggle email verification to block login or add a new field dynamically.
-  
-  /* NOTE: If 'isBanned' field is missing in your User Model (Step 2), 
-     please add it or use a workaround. Here I assume you added it or will add it.
-  */
   const user = await User.findById(req.params.id);
-  if (!user) throw new ApiError(404, "User not found");
+  if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
 
-  // Prevent banning other admins
-  if (user.role === 'admin') throw new ApiError(403, "Cannot ban an admin");
+  // Prevent banning admins
+  if (user.role === "admin") throw new ApiError(httpStatus.FORBIDDEN, "Cannot block an admin");
 
-  user.isEmailVerified = isActive; // Example: Disable login by un-verifying
-  // OR: user.isBanned = !isActive;
-  
-  await user.save({ validateBeforeSave: false });
+  // We use isEmailVerified as a proxy for "Active" if no specific status field exists,
+  // OR strictly use an 'isActive' field if added to the model.
+  user.isActive = isActive; 
+  await user.save();
 
-  return res.status(200).json(new ApiResponse(200, user, `User status updated`));
-});
-
-/**
- * @desc    Delete User (Hard Delete - Use with caution)
- * @route   DELETE /api/v1/admin/users/:id
- */
-export const deleteUser = asyncHandler(async (req, res) => {
-  const user = await User.findByIdAndDelete(req.params.id);
-  if (!user) throw new ApiError(404, "User not found");
-
-  return res.status(200).json(new ApiResponse(200, {}, "User deleted permanently"));
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, user, `User ${isActive ? "unblocked" : "blocked"} successfully`));
 });

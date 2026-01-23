@@ -1,36 +1,42 @@
-import { updateProfile } from "../../services/user.service.js"; 
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
-import { ApiError } from "../../utils/apiError.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import * as userService from "../../services/user.service.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
  * @desc    Get My Profile
  * @route   GET /api/v1/user/profile
  */
 export const getMyProfile = asyncHandler(async (req, res) => {
-  // User is already attached to req by authMiddleware
-  return res.status(200).json(new ApiResponse(200, req.user, "Profile fetched"));
+  // req.user is already populated by auth middleware
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, req.user, "Profile fetched successfully"));
 });
 
 /**
- * @desc    Update Profile Details & Avatar
+ * @desc    Update Profile
  * @route   PUT /api/v1/user/profile
  */
 export const updateUserProfile = asyncHandler(async (req, res) => {
-  // req.file is provided by multer middleware if an image is uploaded
-  const updatedUser = await updateProfile(req.user._id, req.body, req.file);
+  const updatedUser = await userService.updateProfile(req.user._id, req.body, req.file);
 
   return res
-    .status(200)
-    .json(new ApiResponse(200, updatedUser, "Profile updated successfully"));
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, updatedUser, "Profile updated successfully"));
 });
 
 /**
- * @desc    Deactivate Account
+ * @desc    Soft Delete Account
  * @route   DELETE /api/v1/user/profile
  */
 export const deactivateAccount = asyncHandler(async (req, res) => {
-  // Soft delete logic usually goes here
-   await userService.deactivateUser(req.user._id);
-  return res.status(200).json(new ApiResponse(200, {}, "Account deactivated"));
+  // Simple soft delete toggle
+  const user = req.user;
+  user.isActive = false;
+  await user.save();
+
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, {}, "Account deactivated successfully"));
 });

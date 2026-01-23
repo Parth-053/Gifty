@@ -1,60 +1,53 @@
-import * as orderService from "../../services/order.service.js"; 
-import Order from "../../models/Order.model.js"; 
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
+import * as orderService from "../../services/order.service.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
- * @desc    Create New Order
- * @route   POST /api/v1/orders
+ * @desc    Create Order
+ * @route   POST /api/v1/user/orders
  */
 export const createOrder = asyncHandler(async (req, res) => {
   const { items, shippingAddress, paymentMethod } = req.body;
 
-  // Call the complex service logic for stock deduction & price checks
   const order = await orderService.createOrder(req.user._id, {
     items,
-    address: shippingAddress,
+    shippingAddress,
     paymentMethod,
   });
 
   return res
-    .status(201)
-    .json(new ApiResponse(201, order, "Order placed successfully"));
+    .status(httpStatus.CREATED)
+    .json(new ApiResponse(httpStatus.CREATED, order, "Order placed successfully"));
 });
 
 /**
- * @desc    Get All Orders for Logged-in User
- * @route   GET /api/v1/orders
+ * @desc    Get My Orders
+ * @route   GET /api/v1/user/orders
  */
 export const getUserOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ userId: req.user._id })
-    .select("orderId totalAmount orderStatus createdAt items")
-    .sort({ createdAt: -1 });
+  // Service handles pagination logic
+  const { orders, total } = await orderService.getUserOrders(req.user._id, req.query);
 
   return res
-    .status(200)
-    .json(new ApiResponse(200, orders, "Orders fetched successfully"));
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, { orders, total }, "Orders fetched successfully"));
 });
 
 /**
- * @desc    Get Single Order Details
- * @route   GET /api/v1/orders/:id
+ * @desc    Get Order Details
+ * @route   GET /api/v1/user/orders/:id
  */
 export const getOrderDetails = asyncHandler(async (req, res) => {
-  const orderId = req.params.id;
+  const order = await orderService.getOrderById(req.params.id);
 
-  // Find order by ID AND ensure it belongs to the logged-in user
-  const order = await Order.findOne({ 
-    _id: orderId, 
-    userId: req.user._id 
-  });
-
-  if (!order) {
-    throw new ApiError(404, "Order not found");
+  // Security Check: Ensure order belongs to user
+  if (order.userId.toString() !== req.user._id.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You are not authorized to view this order");
   }
 
   return res
-    .status(200)
-    .json(new ApiResponse(200, order, "Order details fetched successfully"));
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, order, "Order details fetched successfully"));
 });

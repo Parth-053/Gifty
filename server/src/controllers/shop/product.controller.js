@@ -1,31 +1,31 @@
-import { 
-  getAllProducts, 
-  getProductById 
-} from "../../services/product.service.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
-import { ApiError } from "../../utils/apiError.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import * as productService from "../../services/product.service.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
- * @desc    Get All Products (Public View)
+ * @desc    Get All Products (Public)
  * @route   GET /api/v1/products
  */
 export const getProducts = asyncHandler(async (req, res) => {
-  const data = await getAllProducts(req.query);
+  // Calls the service which uses ApiFeatures (Filter, Sort, Paginate)
+  const { products, total } = await productService.getAllProducts(req.query);
+
   return res
-    .status(200)
-    .json(new ApiResponse(200, data, "Products fetched successfully"));
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, { products, total }, "Products fetched successfully"));
 });
 
 /**
- * @desc    Get Single Product Details
+ * @desc    Get Single Product
  * @route   GET /api/v1/products/:id
  */
 export const getProductDetails = asyncHandler(async (req, res) => {
-  const product = await getProductById(req.params.id);
+  const product = await productService.getProductById(req.params.id);
+
   return res
-    .status(200)
-    .json(new ApiResponse(200, product, "Product details fetched successfully"));
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, product, "Product fetched successfully"));
 });
 
 /**
@@ -33,21 +33,24 @@ export const getProductDetails = asyncHandler(async (req, res) => {
  * @route   GET /api/v1/products/:id/related
  */
 export const getRelatedProducts = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const currentProduct = await getProductById(id);
-
-  if (!currentProduct.categoryId) {
-    return res.status(200).json(new ApiResponse(200, [], "No related products found"));
+  const product = await productService.getProductById(req.params.id);
+  
+  if (!product.categoryId) {
+    return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, [], "No related products"));
   }
 
-  const { products } = await getAllProducts({ 
-    category: currentProduct.categoryId._id || currentProduct.categoryId,
+  // Reuse getAllProducts with category filter
+  const query = {
+    categoryId: product.categoryId._id || product.categoryId,
     limit: 5,
-    page: 1
-  });
+    page: 1,
+    // Exclude current product
+    _id: { ne: product._id } 
+  };
 
-  const relatedProducts = products.filter((p) => p._id.toString() !== id);
+  const { products } = await productService.getAllProducts(query);
+
   return res
-    .status(200)
-    .json(new ApiResponse(200, relatedProducts, "Related products fetched"));
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, products, "Related products fetched"));
 });

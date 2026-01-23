@@ -1,114 +1,91 @@
-import Category from "../../models/Category.model.js";
+import { Category } from "../../models/Category.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
-import { ApiError } from "../../utils/apiError.js";
-import { uploadOnCloudinary } from "../../utils/cloudinary.util.js"; 
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import { ApiError } from "../../utils/ApiError.js";
+import * as imageService from "../../services/image.service.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
-
-// 1. Get All Categories (Public) - Supports Hierarchy
+/**
+ * @desc    Get Categories
+ * @route   GET /api/v1/admin/categories
+ */
 export const getCategories = asyncHandler(async (req, res) => {
-  // Fetch categories sorted by newest
   const categories = await Category.find()
-    .populate('parentId', 'name') // Show parent name
+    .populate("parentId", "name")
     .sort({ createdAt: -1 });
 
-  return res.status(200).json(
-    new ApiResponse(200, categories, "Categories fetched successfully")
-  );
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, categories, "Categories fetched"));
 });
 
-// 2. Create Category (Admin Only) - With Image Upload
+/**
+ * @desc    Create Category
+ * @route   POST /api/v1/admin/categories
+ */
 export const createCategory = asyncHandler(async (req, res) => {
-  const { name, description, parentId, isActive } = req.body;
+  const { name } = req.body;
 
-  // 1. Check if category already exists
   const existing = await Category.findOne({ name });
-  if (existing) {
-    throw new ApiError(400, "Category with this name already exists");
-  }
+  if (existing) throw new ApiError(httpStatus.BAD_REQUEST, "Category already exists");
 
-  // 2. Handle Image Upload (If file is present)
   let image = { url: "", publicId: "" };
-  
   if (req.file) {
-    const uploadResult = await uploadOnCloudinary(req.file.path);
-    if (uploadResult) {
-      image = {
-        url: uploadResult.secure_url,
-        publicId: uploadResult.public_id
-      };
-    }
+    const uploaded = await imageService.uploadImages([req.file], "categories");
+    image = uploaded[0];
   }
 
-  // 3. Create Category
   const category = await Category.create({
-    name,
-    description,
-    parentId: parentId || null,  
-    isActive: isActive === 'true' || isActive === true,
-    image: image
+    ...req.body,
+    image
   });
 
-  return res.status(201).json(
-    new ApiResponse(201, category, "Category created successfully")
-  );
+  return res
+    .status(httpStatus.CREATED)
+    .json(new ApiResponse(httpStatus.CREATED, category, "Category created"));
 });
 
-// 3. Update Category (Admin Only) - With Image Update
+/**
+ * @desc    Update Category
+ * @route   PUT /api/v1/admin/categories/:id
+ */
 export const updateCategory = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { name, description, parentId, isActive } = req.body;
+  const category = await Category.findById(req.params.id);
+  if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
 
-  // 1. Find Category
-  let category = await Category.findById(id);
-  if (!category) {
-    throw new ApiError(404, "Category not found");
-  }
-
-  // 2. Handle Image Update (If new file is uploaded)
-  let image = category.image; // Keep old image by default
-
+  // Handle Image Update
   if (req.file) {
-    // Optional: Delete old image from Cloudinary here if needed
-    const uploadResult = await uploadOnCloudinary(req.file.path);
-    if (uploadResult) {
-      image = {
-        url: uploadResult.secure_url,
-        publicId: uploadResult.public_id
-      };
+    // Delete old
+    if (category.image?.publicId) {
+      await imageService.deleteImages([{ publicId: category.image.publicId }]);
     }
+    // Upload new
+    const uploaded = await imageService.uploadImages([req.file], "categories");
+    req.body.image = uploaded[0];
   }
 
-  // 3. Update Fields
-  const updatedCategory = await Category.findByIdAndUpdate(
-    id,
-    {
-      name: name || category.name,
-      description: description || category.description,
-      parentId: parentId || category.parentId,
-      isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : category.isActive,
-      image: image
-    },
-    { new: true } // Return updated document
-  );
+  const updatedCategory = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
-  return res.status(200).json(
-    new ApiResponse(200, updatedCategory, "Category updated successfully")
-  );
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, updatedCategory, "Category updated"));
 });
 
-// 4. Delete Category 
+/**
+ * @desc    Delete Category
+ * @route   DELETE /api/v1/admin/categories/:id
+ */
 export const deleteCategory = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const category = await Category.findById(req.params.id);
+  if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
 
-  const category = await Category.findById(id);
-  if (!category) {
-    throw new ApiError(404, "Category not found");
+  if (category.image?.publicId) {
+    await imageService.deleteImages([{ publicId: category.image.publicId }]);
   }
 
-  await Category.findByIdAndDelete(id);
+  await category.deleteOne();
 
-  return res.status(200).json(
-    new ApiResponse(200, {}, "Category deleted successfully")
-  );
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, {}, "Category deleted"));
 });

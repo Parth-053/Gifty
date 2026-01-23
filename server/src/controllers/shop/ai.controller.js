@@ -1,33 +1,39 @@
-// import { GoogleGenerativeAI } from "@google/generative-ai"; // Install this package if using Gemini
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
-import { Product } from "../../models/Product.model.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import * as aiService from "../../services/ai.service.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
-// Initialize AI Client (Configure in env)
-// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
+/**
+ * @desc    Get AI-Powered Gift Suggestions
+ * @route   POST /api/v1/shop/ai/suggestions
+ */
 export const getGiftSuggestions = asyncHandler(async (req, res) => {
-  const { relation, occasion, interests, budget } = req.body;
+  const { relation, occasion, interests, budget, age } = req.body;
 
-  // 1. Construct Prompt
-  const prompt = `Suggest gift ideas for a ${relation} for ${occasion}. 
-  Interests: ${interests}. Budget: under ₹${budget}. 
-  Return only JSON array of keywords (e.g. ["watch", "perfume"]).`;
+  // Call the AI Service
+  const suggestions = await aiService.generateGiftIdeas({
+    relation,
+    occasion,
+    interests,
+    budget,
+    age
+  });
 
-  // 2. Call AI API (Mocked for now)
-  // const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-  // const result = await model.generateContent(prompt);
-  // const keywords = JSON.parse(result.response.text());
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, suggestions, "AI suggestions generated successfully"));
+});
 
-  // Mock keywords
-  const keywords = ["watch", "mug", "tshirt", "perfume"]; 
+/**
+ * @desc    Generate Gift Card Message
+ * @route   POST /api/v1/shop/ai/message
+ */
+export const getGiftMessage = asyncHandler(async (req, res) => {
+  const { recipientName, occasion, tone } = req.body;
 
-  // 3. Search Database for these keywords
-  const suggestions = await Product.find({
-    $text: { $search: keywords.join(" ") },
-    price: { $lte: Number(budget) },
-    isActive: true
-  }).limit(5);
+  const message = await aiService.generateGiftMessage(recipientName, occasion, tone);
 
-  return res.status(200).json(new ApiResponse(200, suggestions, "AI Suggestions fetched"));
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, { message }, "Message generated successfully"));
 });

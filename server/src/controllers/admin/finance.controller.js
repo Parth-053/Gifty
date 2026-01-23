@@ -1,38 +1,42 @@
 import { Transaction } from "../../models/Transaction.model.js";
-import { Payout } from "../../models/Payout.model.js"; 
+import { Payout } from "../../models/Payout.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import { ApiFeatures } from "../../utils/ApiFeatures.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
-// 1. Get All Transactions
+/**
+ * @desc    Get All Transactions
+ * @route   GET /api/v1/admin/finance/transactions
+ */
 export const getAllTransactions = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
-  
-  const transactions = await Transaction.find()
-    .populate("orderId", "orderId totalAmount") // Populate Order info
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(parseInt(limit));
+  const features = new ApiFeatures(Transaction.find().populate("orderId", "orderId totalAmount"), req.query)
+    .filter()
+    .sort()
+    .paginate();
 
+  const transactions = await features.query;
   const total = await Transaction.countDocuments();
 
-  return res.status(200).json(
-    new ApiResponse(200, { transactions, total, currentPage: page }, "Transactions fetched")
-  );
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, { transactions, total }, "Transactions fetched"));
 });
 
-// 2. Get All Payouts 
+/**
+ * @desc    Get All Payouts
+ * @route   GET /api/v1/admin/finance/payouts
+ */
 export const getAllPayouts = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
+  const features = new ApiFeatures(Payout.find().populate("sellerId", "storeName fullName"), req.query)
+    .filter()
+    .sort()
+    .paginate();
 
-  const payouts = await Payout.find()
-    .populate("sellerId", "storeName ownerName") // Populate Seller info
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(parseInt(limit));
-
+  const payouts = await features.query;
   const total = await Payout.countDocuments();
 
-  return res.status(200).json(
-    new ApiResponse(200, { payouts, total, currentPage: page }, "Payouts fetched")
-  );
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, { payouts, total }, "Payouts fetched"));
 });

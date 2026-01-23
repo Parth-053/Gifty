@@ -1,69 +1,87 @@
-import Order from "../../models/Order.model.js";
+import { Order } from "../../models/Order.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
-import { ApiError } from "../../utils/apiError.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
+import { ApiError } from "../../utils/ApiError.js";
+import { ApiFeatures } from "../../utils/ApiFeatures.js";
+import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
- * @desc    Get Seller Orders with Filtering & Pagination
+ * @desc    Get Seller Orders
  * @route   GET /api/v1/seller/orders
  */
 export const getSellerOrders = asyncHandler(async (req, res) => {
-  const { status, page = 1, limit = 10 } = req.query;
- 
-  const query = { "items.sellerId": req.user._id };
-  if (status) query.orderStatus = status;
+  const sellerId = req.seller._id;
 
-  const orders = await Order.find(query)
-    .select("orderId items totalAmount orderStatus createdAt shippingAddress")
-    .populate("userId", "fullName email phone") // User details for shipping
-    .sort({ createdAt: -1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
+  // 1. Initial Filter: Find orders that CONTAIN seller's items
+  const baseQuery = { "items.sellerId": sellerId };
+  
+  // 2. Use ApiFeatures for Pagination/Sorting on the main Order document
+  const features = new ApiFeatures(
+    Order.find(baseQuery).populate("userId", "fullName email phone"),
+    req.query
+  )
+  .filter()
+  .sort()
+  .paginate();
 
-  const total = await Order.countDocuments(query);
- 
+  const orders = await features.query;
+  const total = await Order.countDocuments(baseQuery);
+
+  // 3. Transform Data: Filter items inside the order
+  // Seller should NOT see items from other sellers in the same order
   const sellerOrders = orders.map(order => {
     const myItems = order.items.filter(item => 
-      item.sellerId.toString() === req.user._id.toString()
+      item.sellerId.toString() === sellerId.toString()
     );
     
+    const myTotal = myItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
     return {
-      ...order.toObject(),
-      items: myItems,
-      sellerTotal: myItems.reduce((acc, item) => acc + (item.price * item.quantity), 0)
+      _id: order._id,
+      orderId: order.orderId,
+      createdAt: order.createdAt,
+      user: order.userId,
+      shippingAddress: order.shippingAddress,
+      paymentMethod: order.paymentMethod,
+      orderStatus: order.orderStatus, // Global status
+      items: myItems, // ONLY seller's items
+      totalAmount: myTotal // ONLY seller's share
     };
   });
 
-  return res.status(200).json(
-    new ApiResponse(200, {
-      orders: sellerOrders,
-      pagination: { total, page, totalPages: Math.ceil(total / limit) }
-    }, "Seller orders fetched")
-  );
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, { orders: sellerOrders, total }, "Orders fetched successfully"));
 });
 
 /**
- * @desc    Update Status of a specific item in an order
- * @route   PUT /api/v1/seller/orders/:orderId/item/:itemId
+ * @desc    Update Item Status (e.g. Shipped/Packed)
+ * @route   PATCH /api/v1/seller/orders/:orderId/items/:itemId
  */
 export const updateOrderItemStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body; // e.g., 'shipped', 'packed'
+  const { status } = req.body;
   const { orderId, itemId } = req.params;
+  const sellerId = req.seller._id;
 
-  const order = await Order.findOne({ 
-    _id: orderId, 
-    "items.sellerId": req.user._id 
-  });
+  const order = await Order.findOne({ _id: orderId, "items.sellerId": sellerId });
+  if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Order not found");
 
-  if (!order) throw new ApiError(404, "Order not found or unauthorized");
-
+  // Find the specific item
   const item = order.items.id(itemId);
-  if (!item) throw new ApiError(404, "Item not found");
+  
+  if (!item) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Item not found in order");
+  }
 
-  // Status Update
+  // Security Check
+  if (item.sellerId.toString() !== sellerId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Unauthorized to update this item");
+  }
+
   item.status = status;
-   
   await order.save();
 
-  return res.status(200).json(new ApiResponse(200, order, `Item status updated to ${status}`));
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, order, "Item status updated"));
 });
