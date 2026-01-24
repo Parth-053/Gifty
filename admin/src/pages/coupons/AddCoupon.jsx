@@ -1,50 +1,129 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { createCoupon } from "../../store/couponSlice";
 import Input from "../../components/common/Input";
+import Select from "../../components/common/Select"; 
 import Button from "../../components/common/Button";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const AddCoupon = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ code: "", discountValue: "", expiryDate: "" });
+  const { loading } = useSelector((state) => state.coupons);  
+
+  const [form, setForm] = useState({ 
+    code: "", 
+    discountType: "percentage",  
+    discountValue: "", 
+    minPurchaseAmount: 0,
+    usageLimit: 100,
+    expirationDate: "" 
+  });
+
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    await dispatch(createCoupon(form));
-    setLoading(false);
-    navigate("/coupons");
+    setError("");
+    
+    // Basic Validation
+    if(form.discountType === 'percentage' && form.discountValue > 100) {
+        setError("Percentage discount cannot be more than 100%");
+        return;
+    }
+
+    const result = await dispatch(createCoupon(form));
+    
+    if (createCoupon.fulfilled.match(result)) {
+        navigate("/coupons");
+    } else {
+        setError(result.payload || "Failed to create coupon");
+    }
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Create Coupon</h1>
-      <div className="bg-white p-6 rounded-lg shadow">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input 
-            label="Coupon Code" 
-            value={form.code} 
-            onChange={(e) => setForm({...form, code: e.target.value.toUpperCase()})}
-            required 
-          />
-          <Input 
-            label="Discount Percentage (%)" 
-            type="number" 
-            value={form.discountValue} 
-            onChange={(e) => setForm({...form, discountValue: e.target.value})}
-            required 
-          />
-          <Input 
-            label="Expiration Date" 
-            type="date" 
-            value={form.expiryDate} 
-            onChange={(e) => setForm({...form, expiryDate: e.target.value})}
-            required 
-          />
-          <Button type="submit" isLoading={loading}>Create Coupon</Button>
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <button onClick={() => navigate("/coupons")} className="p-2 hover:bg-gray-100 rounded-full">
+            <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">Create Coupon</h1>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input 
+                label="Coupon Code" 
+                name="code"
+                value={form.code} 
+                onChange={(e) => handleChange({ target: { name: 'code', value: e.target.value.toUpperCase() }})}
+                placeholder="SUMMER50"
+                required 
+            />
+            
+            <Select
+                label="Discount Type"
+                name="discountType"
+                value={form.discountType}
+                onChange={handleChange}
+                options={[
+                    { value: "percentage", label: "Percentage (%)" },
+                    { value: "fixed", label: "Fixed Amount (₹)" }
+                ]}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input 
+                label="Discount Value" 
+                type="number" 
+                name="discountValue"
+                value={form.discountValue} 
+                onChange={handleChange}
+                placeholder={form.discountType === 'percentage' ? "10" : "500"}
+                required 
+            />
+            
+            <Input 
+                label="Expiration Date" 
+                type="date" 
+                name="expirationDate"
+                value={form.expirationDate} 
+                onChange={handleChange}
+                required 
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <Input 
+                label="Min Purchase Amount (₹)" 
+                type="number" 
+                name="minPurchaseAmount"
+                value={form.minPurchaseAmount} 
+                onChange={handleChange}
+            />
+             <Input 
+                label="Usage Limit (Total Users)" 
+                type="number" 
+                name="usageLimit"
+                value={form.usageLimit} 
+                onChange={handleChange}
+            />
+          </div>
+
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
+          <div className="flex justify-end pt-4">
+            <Button type="submit" isLoading={loading}>Create Coupon</Button>
+          </div>
         </form>
       </div>
     </div>

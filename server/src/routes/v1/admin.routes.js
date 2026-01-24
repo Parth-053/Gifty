@@ -31,6 +31,10 @@ import {
   getSettings,
   updateSettings
 } from "../../controllers/admin/settings.controller.js";
+import { 
+  getAllReturnRequests, 
+  updateReturnStatus 
+} from "../../controllers/admin/return.controller.js";
 
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
@@ -65,6 +69,10 @@ router.patch("/orders/:id/status", validate(updateStatusSchema), updateAdminOrde
 // --- Finance ---
 router.get("/finance/transactions", getAllTransactions);
 router.get("/finance/payouts", getAllPayouts);
+
+// --- Returns Management ---
+router.get("/returns", getAllReturnRequests);
+router.patch("/returns/:id/status", validate(updateStatusSchema), updateReturnStatus);
 
 // --- Coupons ---
 router.route("/coupons")

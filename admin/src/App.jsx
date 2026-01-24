@@ -1,7 +1,13 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Provider } from "react-redux";
+import { Provider, useDispatch, useSelector } from "react-redux";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./config/firebase";
+import { loginSuccess, logout, setLoading } from "./store/authSlice";
 import store from "./store";
+
+// Components
+import Loader from "./components/common/Loader";  
 
 // Layouts
 import AdminLayout from "./components/layout/AdminLayout";
@@ -36,72 +42,119 @@ import Payouts from "./pages/finance/Payouts";
 import BannersList from "./pages/banners/BannersList";
 import AddBanner from "./pages/banners/AddBanner";
 
-import CouponsList from "./pages/coupons/CouponsList"; // New
-import AddCoupon from "./pages/coupons/AddCoupon"; // New
+import CouponsList from "./pages/coupons/CouponsList"; 
+import AddCoupon from "./pages/coupons/AddCoupon"; 
 
-import Settings from "./pages/settings/Settings"; // New
-import ReturnRequests from "./pages/returns/ReturnRequests"; // New
+import Settings from "./pages/settings/Settings"; 
+import ReturnRequests from "./pages/returns/ReturnRequests"; 
 
+// 1. Inner Component for Logic (Auth + Routing)
+const AppRoutes = () => {
+  const dispatch = useDispatch();
+  const { loading } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    // 🔥 Firebase Listener: Checks if user is logged in even after refresh
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        // User found in Firebase session
+        const token = await currentUser.getIdToken();
+        
+        dispatch(loginSuccess({
+          user: {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            photoURL: currentUser.photoURL,
+          },
+          token: token
+        }));
+      } else {
+        // No user found
+        dispatch(logout());
+      }
+      // Stop loader once check is done
+      dispatch(setLoading(false));
+    });
+
+    return () => unsubscribe();
+  }, [dispatch]);
+
+  // Show Loader while checking session
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+        <Loader />
+      </div>
+    );
+  }
+
+  return (
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Protected Admin Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AdminLayout />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/analytics" element={<Analytics />} />
+
+            {/* Products */}
+            <Route path="/products" element={<ProductsList />} />
+            <Route path="/products/approvals" element={<ProductApproval />} />
+            <Route path="/products/:id" element={<ProductDetails />} />
+
+            {/* Categories */}
+            <Route path="/categories" element={<CategoriesList />} />
+            <Route path="/categories/add" element={<AddCategory />} />
+            <Route path="/categories/edit/:id" element={<EditCategory />} />
+
+            {/* Orders */}
+            <Route path="/orders" element={<OrdersList />} />
+            <Route path="/orders/:id" element={<OrderDetails />} />
+            
+            {/* Returns */}
+            <Route path="/returns" element={<ReturnRequests />} />
+
+            {/* Sellers */}
+            <Route path="/sellers" element={<SellersList />} />
+            <Route path="/sellers/approvals" element={<SellerApproval />} />
+            <Route path="/sellers/:id" element={<SellerDetails />} />
+
+            {/* Users */}
+            <Route path="/users" element={<UsersList />} />
+            <Route path="/users/:id" element={<UserDetails />} />
+
+            {/* Finance */}
+            <Route path="/finance/transactions" element={<Transactions />} />
+            <Route path="/finance/payouts" element={<Payouts />} />
+
+            {/* Marketing */}
+            <Route path="/banners" element={<BannersList />} />
+            <Route path="/banners/add" element={<AddBanner />} />
+            <Route path="/coupons" element={<CouponsList />} />
+            <Route path="/coupons/add" element={<AddCoupon />} />
+
+            {/* System */}
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Route>
+
+        {/* Catch All */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Router>
+  );
+};
+
+// 2. Main App Component (Wraps Provider)
 const App = () => {
   return (
     <Provider store={store}>
-      <Router>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Protected Admin Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AdminLayout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/analytics" element={<Analytics />} />
-
-              {/* Products */}
-              <Route path="/products" element={<ProductsList />} />
-              <Route path="/products/approvals" element={<ProductApproval />} />
-              <Route path="/products/:id" element={<ProductDetails />} />
-
-              {/* Categories */}
-              <Route path="/categories" element={<CategoriesList />} />
-              <Route path="/categories/add" element={<AddCategory />} />
-              <Route path="/categories/edit/:id" element={<EditCategory />} />
-
-              {/* Orders */}
-              <Route path="/orders" element={<OrdersList />} />
-              <Route path="/orders/:id" element={<OrderDetails />} />
-              
-              {/* Returns */}
-              <Route path="/returns" element={<ReturnRequests />} />
-
-              {/* Sellers */}
-              <Route path="/sellers" element={<SellersList />} />
-              <Route path="/sellers/approvals" element={<SellerApproval />} />
-              <Route path="/sellers/:id" element={<SellerDetails />} />
-
-              {/* Users */}
-              <Route path="/users" element={<UsersList />} />
-              <Route path="/users/:id" element={<UserDetails />} />
-
-              {/* Finance */}
-              <Route path="/finance/transactions" element={<Transactions />} />
-              <Route path="/finance/payouts" element={<Payouts />} />
-
-              {/* Marketing */}
-              <Route path="/banners" element={<BannersList />} />
-              <Route path="/banners/add" element={<AddBanner />} />
-              <Route path="/coupons" element={<CouponsList />} />
-              <Route path="/coupons/add" element={<AddCoupon />} />
-
-              {/* System */}
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-          </Route>
-
-          {/* Catch All */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Router>
+      <AppRoutes />
     </Provider>
   );
 };

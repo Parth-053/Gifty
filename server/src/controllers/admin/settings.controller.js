@@ -11,7 +11,6 @@ export const getSettings = asyncHandler(async (req, res) => {
   let settings = await SystemSetting.findOne({ key: "GLOBAL_SETTINGS" });
 
   if (!settings) {
-    // Initialize defaults if not found
     settings = await SystemSetting.create({ key: "GLOBAL_SETTINGS" });
   }
 
@@ -25,12 +24,20 @@ export const getSettings = asyncHandler(async (req, res) => {
  * @route   PUT /api/v1/admin/settings
  */
 export const updateSettings = asyncHandler(async (req, res) => {
-  const { platformCommission, taxRate, minPayoutAmount, isMaintenanceMode } = req.body;
+  // 👇 FIXED: Now accepting distinct values for Buyer and Seller
+  const { 
+    sellerCommission, 
+    buyerPlatformFee, 
+    taxRate, 
+    minPayoutAmount, 
+    isMaintenanceMode 
+  } = req.body;
 
   const settings = await SystemSetting.findOneAndUpdate(
     { key: "GLOBAL_SETTINGS" },
     {
-      platformCommission,
+      sellerCommission,   // Save Seller %
+      buyerPlatformFee,   // Save Buyer ₹
       taxRate,
       minPayoutAmount,
       isMaintenanceMode

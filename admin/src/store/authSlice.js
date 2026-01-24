@@ -1,76 +1,54 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../api/axios";
-import { auth } from "../config/firebase";
-import { signOut } from "firebase/auth";
+import { createSlice } from "@reduxjs/toolkit";
 
-// Fetch Current Admin Profile  
-export const fetchAdminProfile = createAsyncThunk(
-  "auth/fetchProfile",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get("/auth/me");
-      return response.data.data;  
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
+// 1. Initial State: Load from LocalStorage to prevent logout on refresh
+const token = localStorage.getItem("adminToken");
+const user = localStorage.getItem("adminUser") ? JSON.parse(localStorage.getItem("adminUser")) : null;
 
-// Logout
-export const logoutAdmin = createAsyncThunk(
-  "auth/logout",
-  async (_, { rejectWithValue }) => {
-    try {
-      await signOut(auth); 
-      return true;
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
+const initialState = {
+  user: user,             // Load user if exists in storage
+  token: token,           // Load token if exists
+  isAuthenticated: !!token, // Set true if token exists
+  loading: true,          // Initial loading state
+  error: null,
+};
 
 const authSlice = createSlice({
   name: "auth",
-  initialState: {
-    user: null,
-    isAuthenticated: false,
-    loading: true,
-    error: null,
-  },
+  initialState,
   reducers: {
-    setUser: (state, action) => {
-      state.user = action.payload;
-      state.isAuthenticated = !!action.payload;
+    loginStart: (state) => {
+      state.loading = true;
+      state.error = null;
+    },
+    loginSuccess: (state, action) => {
       state.loading = false;
+      state.isAuthenticated = true;
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      
+      // 2. Save to LocalStorage when login succeeds
+      localStorage.setItem("adminToken", action.payload.token);
+      localStorage.setItem("adminUser", JSON.stringify(action.payload.user));
+    },
+    loginFailure: (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    },
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      state.loading = false;
+      
+      // 3. Clear LocalStorage on logout
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
     },
     setLoading: (state, action) => {
       state.loading = action.payload;
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Fetch Profile
-      .addCase(fetchAdminProfile.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(fetchAdminProfile.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-      })
-      .addCase(fetchAdminProfile.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-        state.isAuthenticated = false;
-        state.user = null;
-      })
-      // Logout
-      .addCase(logoutAdmin.fulfilled, (state) => {
-        state.user = null;
-        state.isAuthenticated = false;
-      });
+    }
   },
 });
 
-export const { setUser, setLoading } = authSlice.actions;
+export const { loginStart, loginSuccess, loginFailure, logout, setLoading } = authSlice.actions;
 export default authSlice.reducer;

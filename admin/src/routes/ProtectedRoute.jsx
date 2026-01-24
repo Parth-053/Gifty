@@ -1,24 +1,29 @@
-import React, { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { fetchAdminProfile } from "../store/authSlice";
+import { useSelector } from "react-redux";
 import Loader from "../components/common/Loader";
 
 const ProtectedRoute = () => {
-  const dispatch = useDispatch();
-  const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
+  // We only need to read the state now. 
+  // App.jsx is responsible for updating it.
+  const { isAuthenticated, loading } = useSelector((state) => state.auth);
 
-  useEffect(() => {
-    if (!user) {
-      dispatch(fetchAdminProfile());
-    }
-  }, [dispatch, user]);
-
+  // 1. While App.jsx is checking Firebase (loading is true), show a spinner
   if (loading) {
-    return <div className="h-screen flex items-center justify-center"><Loader /></div>;
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+        <Loader />
+      </div>
+    );
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  // 2. If checking is done and user is NOT logged in, redirect to Login
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // 3. If logged in, show the Admin Pages (Outlet)
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

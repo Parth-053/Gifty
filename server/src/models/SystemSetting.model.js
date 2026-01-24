@@ -8,29 +8,32 @@ const systemSettingSchema = new mongoose.Schema(
       unique: true 
     },
     
-    platformCommission: {
+    // 1. Seller Charge (Percentage) 
+    sellerCommission: {
       type: Number,
-      default: 10, // Admin takes 10% from every sale
+      default: 5, 
       min: 0,
       max: 100
+    },
+
+    // 2. Buyer Charge (Fixed Amount) 
+    buyerPlatformFee: {
+      type: Number,
+      default: 0,
+      min: 0
     },
     
     taxRate: {
       type: Number,
-      default: 18 // 18% GST default
+      default: 18 // Global Tax Rate  
     },
     
     minPayoutAmount: {
       type: Number,
-      default: 500 // Sellers must have ₹500 to withdraw
+      default: 500
     },
     
-    supportEmail: { type: String, default: "support@gifty.com" },
-    supportPhone: { type: String },
-    
-    isMaintenanceMode: { type: Boolean, default: false },
-    
-    featuredCategories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }]
+    isMaintenanceMode: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
