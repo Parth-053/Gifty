@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../store/authSlice"; 
 import { useNavigate } from "react-router-dom";
+import { logout } from "../../store/authSlice"; 
 import { 
   Bars3Icon, 
   MagnifyingGlassIcon, 
@@ -13,20 +13,24 @@ const Topbar = ({ setSidebarOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  
+  const notificationCount = useSelector((state) => state.notifications?.unreadCount || 0);
+  
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleLogout = () => {
-    dispatch(logout());  
+    dispatch(logout()); 
     navigate("/login");
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30 lg:pl-64 transition-all duration-300">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-          {/* Mobile Menu Button */}
+          {/* Left Side: Toggle & Search */}
           <div className="flex items-center gap-4">
+            {/* Mobile Menu Button */}
             <button
               type="button"
               className="lg:hidden -m-2.5 p-2.5 text-gray-700 hover:text-gray-900"
@@ -36,7 +40,7 @@ const Topbar = ({ setSidebarOpen }) => {
               <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
 
-            {/* Global Search Bar (Optional) */}
+            {/* Global Search Bar (Now Visible) */}
             <div className="hidden md:flex items-center max-w-md">
               <div className="relative w-full">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -55,11 +59,18 @@ const Topbar = ({ setSidebarOpen }) => {
           <div className="flex items-center gap-x-4 lg:gap-x-6">
             
             {/* Notification Bell */}
-            <button type="button" className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 relative">
+            <button 
+              type="button" 
+              className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 relative"
+              onClick={() => navigate("/notifications")}
+            >
               <span className="sr-only">View notifications</span>
               <BellIcon className="h-6 w-6" aria-hidden="true" />
-              {/* Notification Dot */}
-              <span className="absolute top-2 right-2.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+              {notificationCount > 0 && (
+                <span className="absolute top-2 right-2.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                  {notificationCount}
+                </span>
+              )}
             </button>
 
             {/* Separator */}
@@ -74,7 +85,7 @@ const Topbar = ({ setSidebarOpen }) => {
                 <span className="sr-only">Open user menu</span>
                 {user?.photoURL ? (
                     <img
-                        className="h-8 w-8 rounded-full bg-gray-50"
+                        className="h-8 w-8 rounded-full bg-gray-50 object-cover"
                         src={user.photoURL}
                         alt=""
                     />
@@ -96,7 +107,7 @@ const Topbar = ({ setSidebarOpen }) => {
                     onClick={() => navigate("/settings")}
                     className="block w-full px-3 py-1 text-sm leading-6 text-gray-900 hover:bg-gray-50 text-left"
                   >
-                    Your Profile
+                    Settings
                   </button>
                   <button
                     onClick={handleLogout}

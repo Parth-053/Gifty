@@ -8,9 +8,10 @@ import categoryReducer from "./categorySlice";
 import bannerReducer from "./bannerSlice";
 import financeReducer from "./financeSlice";
 import dashboardReducer from "./dashboardSlice";
-import couponReducer from "./couponSlice";           
-import settingsReducer from "./settingsSlice";   
-import returnReducer from "./returnSlice";    
+import couponReducer from "./couponSlice";
+import settingsReducer from "./settingsSlice";
+import returnReducer from "./returnSlice";
+import notificationReducer from "./notificationSlice"; 
 
 const store = configureStore({
   reducer: {
@@ -26,10 +27,11 @@ const store = configureStore({
     coupons: couponReducer,
     settings: settingsReducer,
     returns: returnReducer,
+    notifications: notificationReducer, 
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false, // Helps with complex data/Date objects
+      serializableCheck: false,
     }),
 });
 

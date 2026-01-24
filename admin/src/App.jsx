@@ -48,13 +48,15 @@ import AddCoupon from "./pages/coupons/AddCoupon";
 import Settings from "./pages/settings/Settings"; 
 import ReturnRequests from "./pages/returns/ReturnRequests"; 
 
+import Notifications from "./pages/notifications/Notifications";
+
 // 1. Inner Component for Logic (Auth + Routing)
 const AppRoutes = () => {
   const dispatch = useDispatch();
   const { loading } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // 🔥 Firebase Listener: Checks if user is logged in even after refresh
+    // Firebase Listener: Checks if user is logged in even after refresh
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         // User found in Firebase session
@@ -140,6 +142,9 @@ const AppRoutes = () => {
 
             {/* System */}
             <Route path="/settings" element={<Settings />} />
+
+            {/* Notifications */}
+            <Route path="/notifications" element={<Notifications />} />
           </Route>
         </Route>
 
