@@ -1,54 +1,133 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingBag, BarChart2, Settings, LogOut, X, Store, HelpCircle } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth'; //
+import React from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { 
+  HomeIcon, 
+  CubeIcon, 
+  ShoppingBagIcon, 
+  BanknotesIcon, 
+  ChartBarIcon, 
+  UserCircleIcon, 
+  LifebuoyIcon,
+  XMarkIcon,
+  DocumentTextIcon
+} from "@heroicons/react/24/outline";
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const { handleLogout } = useAuth(); //
+  const location = useLocation();
 
-  const menuItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Products', path: '/products', icon: Package },
-    { name: 'Orders', path: '/orders', icon: ShoppingBag },
-    { name: 'Analytics', path: '/analytics', icon: BarChart2 },
-    { name: 'Help Center', path: '/support', icon: HelpCircle },
-    { name: 'Store Profile', path: '/profile/settings', icon: Store },
-    { name: 'Settings', path: '/profile/me', icon: Settings },
+  const navigation = [
+    { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
+    { name: "Inventory", href: "/products", icon: CubeIcon },
+    { name: "Orders", href: "/orders", icon: ShoppingBagIcon },
+    { 
+      name: "Finance", 
+      href: "/finance/transactions", // Default to transactions
+      icon: BanknotesIcon,
+      subItems: [
+        { name: "Transactions", href: "/finance/transactions" },
+        { name: "Payouts", href: "/finance/payouts" }
+      ]
+    },
+    { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
+    { 
+      name: "Settings", 
+      href: "/profile", 
+      icon: UserCircleIcon,
+      subItems: [
+        { name: "Profile", href: "/profile" },
+        { name: "Store Settings", href: "/settings/store" },
+        { name: "Bank Details", href: "/settings/bank" }
+      ]
+    },
+    { name: "Support", href: "/support", icon: LifebuoyIcon },
   ];
+
+  // Helper to check if a link or its children are active
+  const isActiveLink = (item) => {
+    if (item.href === location.pathname) return true;
+    if (item.subItems) {
+      return item.subItems.some(sub => sub.href === location.pathname);
+    }
+    return false;
+  };
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm" onClick={onClose}/>}
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-gray-900/50 lg:hidden"
+          onClick={onClose}
+        />
+      )}
 
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-50 transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">G</div>
-            <span className="text-xl font-bold text-gray-800">Gifty<span className="text-blue-600 text-sm">Seller</span></span>
-          </div>
-          <button onClick={onClose} className="lg:hidden text-gray-400"><X size={24}/></button>
-        </div>
-
-        <nav className="p-4 space-y-1">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              onClick={onClose}
-              className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-              <item.icon size={20} />
-              {item.name}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-0 left-0 w-full p-4 border-t border-gray-100">
-          <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl text-sm font-bold transition-all">
-            <LogOut size={20} /> Logout
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Logo Header */}
+        <div className="flex h-16 items-center justify-between px-6 border-b border-gray-200">
+          <h1 className="text-2xl font-bold text-indigo-600">Gifty Seller</h1>
+          <button onClick={onClose} className="lg:hidden text-gray-500">
+            <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
+
+        {/* Navigation Links */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {navigation.map((item) => (
+            <div key={item.name}>
+              <NavLink
+                to={item.href}
+                className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
+                  isActiveLink(item)
+                    ? "bg-indigo-50 text-indigo-600"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                }`}
+              >
+                <item.icon
+                  className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                    isActiveLink(item) ? "text-indigo-600" : "text-gray-400 group-hover:text-indigo-600"
+                  }`}
+                />
+                {item.name}
+              </NavLink>
+
+              {/* Sub-items render */}
+              {item.subItems && isActiveLink(item) && (
+                <div className="ml-8 mt-1 space-y-1 border-l-2 border-indigo-100 pl-2">
+                  {item.subItems.map((sub) => (
+                    <NavLink
+                      key={sub.name}
+                      to={sub.href}
+                      className={({ isActive }) =>
+                        `block px-3 py-2 text-xs font-medium rounded-md ${
+                          isActive
+                            ? "text-indigo-600 bg-white"
+                            : "text-gray-500 hover:text-indigo-600 hover:bg-gray-50"
+                        }`
+                      }
+                    >
+                      {sub.name}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          
+          <div className="pt-4 mt-4 border-t border-gray-100">
+             <NavLink
+                to="/legal/terms"
+                className="group flex items-center px-3 py-2 text-xs font-medium text-gray-500 rounded-md hover:bg-gray-50 hover:text-gray-900"
+              >
+                <DocumentTextIcon className="mr-3 h-4 w-4 text-gray-400" />
+                Legal & Policies
+              </NavLink>
+          </div>
+        </nav>
       </aside>
     </>
   );

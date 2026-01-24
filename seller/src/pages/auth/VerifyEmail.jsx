@@ -1,109 +1,83 @@
-// src/pages/auth/VerifyEmail.jsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, RefreshCw, Loader2, LogOut } from 'lucide-react';
-import { sendEmailVerification, signOut } from "firebase/auth";
-import { auth } from "../../config/firebase";
-import { useDispatch } from 'react-redux';
-import { logout } from '../../store/authSlice';
-import toast from 'react-hot-toast';
+import React, { useEffect } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { verifyEmailAction } from "../../store/authSlice";
+import Loader from "../../components/common/Loader";
+import { CheckBadgeIcon, XCircleIcon } from "@heroicons/react/24/outline";
 
 const VerifyEmail = () => {
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dispatch = useDispatch();
-  const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const { loading, error } = useSelector((state) => state.auth);
+  
+  // Firebase sends the code as 'oobCode' in the URL query
+  const oobCode = searchParams.get("oobCode");
 
-  // Check if user is already verified every few seconds
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const user = auth.currentUser;
-      if (user) {
-        await user.reload(); // Refresh user state from Firebase
-        if (user.emailVerified) {
-          toast.success("Email Verified!");
-          navigate('/'); // Redirect to dashboard
-        }
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [navigate]);
-
-  const handleResend = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      await sendEmailVerification(user);
-      toast.success("Verification link sent again!");
-    } catch (error) {
-      if (error.code === 'auth/too-many-requests') {
-        toast.error("Please wait before requesting again.");
-      } else {
-        toast.error("Failed to send link.");
-      }
-    } finally {
-      setLoading(false);
+    if (oobCode) {
+      dispatch(verifyEmailAction(oobCode));
     }
-  };
+  }, [oobCode, dispatch]);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    dispatch(logout());
-    navigate('/auth/login');
-  };
-
-  const checkManually = async () => {
-    setChecking(true);
-    const user = auth.currentUser;
-    await user.reload();
-    if (user?.emailVerified) {
-      navigate('/');
-    } else {
-      toast.error("Not verified yet. Please check your inbox.");
-    }
-    setChecking(false);
+  // If someone accesses this page without a code
+  if (!oobCode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="text-center">
+          <XCircleIcon className="mx-auto h-12 w-12 text-red-500" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">Invalid Link</h3>
+          <p className="mt-1 text-gray-500">The verification link is invalid or missing.</p>
+          <div className="mt-6">
+            <Link to="/auth/login" className="text-indigo-600 hover:text-indigo-500 font-medium">
+              Go to Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FC] px-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100 text-center">
-        <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Mail size={40} />
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 text-center border border-gray-200">
+          
+          {loading ? (
+            <div className="flex flex-col items-center py-8">
+              <Loader className="h-12 w-12 text-indigo-600 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900">Verifying...</h3>
+              <p className="text-gray-500 mt-2">Please wait while we verify your email address.</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center py-6">
+              <XCircleIcon className="h-16 w-16 text-red-500 mb-4" />
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Verification Failed</h2>
+              <p className="text-red-600 mb-6 bg-red-50 px-4 py-2 rounded">{error}</p>
+              <Link to="/auth/login">
+                <button className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                  Return to Login
+                </button>
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-6">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
+                <CheckBadgeIcon className="h-10 w-10 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h2>
+              <p className="text-gray-600 mb-8">
+                Your email has been successfully verified. Your account is now secure.
+              </p>
+              <Link
+                to="/auth/login"
+                className="w-full flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none"
+              >
+                Continue to Login
+              </Link>
+            </div>
+          )}
+
         </div>
-        
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify your email</h1>
-        <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-          We've sent a verification link to<br/>
-          <span className="font-bold text-gray-800">{auth.currentUser?.email}</span>
-        </p>
-
-        <div className="space-y-3">
-          <button 
-            onClick={checkManually} 
-            disabled={checking}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-blue-700 transition-all"
-          >
-            {checking ? <Loader2 className="animate-spin" size={18} /> : "I've Clicked the Link"}
-          </button>
-
-          <button 
-            onClick={handleResend} 
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 py-3.5 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all"
-          >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <><RefreshCw size={18} /> Resend Link</>}
-          </button>
-        </div>
-
-        <button 
-          onClick={handleLogout}
-          className="mt-8 text-sm text-gray-500 hover:text-red-600 font-medium flex items-center justify-center gap-2 mx-auto"
-        >
-          <LogOut size={16} /> Sign Out
-        </button>
       </div>
     </div>
   );

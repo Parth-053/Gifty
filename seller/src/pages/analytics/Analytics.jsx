@@ -1,107 +1,137 @@
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Download, Calendar, TrendingUp, Loader2, DollarSign, ShoppingBag, Package } from 'lucide-react';
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchAnalyticsStats, fetchSalesGraph } from "../../store/analyticsSlice";
+import { 
+  CurrencyRupeeIcon, 
+  ShoppingBagIcon, 
+  CubeIcon, 
+  ArrowTrendingUpIcon,
+  ArchiveBoxIcon
+} from "@heroicons/react/24/outline";
+import Loader from "../../components/common/Loader";
+import SalesChart from "../../components/charts/SalesChart";
 
-// Charts & Store Actions
-import SalesChart from '../../components/charts/SalesChart';
-import RevenueChart from '../../components/charts/RevenueChart';
-import OrdersChart from '../../components/charts/OrdersChart';
-import { fetchDashboardData } from '../../store/analyticsSlice';
-import { formatPrice } from '../../utils/formatPrice';
+const StatCard = ({ title, value, icon: Icon, color }) => (
+  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex items-center transition-transform hover:-translate-y-1 duration-200">
+    <div className={`p-3 rounded-full ${color} bg-opacity-10 mr-4`}>
+      {/* Icon is used here as a component */}
+      <Icon className={`h-6 w-6 ${color.replace('bg-', 'text-')}`} />
+    </div>
+    <div>
+      <p className="text-sm font-medium text-gray-500">{title}</p>
+      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+    </div>
+  </div>
+);
 
 const Analytics = () => {
   const dispatch = useDispatch();
-  
-  const { salesData, revenueData, overview, loading } = useSelector((state) => state.analytics);
+  const { stats, graphData, loading } = useSelector((state) => state.analytics);
 
   useEffect(() => {
-    dispatch(fetchDashboardData());
+    dispatch(fetchAnalyticsStats());
+    dispatch(fetchSalesGraph());
   }, [dispatch]);
 
-  if (loading) {
+  if (loading && !stats) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
+      <div className="flex justify-center items-center h-96">
+        <Loader />
       </div>
     );
   }
 
-  // FIX: Create a safe fallback object if overview is undefined
-  const safeOverview = overview || { totalRevenue: 0, totalOrders: 0, totalProducts: 0 };
-
   return (
     <div className="space-y-6">
-      
-      {/* 1. Header with Export Feature */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-           <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
-           <p className="text-sm text-gray-500">Track your store's sales performance and revenue growth.</p>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+        <button 
+          onClick={() => { dispatch(fetchAnalyticsStats()); dispatch(fetchSalesGraph()); }}
+          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-md transition-colors hover:bg-indigo-100"
+        >
+          <ArrowTrendingUpIcon className="h-4 w-4" /> Refresh Data
+        </button>
+      </div>
+
+      {/* 1. Key Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard 
+          title="Total Revenue" 
+          value={`₹${stats?.totalRevenue?.toLocaleString() || 0}`} 
+          icon={CurrencyRupeeIcon} 
+          color="bg-green-500 text-green-600"
+        />
+        <StatCard 
+          title="Total Orders" 
+          value={stats?.totalOrders || 0} 
+          icon={ShoppingBagIcon} 
+          color="bg-blue-500 text-blue-600"
+        />
+        <StatCard 
+          title="Active Products" 
+          value={stats?.totalProducts || 0} 
+          icon={CubeIcon} 
+          color="bg-indigo-500 text-indigo-600"
+        />
+        <StatCard 
+          title="Pending Orders" 
+          value={stats?.pendingOrders || 0} 
+          icon={ArchiveBoxIcon} 
+          color="bg-yellow-500 text-yellow-600"
+        />
+      </div>
+
+      {/* 2. Main Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Sales Chart */}
+        <div className="lg:col-span-2">
+          <SalesChart data={graphData} />
         </div>
-        <div className="flex gap-3">
-           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-              <Calendar size={16} /> Last 30 Days
-           </button>
-           <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold shadow-lg hover:bg-black transition-colors">
-              <Download size={16} /> Export Report
-           </button>
+
+        {/* Financial Summary */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 h-fit">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Financial Summary</h3>
+          
+          <div className="space-y-6">
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-600">Net Income</span>
+                <span className="text-sm font-semibold text-green-600">
+                  ₹{stats?.netIncome?.toLocaleString() || 0}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Earnings after commission</p>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-600">Withdrawable Balance</span>
+                <span className="text-sm font-semibold text-indigo-600">
+                  ₹{stats?.withdrawableAmount?.toLocaleString() || 0}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-indigo-500 h-2 rounded-full" style={{ width: '70%' }}></div>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Available for payout</p>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Avg. Order Value</span>
+                <span className="text-sm font-medium text-gray-900">
+                  ₹{stats?.totalOrders > 0 
+                      ? Math.round(stats.totalRevenue / stats.totalOrders) 
+                      : 0}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* 2. Top Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-               <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24} /></div>
-               <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">+12.5%</span>
-            </div>
-            <p className="text-sm font-bold text-gray-500">Total Revenue</p>
-            {/* FIX: Use safeOverview here */}
-            <h3 className="text-2xl font-black text-gray-900">{formatPrice(safeOverview.totalRevenue)}</h3>
-         </div>
-
-         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-               <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><ShoppingBag size={24} /></div>
-               <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">+8.2%</span>
-            </div>
-            <p className="text-sm font-bold text-gray-500">Total Orders</p>
-            {/* FIX: Use safeOverview here */}
-            <h3 className="text-2xl font-black text-gray-900">{safeOverview.totalOrders}</h3>
-         </div>
-
-         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-               <div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Package size={24} /></div>
-            </div>
-            <p className="text-sm font-bold text-gray-500">Active Products</p>
-            {/* FIX: Use safeOverview here */}
-            <h3 className="text-2xl font-black text-gray-900">{safeOverview.totalProducts}</h3>
-         </div>
-      </div>
-
-      {/* 3. Main Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="font-bold text-gray-800 mb-6">Revenue Growth</h3>
-            {/* Pass empty array fallback */}
-            <RevenueChart data={revenueData || []} />
-         </div>
-         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="font-bold text-gray-800 mb-6">Sales Volume</h3>
-            {/* Pass empty array fallback */}
-            <SalesChart data={salesData || []} />
-         </div>
-      </div>
-
-      {/* 4. Order Analytics Section */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-         <h3 className="font-bold text-gray-800 mb-6">Order Status Breakdown</h3>
-         <div className="h-[300px]">
-            <OrdersChart />
-         </div>
-      </div>
-
     </div>
   );
 };

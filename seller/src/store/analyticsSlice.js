@@ -1,43 +1,58 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../api/axios';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import api from "../api/axios";
 
-export const fetchDashboardData = createAsyncThunk(
-  'analytics/fetchStats',
+// 1. Fetch Stats (Cards)
+export const fetchAnalyticsStats = createAsyncThunk(
+  "analytics/fetchStats",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/seller/finance/stats');
-      // Ensure we return an object, even if data is missing
-      return response.data.data || {};
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to load dashboard");
+      const response = await api.get("/seller/finance/stats");
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch stats");
+    }
+  }
+);
+
+// 2. Fetch Graph Data
+export const fetchSalesGraph = createAsyncThunk(
+  "analytics/fetchGraph",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get("/seller/finance/graph");
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch graph");
     }
   }
 );
 
 const analyticsSlice = createSlice({
-  name: 'analytics',
+  name: "analytics",
   initialState: {
-    salesData: [],
-    revenueData: [],
-    // Initial state prevents crash on first render
-    overview: { totalRevenue: 0, totalOrders: 0, totalProducts: 0 },
-    loading: false
+    stats: null,
+    graphData: [],
+    loading: false,
+    error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchDashboardData.pending, (state) => { state.loading = true; })
-      .addCase(fetchDashboardData.fulfilled, (state, action) => {
+      // Stats
+      .addCase(fetchAnalyticsStats.pending, (state) => { state.loading = true; })
+      .addCase(fetchAnalyticsStats.fulfilled, (state, action) => {
         state.loading = false;
-        // FIX: Use Optional Chaining (?.) and Fallback (||) to prevent undefined
-        state.overview = action.payload?.overview || { totalRevenue: 0, totalOrders: 0, totalProducts: 0 };
-        state.salesData = action.payload?.sales || [];
-        state.revenueData = action.payload?.revenue || [];  
+        state.stats = action.payload;
       })
-      .addCase(fetchDashboardData.rejected, (state) => {
+      .addCase(fetchAnalyticsStats.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
+      })
+      // Graph
+      .addCase(fetchSalesGraph.fulfilled, (state, action) => {
+        state.graphData = action.payload;
       });
-  }
+  },
 });
 
 export default analyticsSlice.reducer;

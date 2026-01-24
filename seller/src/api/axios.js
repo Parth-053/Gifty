@@ -1,36 +1,26 @@
-// src/api/axios.js
-import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants';
-import { auth } from '../config/firebase'; // Import auth
+import axios from "axios";
+import { auth } from "../config/firebase";  
+
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
+// Request Interceptor: Attach Firebase Token to every request
 api.interceptors.request.use(
   async (config) => {
-    // Check if a user is logged in via Firebase
-    if (auth.currentUser) {
-      // Force fetch a fresh token (handles expiry automatically)
-      const token = await auth.currentUser.getIdToken();
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Optional: Handle 401 globally
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default api;

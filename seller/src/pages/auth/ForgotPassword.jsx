@@ -1,108 +1,88 @@
-// src/pages/auth/ForgotPassword.jsx
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../../config/firebase";
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { sendResetLink, clearError } from "../../store/authSlice";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
+import { EnvelopeIcon, ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const dispatch = useDispatch();
+  const { loading, error, successMessage } = useSelector((state) => state.auth);
+  const [email, setEmail] = useState("");
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    return () => { dispatch(clearError()); };
+  }, [dispatch]);
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!email) return toast.error("Please enter your email address");
-
-    setLoading(true);
-    try {
-      // Config: User should be redirected back to OUR app's reset page
-      const actionCodeSettings = {
-        // Dynamic URL based on where the app is running (localhost or production)
-        url: `${window.location.origin}/auth/reset-password`,
-        handleCodeInApp: true,
-      };
-
-      // Firebase sends the email with our link
-      await sendPasswordResetEmail(auth, email, actionCodeSettings);
-      
-      setIsSubmitted(true);
-      toast.success("Reset link sent!");
-    } catch (error) {
-      console.error(error);
-      if (error.code === 'auth/user-not-found') {
-        toast.error("No account found with this email.");
-      } else {
-        toast.error("Failed to send link. Try again.");
-      }
-    } finally {
-      setLoading(false);
+    if (email) {
+      dispatch(sendResetLink(email));
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FC] px-4 py-10">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Forgot Password?</h1>
-          <p className="text-gray-500 text-sm mt-2">No worries, we'll send you reset instructions.</p>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Reset Password
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Enter your registered email to receive reset instructions.
+        </p>
+      </div>
 
-        {!isSubmitted ? (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">Email Address</label>
-              <div className="relative group">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={18} />
-                <input
-                  type="email"
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all"
-                  placeholder="name@store.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-200">
+          
+          {error && (
+            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded">
+              {error}
+            </div>
+          )}
+
+          {successMessage ? (
+            <div className="bg-green-50 border border-green-200 rounded-md p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
+                <CheckCircleIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-medium text-green-800">Check your inbox</h3>
+              <p className="mt-2 text-sm text-green-700">
+                We have sent a password reset link to <strong>{email}</strong>.
+              </p>
+              <div className="mt-6">
+                <Link to="/auth/login">
+                  <Button variant="secondary">Back to Login</Button>
+                </Link>
               </div>
             </div>
+          ) : (
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <Input
+                label="Email Address"
+                type="email"
+                icon={EnvelopeIcon}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="seller@example.com"
+              />
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white py-4 rounded-xl font-bold text-sm shadow-xl transition-all disabled:opacity-70 transform active:scale-[0.98]"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : 'Send Reset Link'}
-            </button>
-          </form>
-        ) : (
-          <div className="text-center animate-fade-in-up">
-            <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={32} />
+              <Button type="submit" isLoading={loading}>
+                Send Reset Link
+              </Button>
+            </form>
+          )}
+
+          {!successMessage && (
+            <div className="mt-6 flex justify-center">
+              <Link to="/auth/login" className="flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                Back to Login
+              </Link>
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Check your email</h2>
-            <p className="text-sm text-gray-500 mb-8 leading-relaxed">
-              We have sent a password reset link to:<br />
-              <strong className="text-gray-800">{email}</strong>
-            </p>
-            <p className="text-xs text-gray-400 mt-2">
-              Note: The link will redirect you back to this app to set a new password.
-            </p>
-            <button 
-              onClick={() => setIsSubmitted(false)}
-              className="mt-4 text-sm font-bold text-blue-600 hover:text-blue-700 hover:underline"
-            >
-              Try another email address
-            </button>
-          </div>
-        )}
-
-        <div className="mt-8 text-center pt-6 border-t border-gray-50">
-          <Link 
-            to="/auth/login" 
-            className="inline-flex items-center justify-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft size={18} /> Back to Login
-          </Link>
+          )}
         </div>
       </div>
     </div>

@@ -1,114 +1,127 @@
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { ShoppingBag, Eye, Clock, Package, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { fetchSellerOrders } from '../../store/orderSlice';
-import { formatPrice } from '../../utils/formatPrice';
-import { formatRelativeTime } from '../../utils/formatDate';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { fetchSellerOrders } from "../../store/orderSlice";
+import { formatPrice } from "../../utils/formatPrice";
+import { formatDate } from "../../utils/formatDate";
+import Loader from "../../components/common/Loader";
+import Badge from "../../components/common/Badge";
+import Pagination from "../../components/common/Pagination";
+import { EyeIcon } from "@heroicons/react/24/outline";
 
 const OrderList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  const { orders = [], loading} = useSelector((state) => state.order || {});
+  const { orders, loading, totalPages, currentPage } = useSelector((state) => state.orders);
+  
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
-    dispatch(fetchSellerOrders());
-  }, [dispatch]);
+    dispatch(fetchSellerOrders({ page, status: statusFilter }));
+  }, [dispatch, page, statusFilter]);
 
-  const getStatusStyle = (status) => {
-    const styles = {
-      pending: 'bg-orange-100 text-orange-700 border-orange-200',
-      processing: 'bg-blue-100 text-blue-700 border-blue-200',
-      shipped: 'bg-purple-100 text-purple-700 border-purple-200',
-      delivered: 'bg-green-100 text-green-700 border-green-200',
-      cancelled: 'bg-red-100 text-red-700 border-red-200',
-    };
-    return styles[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "delivered": return "success";
+      case "cancelled": return "danger";
+      case "shipped": return "info";
+      default: return "warning";
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
-        <p className="text-gray-500 font-medium italic">Fetching your boutique orders...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900">Orders Management</h1>
-          <p className="text-sm text-gray-500 font-medium">Manage and track your customer orders.</p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+        
+        {/* Filter */}
+        <select 
+          className="border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="processed">Processed</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </div>
 
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-gray-50/50">
-              <tr>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Order Details</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {orders && orders.length > 0 ? (
-                orders.map((order) => (
-                  <tr key={order._id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gray-100 rounded-lg text-gray-500">
-                          <ShoppingBag size={18} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">#{order.orderId || 'ORD-NEW'}</p>
-                          <p className="text-[10px] text-gray-500 flex items-center gap-1 font-medium uppercase tracking-tight">
-                            <Clock size={10} /> {formatRelativeTime(order.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-gray-800">{order.userId?.fullName || 'Guest User'}</p>
-                      <p className="text-xs text-gray-500">{order.userId?.email}</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-black text-gray-900">
-                      {formatPrice(order.sellerTotal || order.totalAmount)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusStyle(order.orderStatus)}`}>
-                        {order.orderStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => navigate(`/orders/${order._id}`)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Eye size={18} />
-                      </button>
-                    </td>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-12"><Loader /></div>
+        ) : orders.length > 0 ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                       <Package size={40} className="text-gray-200" />
-                       <p className="text-gray-400 italic text-sm font-medium">No orders found in your boutique.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {orders.map((order) => (
+                    <tr key={order._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                        #{order.orderId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(order.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                            {order.user?.fullName?.charAt(0) || "U"}
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-900">{order.user?.fullName || "Guest"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.items.length} items
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {formatPrice(order.totalAmount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Badge variant={getStatusColor(order.orderStatus)}>
+                          {order.orderStatus}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          onClick={() => navigate(`/orders/${order._id}`)}
+                          className="text-indigo-600 hover:text-indigo-900 flex items-center justify-end gap-1 ml-auto"
+                        >
+                          <EyeIcon className="h-4 w-4" /> View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-gray-200">
+                <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="p-12 text-center text-gray-500">
+            No orders found matching your criteria.
+          </div>
+        )}
       </div>
     </div>
   );

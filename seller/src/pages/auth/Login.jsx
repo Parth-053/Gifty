@@ -1,107 +1,129 @@
-// src/pages/auth/Login.jsx
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Loader2, Store } from 'lucide-react';
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../config/firebase";
-import { useSelector } from 'react-redux'; // Use Redux to check state
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { loginSeller, clearError } from "../../store/authSlice";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
+import { EnvelopeIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 
 const Login = () => {
   const navigate = useNavigate();
-  // We read state from Redux, which is updated by our Context automatically
-  const { isAuthenticated } = useSelector(state => state.auth); 
+  const dispatch = useDispatch();
+  
+  // Access auth state from Redux
+  const { loading, error, isAuthenticated, seller } = useSelector((state) => state.auth);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: "", password: "" });
 
+  // Handle successful login and redirection based on seller status
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/', { replace: true });
+    if (isAuthenticated && seller) {
+      if (seller.status === "pending") {
+        navigate("/auth/pending");
+      } else if (seller.status === "rejected" || seller.status === "suspended") {
+        alert("Your account is " + seller.status);
+      } else {
+        navigate("/dashboard");
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, seller, navigate]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // Clear errors when component unmounts
+  useEffect(() => {
+    return () => { dispatch(clearError()); };
+  }, [dispatch]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      // 1. Firebase Login
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
-      // 2. Context will pick up the change, sync with DB, and update Redux
-      // We just wait or let the useEffect redirect us.
-      toast.success("Welcome back!");
-    } catch (error) {
-      console.error(error);
-      toast.error("Invalid email or password");
-      setLoading(false);
-    }
+    dispatch(loginSeller(form));
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FC] px-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
-            <Store className="text-white" size={32} />
-          </div>
-          <h1 className="text-2xl font-black text-gray-900">Seller Hub</h1>
-          <p className="text-gray-500 text-sm mt-1 font-medium">Manage your boutique on Gifty</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email Input */}
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">Email Address</label>
-            <div className="relative group">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={18} />
-              <input
-                type="email" name="email" required
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all"
-                placeholder="name@store.com"
-                value={formData.email} onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          {/* Password Input */}
-          <div>
-            <div className="flex justify-between mb-2 ml-1">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">Password</label>
-              <Link to="/auth/forgot-password" size={18} className="text-xs font-bold text-blue-600 hover:underline">Forgot?</Link>
-            </div>
-            <div className="relative group">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={18} />
-              <input
-                type={showPassword ? "text" : "password"} name="password" required
-                className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all"
-                placeholder="••••••••"
-                value={formData.password} onChange={handleChange}
-              />
-              <button
-                type="button" onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit" disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white py-4 rounded-xl font-bold text-sm shadow-xl transition-all disabled:opacity-70 transform active:scale-[0.98]"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <>Sign In <ArrowRight size={18} /></>}
-          </button>
-        </form>
-
-        <p className="text-center mt-8 text-sm text-gray-500">
-          Want to sell? <Link to="/auth/register" className="font-bold text-blue-600 hover:underline">Register Store</Link>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Seller Login
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Welcome back to Gifty Seller Portal
         </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-200">
+          {error && (
+            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <Input
+              label="Email Address"
+              type="email"
+              icon={EnvelopeIcon}
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+              placeholder="seller@example.com"
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              icon={LockClosedIcon}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+              placeholder="••••••••"
+            />
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                  Remember me
+                </label>
+              </div>
+              <div className="text-sm">
+                <Link to="/auth/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            <Button type="submit" isLoading={loading}>
+              Sign In
+            </Button>
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">New to Gifty?</span>
+              </div>
+            </div>
+            <div className="mt-6">
+              <Link to="/auth/register">
+                <Button variant="secondary">Create a Seller Account</Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center text-xs text-gray-500">
+            By signing in, you agree to our{" "}
+            <Link to="/legal/terms" className="underline hover:text-indigo-600">Terms of Service</Link>
+            {" "}and{" "}
+            <Link to="/legal/privacy" className="underline hover:text-indigo-600">Privacy Policy</Link>.
+          </div>
+        </div>
       </div>
     </div>
   );

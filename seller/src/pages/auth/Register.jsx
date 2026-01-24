@@ -1,119 +1,169 @@
-// src/pages/auth/Register.jsx
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { User, Store, Mail, Lock, ArrowRight, Phone, FileText, Loader2 } from 'lucide-react';
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "../../config/firebase";
-import api from "../../api/axios"; // Direct API call for syncing profile data
-import { validateGST, validatePassword, validatePhone } from '../../utils/validateForm';
-import toast from 'react-hot-toast';
-
-// Helper Component for Inputs
-const InputField = ({ icon: Icon, type, name, placeholder, label, value, onChange, required = true }) => (
-  <div className="space-y-1.5">
-    <label className="block text-sm font-bold text-gray-700">{label}</label>
-    <div className="relative group">
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <Icon size={18} className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-      </div>
-      <input
-        type={type} name={name} required={required} value={value} onChange={onChange}
-        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-        placeholder={placeholder}
-      />
-    </div>
-  </div>
-);
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { registerSeller, clearError } from "../../store/authSlice";
+import { validatePassword, validatePhone, validateGSTIN } from "../../utils/validateForm";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
+import { UserIcon, BuildingStorefrontIcon, PhoneIcon, EnvelopeIcon, LockClosedIcon, IdentificationIcon } from "@heroicons/react/24/outline";
 
 const Register = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
+  const { loading, error, isAuthenticated, seller } = useSelector((state) => state.auth);
 
-  const [formData, setFormData] = useState({
-    fullName: '', storeName: '', email: '', phone: '', gstin: '', password: ''
+  // Initial Form State
+  const [form, setForm] = useState({
+    fullName: "",
+    storeName: "",
+    email: "",
+    phone: "",
+    gstin: "",
+    password: "",
   });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const [validationErr, setValidationErr] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // 1. Validation
-    if (!validatePhone(formData.phone)) return toast.error("Invalid phone number");
-    if (!validatePassword(formData.password)) return toast.error("Weak password (Use Uppercase, Symbol, Number)");
-    if (formData.gstin && !validateGST(formData.gstin)) return toast.error("Invalid GSTIN");
-
-    setLoading(true);
-
-    try {
-      // 2. Create User in Firebase
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      const firebaseUser = userCredential.user;
-
-      // 3. Update Firebase Display Name
-      await updateProfile(firebaseUser, { displayName: formData.fullName });
-
-      // 4. Send Extra Data to MongoDB
-      // Note: We use the fresh token from firebaseUser
-      const token = await firebaseUser.getIdToken();
-      
-      await api.post('/auth/register-seller', {
-        fullName: formData.fullName,
-        storeName: formData.storeName,
-        email: formData.email,
-        phone: formData.phone,
-        gstin: formData.gstin,
-        firebaseUid: firebaseUser.uid,
-        role: 'seller' 
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      toast.success("Store Registered! Please verify email.");
-      // Navigate or let AuthContext handle redirection
-      navigate('/auth/verify-email'); // You might need to trigger sendEmailVerification() here
-
-    } catch (error) {
-      console.error(error);
-      if (error.code === 'auth/email-already-in-use') {
-        toast.error("Email already in use.");
-      } else {
-        toast.error("Registration failed. Try again.");
-      }
-    } finally {
-      setLoading(false);
+  // Handle successful registration -> redirect to pending
+  useEffect(() => {
+    if (isAuthenticated && seller) {
+      navigate("/auth/pending");
     }
+  }, [isAuthenticated, seller, navigate]);
+
+  // Clear errors on mount/unmount
+  useEffect(() => {
+    return () => { dispatch(clearError()); };
+  }, [dispatch]);
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setValidationErr("");
+
+    // 1. Validate Phone (Indian 10-digit)
+    if (!validatePhone(form.phone)) {
+      setValidationErr("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    // 2. Validate Password (Min 8 chars, 1 number)
+    if (!validatePassword(form.password)) {
+      setValidationErr("Password must contain at least 8 characters and 1 number.");
+      return;
+    }
+
+    // 3. Validate GSTIN (Optional but good check if provided)
+    if (form.gstin && !validateGSTIN(form.gstin)) {
+        setValidationErr("Invalid GSTIN format.");
+        return;
+    }
+
+    // Dispatch Register Thunk
+    dispatch(registerSeller(form));
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FC] px-4 py-12">
-      <div className="max-w-2xl w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Create Seller Account</h1>
-          <p className="text-gray-500 text-sm mt-2">Join Gifty and reach thousands of customers.</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <InputField label="Full Name" icon={User} type="text" name="fullName" placeholder="John Doe" value={formData.fullName} onChange={handleChange} />
-          <InputField label="Store Name" icon={Store} type="text" name="storeName" placeholder="My Shop" value={formData.storeName} onChange={handleChange} />
-          <InputField label="Email Address" icon={Mail} type="email" name="email" placeholder="john@example.com" value={formData.email} onChange={handleChange} />
-          <InputField label="Phone Number" icon={Phone} type="text" name="phone" placeholder="9876543210" value={formData.phone} onChange={handleChange} />
-          <InputField label="GSTIN (Optional)" icon={FileText} type="text" name="gstin" placeholder="GSTIN..." required={false} value={formData.gstin} onChange={handleChange} />
-          <InputField label="Password" icon={Lock} type="password" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} />
-
-          <button
-            type="submit" disabled={loading}
-            className="md:col-span-2 w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg transition-all disabled:opacity-70"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <>Register Store <ArrowRight size={18} /></>}
-          </button>
-        </form>
-        
-        <p className="text-center mt-8 text-sm text-gray-500">
-          Already have an account? <Link to="/auth/login" className="font-bold text-blue-600 hover:underline">Sign In</Link>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Partner with Gifty
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Create your store and start selling
         </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-200">
+          {(error || validationErr) && (
+            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded">
+              {validationErr || error}
+            </div>
+          )}
+
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* Personal Details */}
+            <div className="grid grid-cols-1 gap-4">
+                <Input 
+                    label="Owner Name" 
+                    name="fullName" 
+                    icon={UserIcon} 
+                    value={form.fullName} 
+                    onChange={handleChange} 
+                    required 
+                    placeholder="e.g. John Doe" 
+                />
+            </div>
+
+            {/* Store Details */}
+            <Input 
+                label="Store Name" 
+                name="storeName" 
+                icon={BuildingStorefrontIcon} 
+                value={form.storeName} 
+                onChange={handleChange} 
+                required 
+                placeholder="e.g. Gifty Gifts" 
+            />
+
+            <Input 
+                label="GSTIN (Optional)" 
+                name="gstin" 
+                icon={IdentificationIcon} 
+                value={form.gstin} 
+                onChange={handleChange} 
+                placeholder="22AAAAA0000A1Z5" 
+            />
+            
+            {/* Contact Details */}
+            <Input 
+                label="Email Address" 
+                type="email" 
+                name="email" 
+                icon={EnvelopeIcon} 
+                value={form.email} 
+                onChange={handleChange} 
+                required 
+                placeholder="seller@example.com"
+            />
+            
+            <Input 
+                label="Phone Number" 
+                type="tel" 
+                name="phone" 
+                icon={PhoneIcon} 
+                value={form.phone} 
+                onChange={handleChange} 
+                required 
+                placeholder="9876543210" 
+            />
+            
+            {/* Security */}
+            <Input 
+                label="Password" 
+                type="password" 
+                name="password" 
+                icon={LockClosedIcon} 
+                value={form.password} 
+                onChange={handleChange} 
+                required 
+                placeholder="Strong Password"
+            />
+
+            <Button type="submit" isLoading={loading} className="mt-2">
+              Create Seller Account
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-gray-600">
+            Already have an account?{" "}
+            <Link to="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

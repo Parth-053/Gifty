@@ -1,88 +1,100 @@
-import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, Edit, Package, DollarSign, BarChart, Loader2 } from 'lucide-react';
-import { fetchProductById } from '../../store/productSlice';
-import { formatPrice } from '../../utils/formatPrice';
+import React, { useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchProductDetails } from "../../store/productSlice";
+import { formatPrice } from "../../utils/formatPrice";
+import Loader from "../../components/common/Loader";
+import Badge from "../../components/common/Badge";
+import { ArrowLeftIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
-  const { currentProduct: product, fetchLoading } = useSelector((state) => state.products);
+  const { currentProduct: product, loading } = useSelector((state) => state.products);
 
   useEffect(() => {
-    if (id) {
-      dispatch(fetchProductById(id));
-    }
-  }, [id, dispatch]);
+    dispatch(fetchProductDetails(id));
+  }, [dispatch, id]);
 
-  if (fetchLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div>;
-  if (!product) return <div className="text-center py-20">Product not found</div>;
+  if (loading || !product) return <div className="h-96 flex justify-center items-center"><Loader /></div>;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-       
-       {/* Header with Dynamic Name */}
-       <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-lg text-gray-500">
-               <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-xl font-bold text-gray-800">Product Details</h1>
-          </div>
-          <button 
-            onClick={() => navigate(`/products/edit/${id}`)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl font-bold text-sm"
-          >
-            <Edit size={16} /> Edit Product
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate("/products")} className="p-2 hover:bg-gray-100 rounded-full">
+            <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
           </button>
-       </div>
+          <h1 className="text-2xl font-bold text-gray-900">Product Details</h1>
+        </div>
+        <Link to={`/products/edit/${product._id}`}>
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium">
+            <PencilSquareIcon className="h-5 w-5" /> Edit
+          </button>
+        </Link>
+      </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Product Image & Description */}
-          <div className="lg:col-span-2 space-y-6">
-             <div className="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <img 
-                  src={product.images?.[0] || 'https://via.placeholder.com/500'} 
-                  alt={product.name} 
-                  className="w-full h-96 object-cover rounded-xl" 
-                />
-             </div>
-             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h2 className="text-lg font-bold text-gray-800 mb-3">Description</h2>
-                <p className="text-gray-600 leading-relaxed">{product.description}</p>
-             </div>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          
+          {/* Images Section */}
+          <div className="p-6 bg-gray-50 border-r border-gray-200">
+            <div className="aspect-square rounded-lg overflow-hidden bg-white mb-4 border border-gray-200">
+              <img 
+                src={product.images?.[0]?.url || "https://via.placeholder.com/400"} 
+                alt={product.name} 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {product.images?.map((img, i) => (
+                <div key={i} className="aspect-square rounded-md overflow-hidden border border-gray-200 bg-white">
+                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Quick Stats Sidebar */}
-          <div className="space-y-6">
-             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                <div className="flex items-center gap-4">
-                   <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                      <DollarSign size={24} />
-                   </div>
-                   <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase">Price</p>
-                      <p className="text-xl font-extrabold text-gray-900">{formatPrice(product.price)}</p>
-                   </div>
-                </div>
-                {/* Other Stats like Stock, Revenue, etc. */}
-                <div className="flex items-center gap-4">
-                   <div className="p-3 bg-green-50 text-green-600 rounded-lg">
-                      <Package size={24} />
-                   </div>
-                   <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase">Current Stock</p>
-                      <p className={`text-xl font-extrabold ${product.stock < 10 ? 'text-red-600' : 'text-gray-900'}`}>
-                        {product.stock} units
-                      </p>
-                   </div>
-                </div>
-             </div>
+          {/* Info Section */}
+          <div className="p-8 space-y-6">
+            <div>
+              <Badge variant="info" className="mb-2">{product.category?.name || "Category"}</Badge>
+              <h2 className="text-3xl font-bold text-gray-900">{product.name}</h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-baseline gap-4">
+                <span className="text-4xl font-bold text-indigo-600">{formatPrice(product.price)}</span>
+                <span className="text-xl text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Stock Status:</span>
+                <span className={`font-medium ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {product.stock > 0 ? `In Stock (${product.stock} units)` : "Out of Stock"}
+                </span>
+              </div>
+            </div>
+
+            <div className="prose text-gray-600 text-sm">
+              <h4 className="text-gray-900 font-semibold mb-2">Description</h4>
+              <p>{product.description}</p>
+            </div>
+
+            <div className="pt-6 border-t border-gray-100 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="block text-gray-500">Customizable</span>
+                <span className="font-medium text-gray-900">{product.isCustomizable ? "Yes" : "No"}</span>
+              </div>
+              <div>
+                <span className="block text-gray-500">Product ID</span>
+                <span className="font-medium text-gray-900 font-mono">{product._id}</span>
+              </div>
+            </div>
           </div>
-       </div>
+        </div>
+      </div>
     </div>
   );
 };

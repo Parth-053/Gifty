@@ -6,18 +6,15 @@ import { ApiFeatures } from "../../utils/ApiFeatures.js";
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
- * @desc    Get Seller Orders
+ * @desc    Get Seller Orders (List)
  * @route   GET /api/v1/seller/orders
  */
 export const getSellerOrders = asyncHandler(async (req, res) => {
   const sellerId = req.seller._id;
-
-  // 1. Initial Filter: Find orders that CONTAIN seller's items
   const baseQuery = { "items.sellerId": sellerId };
   
-  // 2. Use ApiFeatures for Pagination/Sorting on the main Order document
   const features = new ApiFeatures(
-    Order.find(baseQuery).populate("userId", "fullName email phone"),
+    Order.find(baseQuery).populate("userId", "fullName email phone avatar"),
     req.query
   )
   .filter()
@@ -27,13 +24,9 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
   const orders = await features.query;
   const total = await Order.countDocuments(baseQuery);
 
-  // 3. Transform Data: Filter items inside the order
-  // Seller should NOT see items from other sellers in the same order
+  // Transform: Filter items to show only this seller's products
   const sellerOrders = orders.map(order => {
-    const myItems = order.items.filter(item => 
-      item.sellerId.toString() === sellerId.toString()
-    );
-    
+    const myItems = order.items.filter(item => item.sellerId.toString() === sellerId.toString());
     const myTotal = myItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
     return {
@@ -41,21 +34,45 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
       orderId: order.orderId,
       createdAt: order.createdAt,
       user: order.userId,
-      shippingAddress: order.shippingAddress,
-      paymentMethod: order.paymentMethod,
       orderStatus: order.orderStatus, // Global status
-      items: myItems, // ONLY seller's items
-      totalAmount: myTotal // ONLY seller's share
+      items: myItems,
+      totalAmount: myTotal,
+      paymentMethod: order.paymentMethod
     };
   });
 
-  return res
-    .status(httpStatus.OK)
-    .json(new ApiResponse(httpStatus.OK, { orders: sellerOrders, total }, "Orders fetched successfully"));
+  return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, { orders: sellerOrders, total }, "Orders fetched"));
 });
 
 /**
- * @desc    Update Item Status (e.g. Shipped/Packed)
+ * @desc    Get Single Order Details
+ * @route   GET /api/v1/seller/orders/:id
+ */
+export const getSellerOrderDetails = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const sellerId = req.seller._id;
+
+  const order = await Order.findOne({ _id: id, "items.sellerId": sellerId })
+    .populate("userId", "fullName email phone avatar")
+    .populate("shippingAddress");
+
+  if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Order not found");
+
+  // Filter items for this seller
+  const myItems = order.items.filter(item => item.sellerId.toString() === sellerId.toString());
+  const myTotal = myItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+  const orderData = {
+    ...order.toObject(),
+    items: myItems,
+    totalAmount: myTotal
+  };
+
+  return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, orderData, "Order details fetched"));
+});
+
+/**
+ * @desc    Update Item Status
  * @route   PATCH /api/v1/seller/orders/:orderId/items/:itemId
  */
 export const updateOrderItemStatus = asyncHandler(async (req, res) => {
@@ -66,22 +83,17 @@ export const updateOrderItemStatus = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ _id: orderId, "items.sellerId": sellerId });
   if (!order) throw new ApiError(httpStatus.NOT_FOUND, "Order not found");
 
-  // Find the specific item
   const item = order.items.id(itemId);
-  
-  if (!item) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Item not found in order");
-  }
-
-  // Security Check
-  if (item.sellerId.toString() !== sellerId.toString()) {
-    throw new ApiError(httpStatus.FORBIDDEN, "Unauthorized to update this item");
+  if (!item || item.sellerId.toString() !== sellerId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, "Unauthorized access to item");
   }
 
   item.status = status;
+  
+  // Optional: Check if all items are processed to update main orderStatus
+  // Logic can be added here if needed
+
   await order.save();
 
-  return res
-    .status(httpStatus.OK)
-    .json(new ApiResponse(httpStatus.OK, order, "Item status updated"));
+  return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, order, "Item status updated"));
 });

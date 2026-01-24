@@ -1,61 +1,60 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import ProductForm from '../../components/product/ProductForm';
-import Loader from '../../components/common/Loader';
-import { fetchProductById, updateProduct } from '../../store/productSlice';
-import toast from 'react-hot-toast';
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useParams, useNavigate } from "react-router-dom";
+import { fetchProductDetails, updateProduct, clearProductErrors, clearCurrentProduct } from "../../store/productSlice";
+import ProductForm from "../../components/product/ProductForm";
+import Loader from "../../components/common/Loader";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const EditProduct = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  
-  const { currentProduct, loading, fetchLoading } = useSelector((state) => state.products);
+  const navigate = useNavigate();
+  const { currentProduct, loading, actionLoading, error, successMessage } = useSelector((state) => state.products);
 
   useEffect(() => {
-    if (id) {
-      dispatch(fetchProductById(id));
-    }
-  }, [id, dispatch]);
+    dispatch(fetchProductDetails(id));
+    return () => { 
+        dispatch(clearProductErrors());
+        dispatch(clearCurrentProduct());
+    };
+  }, [dispatch, id]);
 
-  const handleSubmit = async (formData) => {
-    const resultAction = await dispatch(updateProduct({ id, formData }));
-    
-    if (updateProduct.fulfilled.match(resultAction)) {
-      toast.success('Product updated successfully!');
-      navigate('/products');
-    } else {
-      toast.error(resultAction.payload || "Failed to update product");
+  useEffect(() => {
+    if (successMessage) {
+      navigate("/products");
+      dispatch(clearProductErrors());
     }
+  }, [successMessage, navigate, dispatch]);
+
+  const handleSubmit = (formData) => {
+    dispatch(updateProduct({ id, data: formData }));
   };
 
-  if (fetchLoading) return <Loader fullScreen text="Fetching product details..." />;
-  if (!currentProduct) return <div className="p-10 text-center">Product not found</div>;
+  if (loading || !currentProduct) {
+    return <div className="h-96 flex items-center justify-center"><Loader /></div>;
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="p-2 rounded-lg hover:bg-white text-gray-500 transition-colors"
-        >
-          <ArrowLeft size={24} />
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <button onClick={() => navigate("/products")} className="p-2 hover:bg-gray-100 rounded-full">
+          <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Edit Product</h1>
-          <p className="text-sm text-gray-500">Update details for {currentProduct.name}</p>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
       </div>
 
-      {/* Form with Real Data */}
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm border border-red-200">
+          {error}
+        </div>
+      )}
+
       <ProductForm 
+        initialData={currentProduct} 
         onSubmit={handleSubmit} 
-        initialData={currentProduct}
-        isLoading={loading} 
+        isLoading={actionLoading} 
+        isEdit={true}
       />
     </div>
   );

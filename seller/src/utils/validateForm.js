@@ -1,23 +1,40 @@
-// Password: 8+ chars, uppercase, number, symbol
+/**
+ * Validates email format using regex
+ * @param {string} email 
+ * @returns {boolean}
+ */
+export const validateEmail = (email) => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+};
+
+/**
+ * Validates password strength
+ * Requirement: Min 8 chars, at least 1 number
+ * @param {string} password 
+ * @returns {boolean}
+ */
 export const validatePassword = (password) => {
-    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    return re.test(password);
+  return password.length >= 8 && /\d/.test(password);
 };
 
-// Indian GST Validation
-export const validateGST = (gst) => {
-    const re = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-    return re.test(gst);
-};
-
-// Phone Number (10 Digits)
+/**
+ * Validates Indian Phone Number (10 digits)
+ * @param {string} phone 
+ * @returns {boolean}
+ */
 export const validatePhone = (phone) => {
-    const re = /^[6-9]\d{9}$/;
-    return re.test(phone);
+  const re = /^[6-9]\d{9}$/;
+  return re.test(phone);
 };
 
-// Bank IFSC Code
-export const validateIFSC = (ifsc) => {
-    const re = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-    return re.test(ifsc);
+/**
+ * Validates GSTIN (Indian GST Number)
+ * Optional but recommended regex
+ * @param {string} gstin 
+ * @returns {boolean}
+ */
+export const validateGSTIN = (gstin) => {
+  const re = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  return re.test(gstin);
 };

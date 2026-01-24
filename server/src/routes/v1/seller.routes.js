@@ -7,14 +7,20 @@ import {
   getProductDetails  
 } from "../../controllers/seller/inventory.controller.js";
 import { 
+  getDashboardStats, 
+  getDashboardChart 
+} from "../../controllers/seller/dashboard.controller.js";
+import { 
   getSellerOrders, 
-  updateOrderItemStatus 
+  updateOrderItemStatus,
+  getSellerOrderDetails, 
 } from "../../controllers/seller/orders.controller.js";
 import { 
   getFinanceStats, 
   getTransactionHistory, 
   requestPayout,
-  getPayoutHistory  
+  getPayoutHistory,
+  getSalesGraph  
 } from "../../controllers/seller/finance.controller.js";
 import { 
   updateSellerProfile, 
@@ -33,6 +39,10 @@ const router = Router();
  
 // Protect all routes: Must be Authenticated AND have 'seller' role
 router.use(verifyAuth, authorizeRoles("seller"));
+
+// --- 0. Dashboard  ---
+router.get("/dashboard/stats", getDashboardStats);
+router.get("/dashboard/chart", getDashboardChart);
 
 // --- 1. Inventory Management ---
 router.route("/inventory")
@@ -54,12 +64,14 @@ router.route("/inventory/:id")
 
 // --- 2. Order Management ---
 router.get("/orders", getSellerOrders);
+router.get("/orders/:id", getSellerOrderDetails);
 router.patch("/orders/:orderId/items/:itemId", updateOrderItemStatus);
 
 // --- 3. Finance & Payouts ---
 router.get("/finance/stats", getFinanceStats);
 router.get("/finance/transactions", getTransactionHistory);
 router.get("/finance/payouts", getPayoutHistory);
+router.get("/finance/graph", getSalesGraph);
 router.post("/finance/withdraw", requestPayout);
 
 // --- 4. Profile & Settings ---

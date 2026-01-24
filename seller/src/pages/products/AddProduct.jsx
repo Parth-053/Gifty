@@ -1,41 +1,42 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import ProductForm from '../../components/product/ProductForm';
-import { addProduct } from '../../store/productSlice'; // Redux action
-import toast from 'react-hot-toast';
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { createProduct, clearProductErrors } from "../../store/productSlice";
+import ProductForm from "../../components/product/ProductForm";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const AddProduct = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading } = useSelector((state) => state.products);
+  const navigate = useNavigate();
+  const { actionLoading, error, successMessage } = useSelector((state) => state.products);
 
-  const handleSubmit = async (formData) => {
-    // API Call via Redux
-    const resultAction = await dispatch(addProduct(formData));
-    
-    if (addProduct.fulfilled.match(resultAction)) {
-      toast.success('Product added successfully!');
-      navigate('/products');
-    } else {
-      toast.error(resultAction.payload || "Failed to add product");
+  useEffect(() => {
+    if (successMessage) {
+      navigate("/products");
+      dispatch(clearProductErrors());
     }
+  }, [successMessage, navigate, dispatch]);
+
+  const handleSubmit = (formData) => {
+    dispatch(createProduct(formData));
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-white text-gray-500">
-          <ArrowLeft size={24} />
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <button onClick={() => navigate("/products")} className="p-2 hover:bg-gray-100 rounded-full">
+          <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Add New Product</h1>
-          <p className="text-sm text-gray-500">Create a new item for your store.</p>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Add New Product</h1>
       </div>
 
-      <ProductForm onSubmit={handleSubmit} isLoading={loading} />
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm border border-red-200">
+          {error}
+        </div>
+      )}
+
+      <ProductForm onSubmit={handleSubmit} isLoading={actionLoading} />
     </div>
   );
 };

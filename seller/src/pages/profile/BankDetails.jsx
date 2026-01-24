@@ -1,52 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import { Landmark, ShieldCheck, Loader2, Save } from 'lucide-react';
-import toast from 'react-hot-toast';
-import api from '../../api/axios';
-import { validateIFSC } from '../../utils/validateForm';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchSellerProfile, updateBankDetails, clearSellerMessages } from "../../store/sellerSlice";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
+import { BanknotesIcon, IdentificationIcon } from "@heroicons/react/24/outline";
 
 const BankDetails = () => {
-  const [loading, setLoading] = useState(false);
-  const [bank, setBank] = useState({
-    accountName: '',
-    accountNumber: '',
-    ifscCode: '',
-    bankName: ''
+  const dispatch = useDispatch();
+  const { profile, actionLoading, successMessage, error } = useSelector((state) => state.seller);
+
+  const [form, setForm] = useState({
+    gstin: "",
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+    accountHolderName: ""
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateIFSC(bank.ifscCode)) return toast.error("Invalid IFSC Code");
+  useEffect(() => {
+    if (!profile) dispatch(fetchSellerProfile());
+    return () => { dispatch(clearSellerMessages()); };
+  }, [dispatch, profile]);
 
-    try {
-      setLoading(true);
-      await api.put('/seller/profile/bank', bank);
-      toast.success('Bank details updated for payouts!');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Update failed');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        gstin: profile.gstin || "",
+        bankName: profile.bankDetails?.bankName || "",
+        accountNumber: profile.bankDetails?.accountNumber || "",
+        ifscCode: profile.bankDetails?.ifscCode || "",
+        accountHolderName: profile.bankDetails?.accountHolderName || ""
+      });
     }
+  }, [profile]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    dispatch(updateBankDetails(form));
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
-         <ShieldCheck className="text-blue-600 shrink-0" size={20} />
-         <p className="text-xs text-blue-700 leading-relaxed font-medium">
-            Please ensure your bank details are correct. All your earnings will be transferred to this account. Inaccurate details may lead to payment delays.
-         </p>
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900">Bank & Tax Details</h1>
 
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-5">
-         <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase">Account Holder Name</label>
-            <input type="text" value={bank.accountName} onChange={(e) => setBank({...bank, accountName: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-blue-500 outline-none transition-all font-medium" />
-         </div>
-         {/* Account Number, IFSC, Bank Name follow same pattern */}
-         <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">
-            {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Verify & Save Bank Account'}
-         </button>
-      </form>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        
+        {(successMessage || error) && (
+          <div className={`mb-6 p-4 rounded-lg text-sm ${error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+            {error || successMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          <div className="border-b border-gray-100 pb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <IdentificationIcon className="h-5 w-5 text-gray-500" /> Tax Information
+            </h3>
+            <Input 
+                label="GSTIN" 
+                value={form.gstin} 
+                onChange={(e) => setForm({ ...form, gstin: e.target.value })} 
+                placeholder="22AAAAA0000A1Z5"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <BanknotesIcon className="h-5 w-5 text-gray-500" /> Bank Account
+            </h3>
+            
+            <Input 
+                label="Account Holder Name" 
+                value={form.accountHolderName} 
+                onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })} 
+                required
+            />
+
+            <Input 
+                label="Account Number" 
+                type="password" // Masked for security visually
+                value={form.accountNumber} 
+                onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} 
+                required
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input 
+                    label="Bank Name" 
+                    value={form.bankName} 
+                    onChange={(e) => setForm({ ...form, bankName: e.target.value })} 
+                    required
+                />
+                <Input 
+                    label="IFSC Code" 
+                    value={form.ifscCode} 
+                    onChange={(e) => setForm({ ...form, ifscCode: e.target.value })} 
+                    required
+                    placeholder="SBIN0001234"
+                />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button type="submit" isLoading={actionLoading}>
+              Save Details
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
