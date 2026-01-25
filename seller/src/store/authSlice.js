@@ -11,102 +11,108 @@ import {
 import { auth } from "../config/firebase";
 import api from "../api/axios";
 
-// 1. Login Seller (Firebase Auth + Backend Sync)
-
-export const loginSeller = createAsyncThunk(
-  "auth/login",
-  async ({ email, password }, { rejectWithValue }) => {
-    try {
-  
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
-      
-      const token = await firebaseUser.getIdToken();
-
-      const response = await api.post("/auth/sync/seller", {
-        email: firebaseUser.email,
-        role: "seller"
-      }); 
-      
-      return {
-        user: response.data.data,  
-        token: token 
-      };
-    } catch (error) {
-      if (error.code === 'auth/user-not-found') return rejectWithValue("User not found");
-      if (error.code === 'auth/wrong-password') return rejectWithValue("Invalid password");
-      if (error.code === 'auth/invalid-credential') return rejectWithValue("Invalid credentials");
-      return rejectWithValue(error.response?.data?.message || error.message);
-    }
-  }
-);
-
- 
-// 2. Register Seller (Firebase Create + Backend Create)
- 
+// ---------------------------------------
+// 1. Register Seller (Direct Flow)
+// ---------------------------------------
 export const registerSeller = createAsyncThunk(
   "auth/register",
   async ({ fullName, email, password, phone, storeName, gstin }, { rejectWithValue }) => {
+    let firebaseUser = null;
     try {
+      // Create User
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
+      firebaseUser = userCredential.user;
+      
+      const token = await firebaseUser.getIdToken();
 
-      // Firebase Profile Update
+      // Update Name
       await updateProfile(firebaseUser, { displayName: fullName });
 
+      // Backend Sync
       const response = await api.post("/auth/sync/seller", {
         fullName,
         email,
         phone,
         storeName,
-        gstin, 
+        gstin: gstin || "",
         role: "seller"
+      }, {
+        headers: { "Authorization": `Bearer ${token}` }
       });
 
       return {
         user: response.data.data,
-        token: await firebaseUser.getIdToken()
+        token: token
       };
+
     } catch (error) {
-      if (error.code === 'auth/email-already-in-use') return rejectWithValue("Email already registered");
+      // Rollback
+      if (firebaseUser) {
+        await firebaseUser.delete().catch(console.error);
+      }
+      
+      if (error.code === 'auth/email-already-in-use') return rejectWithValue("Email already registered.");
       return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
- 
+
+// ---------------------------------------
+// 2. Login Seller
+// ---------------------------------------
+export const loginSeller = createAsyncThunk(
+  "auth/login",
+  async ({ email, password }, { rejectWithValue }) => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      const token = await firebaseUser.getIdToken();
+      
+      // Fetch profile
+      const response = await api.get("/auth/me"); 
+      
+      return { user: response.data.data, token };
+    } catch (error) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        return rejectWithValue("Invalid email or password");
+      }
+      if (error.response?.status === 404 || error.response?.status === 401) {
+         return rejectWithValue("Profile missing. Please register again.");
+      }
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// ---------------------------------------
 // 3. Logout
- 
+// ---------------------------------------
 export const logoutSeller = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
       const user = auth.currentUser;
- 
       if (user) {
         try { 
           const token = await user.getIdToken();
- 
-          await api.post("/auth/logout", {}, {
-            headers: {
-              "Authorization": `Bearer ${token}`
-            }
-          });
-        } catch { 
-          console.warn("Backend logout skipped (Session invalid or expired).");
+          await api.post("/auth/logout", {}, { headers: { "Authorization": `Bearer ${token}` } });
+        } catch (backendError) { 
+          // ESLint Fix: Used the variable
+          console.warn("Backend logout skipped:", backendError.message);
         }
       }
- 
       await signOut(auth);
-      
       return true;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
- 
-// 4. Sync Profile  
- 
+
+// ---------------------------------------
+// 4. Sync Profile
+// ---------------------------------------
 export const syncSellerProfile = createAsyncThunk(
   "auth/syncProfile",
   async (_, { rejectWithValue }) => {
@@ -114,43 +120,44 @@ export const syncSellerProfile = createAsyncThunk(
       const response = await api.get("/auth/me");
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Session expired");
+      if (error.response?.status === 401 || error.response?.status === 404) {
+        await signOut(auth);
+        return rejectWithValue("Session invalid.");
+      }
+      return rejectWithValue("Session expired");
     }
   }
 );
 
-// 5. Password Reset & Email Verification Actions
-
-// Send Reset Link
+// ---------------------------------------
+// 5. Password Reset & Actions (FIXED: Now using the imports)
+// ---------------------------------------
 export const sendResetLink = createAsyncThunk(
   "auth/sendResetLink",
   async (email, { rejectWithValue }) => {
     try {
       await sendPasswordResetEmail(auth, email);
-      return "Password reset link sent to your email.";
+      return "Password reset link sent.";
     } catch (error) {
-      if (error.code === 'auth/user-not-found') return rejectWithValue("No account found with this email.");
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Confirm Reset Password
 export const resetPassword = createAsyncThunk(
   "auth/resetPassword",
   async ({ oobCode, newPassword }, { rejectWithValue }) => {
     try {
       await confirmPasswordReset(auth, oobCode, newPassword);
-      return "Password has been reset successfully.";
+      return "Password reset successful.";
     } catch (error) {
       return rejectWithValue(error.message); 
     }
   }
 );
 
-// Verify Email Link
 export const verifyEmailAction = createAsyncThunk(
-  "auth/verifyEmail",
+  "auth/verifyEmailAction",
   async (oobCode, { rejectWithValue }) => {
     try {
       await applyActionCode(auth, oobCode);
@@ -161,85 +168,66 @@ export const verifyEmailAction = createAsyncThunk(
   }
 );
 
+// ---------------------------------------
 // Slice Definition
-
+// ---------------------------------------
 const authSlice = createSlice({
   name: "auth",
   initialState: {
-    seller: null,       
+    seller: null,
     isAuthenticated: false,
-    loading: false,     
-    error: null,        
-    successMessage: null, 
+    loading: false,
+    error: null,
+    successMessage: null,
   },
   reducers: {
-    setLoading: (state, action) => {
-      state.loading = action.payload;
-    },
-    clearError: (state) => {
-      state.error = null;
-      state.successMessage = null;
-    },
-    setUser: (state, action) => {
-      state.seller = action.payload;
-      state.isAuthenticated = !!action.payload;
-    }
+    setLoading: (state, action) => { state.loading = action.payload; },
+    clearError: (state) => { state.error = null; state.successMessage = null; },
   },
   extraReducers: (builder) => {
     builder
-      // --- Login ---
-      .addCase(loginSeller.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(loginSeller.fulfilled, (state, action) => {
-        state.loading = false;
-        state.isAuthenticated = true;
-        state.seller = action.payload.user;
-      })
-      .addCase(loginSeller.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
-      // --- Register ---
-      .addCase(registerSeller.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      // Register
+      .addCase(registerSeller.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(registerSeller.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
         state.seller = action.payload.user;
+        state.isAuthenticated = true;
       })
       .addCase(registerSeller.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
-      // --- Sync Profile ---
-      // Removed the empty 'pending' case to fix "unused state" error
-      .addCase(syncSellerProfile.fulfilled, (state, action) => {
+      // Login
+      .addCase(loginSeller.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(loginSeller.fulfilled, (state, action) => {
+        state.loading = false;
+        state.seller = action.payload.user;
         state.isAuthenticated = true;
-        state.seller = action.payload;
       })
-      .addCase(syncSellerProfile.rejected, (state) => {
-        state.isAuthenticated = false;
-        state.seller = null;
+      .addCase(loginSeller.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
 
-      // --- Logout ---
+      // Sync Profile
+      .addCase(syncSellerProfile.fulfilled, (state, action) => {
+        state.seller = action.payload;
+        state.isAuthenticated = true;
+      })
+      .addCase(syncSellerProfile.rejected, (state) => {
+        state.seller = null;
+        state.isAuthenticated = false;
+      })
+
+      // Logout
       .addCase(logoutSeller.fulfilled, (state) => {
         state.seller = null;
         state.isAuthenticated = false;
       })
 
-      // --- Password Reset ---
-      .addCase(sendResetLink.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-        state.successMessage = null;
-      })
+      // Password Reset Cases
+      .addCase(sendResetLink.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(sendResetLink.fulfilled, (state, action) => {
         state.loading = false;
         state.successMessage = action.payload;
@@ -249,11 +237,7 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
 
-      // --- Reset Password Confirm ---
-      .addCase(resetPassword.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      .addCase(resetPassword.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(resetPassword.fulfilled, (state, action) => {
         state.loading = false;
         state.successMessage = action.payload;
@@ -263,11 +247,7 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
 
-      // --- Verify Email ---
-      .addCase(verifyEmailAction.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      .addCase(verifyEmailAction.pending, (state) => { state.loading = true; })
       .addCase(verifyEmailAction.fulfilled, (state, action) => {
         state.loading = false;
         state.successMessage = action.payload;
@@ -279,5 +259,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setLoading, clearError, setUser } = authSlice.actions;
+export const { setLoading, clearError } = authSlice.actions;
 export default authSlice.reducer;

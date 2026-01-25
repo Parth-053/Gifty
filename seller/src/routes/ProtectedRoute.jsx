@@ -1,20 +1,34 @@
-import React from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Loader from "../components/common/Loader";
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, loading } = useSelector((state) => state.auth);
+  const { seller, isAuthenticated, loading } = useSelector((state) => state.auth);
+  const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
-        <Loader />
-      </div>
-    );
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader size="lg" /></div>;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/auth/login" replace />;
+  // Zombie State Check
+  if (!seller) {
+    return <div className="p-10 text-center">Loading Profile...</div>; 
+  }
+
+  const isOnboardingPage = location.pathname === "/onboarding";
+  const isProfileComplete = seller?.onboardingCompleted;
+
+  if (!isProfileComplete && !isOnboardingPage) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (isProfileComplete && isOnboardingPage) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

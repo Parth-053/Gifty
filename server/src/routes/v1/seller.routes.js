@@ -22,18 +22,19 @@ import {
   getPayoutHistory,
   getSalesGraph  
 } from "../../controllers/seller/finance.controller.js";
+
+// --- CHANGED: Imports for new Unified Profile Controller ---
 import { 
-  updateSellerProfile, 
-  updateStoreSettings,
-  updateBankDetails,
-  getSellerProfile
+  getProfile, 
+  updateProfile 
 } from "../../controllers/seller/profile.controller.js";  
 
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import { upload } from "../../middlewares/multer.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
 import { createProductSchema, updateProductSchema } from "../../validations/product.schema.js";
-import { updateSellerProfileSchema, updateStoreSettingsSchema } from "../../validations/seller.schema.js";
+// --- CHANGED: Import new schema ---
+import { syncSellerSchema } from "../../validations/seller.schema.js";
 
 const router = Router();
  
@@ -74,10 +75,13 @@ router.get("/finance/payouts", getPayoutHistory);
 router.get("/finance/graph", getSalesGraph);
 router.post("/finance/withdraw", requestPayout);
 
-// --- 4. Profile & Settings ---
-router.get("/profile", getSellerProfile);
-router.patch("/profile", validate(updateSellerProfileSchema), updateSellerProfile); 
-router.patch("/store", validate(updateStoreSettingsSchema), updateStoreSettings);
-router.patch("/bank", updateBankDetails);  
+// --- 4. Profile & Settings (UPDATED for Onboarding) --- 
+router.get("/profile", getProfile);
+ 
+router.put(
+  "/profile", 
+  validate(syncSellerSchema), 
+  updateProfile
+); 
 
 export default router;

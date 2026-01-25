@@ -61,7 +61,7 @@ const TermsAndConditions = () => {
 
         <div className="pt-6 border-t border-gray-100">
           <p className="text-sm text-gray-500">
-            For any questions regarding these terms, please contact us at <a href="mailto:legal@gifty.com" className="text-indigo-600 hover:underline">legal@gifty.com</a>.
+            For any questions regarding these terms, please contact us at <a href="mailto:gifty.app07@gmail.com" className="text-indigo-600 hover:underline">gifty.com</a>.
           </p>
         </div>
       </div>
