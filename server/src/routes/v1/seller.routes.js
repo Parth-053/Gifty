@@ -23,7 +23,6 @@ import {
   getSalesGraph  
 } from "../../controllers/seller/finance.controller.js";
 
-// --- CHANGED: Imports for new Unified Profile Controller ---
 import { 
   getProfile, 
   updateProfile 
@@ -33,12 +32,13 @@ import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js
 import { upload } from "../../middlewares/multer.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
 import { createProductSchema, updateProductSchema } from "../../validations/product.schema.js";
-// --- CHANGED: Import new schema ---
-import { syncSellerSchema } from "../../validations/seller.schema.js";
+
+// ✅ FIX: Import the new updateSellerSchema here
+import { syncSellerSchema, updateSellerSchema } from "../../validations/seller.schema.js";
 
 const router = Router();
  
-// Protect all routes: Must be Authenticated AND have 'seller' role
+// Protect all routes
 router.use(verifyAuth, authorizeRoles("seller"));
 
 // --- 0. Dashboard  ---
@@ -75,12 +75,12 @@ router.get("/finance/payouts", getPayoutHistory);
 router.get("/finance/graph", getSalesGraph);
 router.post("/finance/withdraw", requestPayout);
 
-// --- 4. Profile & Settings (UPDATED for Onboarding) --- 
+// --- 4. Profile & Settings --- 
 router.get("/profile", getProfile);
  
 router.put(
   "/profile", 
-  validate(syncSellerSchema), 
+  validate(updateSellerSchema), 
   updateProfile
 ); 
 
