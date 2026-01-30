@@ -17,18 +17,15 @@ export const syncSellerProfile = createAsyncThunk(
   }
 );
 
-export const logoutSeller = createAsyncThunk(
-  "auth/logoutSeller",
-  async () => {
+export const logoutSeller = createAsyncThunk("auth/logoutSeller", async () => {
     await signOut(auth);
     return true;
-  }
-);
+});
 
 const initialState = {
   seller: null,
   isAuthenticated: false,
-  loading: true, // Keep initial loading true for first page load
+  loading: true, 
   error: null
 };
 
@@ -41,9 +38,9 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // FIX 1: Do NOT set global loading to true here. 
+      // This prevents App.jsx from unmounting the Register page.
       .addCase(syncSellerProfile.pending, (state) => {
-        // FIX: Do NOT set loading to true here. 
-        // This prevents the App.jsx from unmounting the Register page during background sync.
         state.error = null;
       })
       .addCase(syncSellerProfile.fulfilled, (state, action) => {
@@ -54,7 +51,8 @@ const authSlice = createSlice({
       .addCase(syncSellerProfile.rejected, (state, action) => {
         state.loading = false;
         
-        // Handle the 404 (New User) correctly
+        // FIX 2: Handle 404 (New User) correctly
+        // User is Authenticated (Firebase) but has no Profile (MongoDB)
         if (action.payload?.status === 404) {
              state.isAuthenticated = true; 
              state.seller = null; 

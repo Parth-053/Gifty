@@ -17,7 +17,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) throw new ApiError(400, "Email is required");
 
-  // 1. Check if Seller already exists (Optional: prevent spamming existing users)
+  // 1. Check if Seller already exists in DB
   const existingSeller = await Seller.findOne({ email });
   if (existingSeller) {
     throw new ApiError(400, "Account already exists. Please login.");
@@ -30,10 +30,11 @@ export const sendOtp = asyncHandler(async (req, res) => {
   await Otp.deleteMany({ email });
   await Otp.create({ email, otp });
 
-  // 4. Send Email via Brevo
+  // 4. Send Email via Service
   const emailSent = await sendOtpEmail(email, otp);
+  
   if (!emailSent) {
-    throw new ApiError(500, "Failed to send verification email. Please try again.");
+    throw new ApiError(500, "Failed to send verification email. Please check your email address.");
   }
 
   return res
@@ -47,7 +48,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
  * @access  Private (Requires Firebase Token)
  */
 export const registerSeller = asyncHandler(async (req, res) => {
-  // Extract all registration data
+  // Extract all registration data from request body
   const { 
     otp, 
     email, 
@@ -67,7 +68,7 @@ export const registerSeller = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid or expired OTP");
   }
 
-  // 2. Check if Seller/User already exists
+  // 2. Check if Seller/User already exists (Double check)
   const existingSeller = await Seller.findOne({ $or: [{ email }, { firebaseUid }] });
   if (existingSeller) throw new ApiError(400, "Seller account already exists.");
 
@@ -89,17 +90,16 @@ export const registerSeller = asyncHandler(async (req, res) => {
   // 4. Delete used OTP
   await Otp.deleteOne({ _id: validOtp._id });
 
-  // 5. Send Welcome Email
+  // 5. Send Welcome Email (Async, don't block response)
   try {
       await sendWelcomeEmail(email, fullName);
   } catch (err) {
       console.error("Welcome email failed", err);
-      // Don't fail the registration if email fails
   }
 
   return res
     .status(httpStatus.CREATED)
-    .json(new ApiResponse(httpStatus.CREATED, newSeller, "Seller registered successfully. Pending Admin Approval."));
+    .json(new ApiResponse(httpStatus.CREATED, newSeller, "Seller application submitted. Pending Admin Approval."));
 });
 
 /**
@@ -121,6 +121,28 @@ export const syncUser = asyncHandler(async (req, res) => {
   return res
     .status(isNewUser ? httpStatus.CREATED : httpStatus.OK)
     .json(new ApiResponse(isNewUser ? httpStatus.CREATED : httpStatus.OK, user, isNewUser ? "User registered" : "User login successful"));
+});
+
+/**
+ * @desc    Sync Seller (For Login Only - Not Registration)
+ * @route   POST /api/v1/auth/sync/seller
+ */
+export const syncSeller = asyncHandler(async (req, res) => {
+  // Use this ONLY for login, not for registration
+  const sellerData = {
+    firebaseUid: req.uid,
+    email: req.email,
+    fullName: req.body.fullName,
+    storeName: req.body.storeName,
+    phone: req.body.phone,
+    gstin: req.body.gstin || ""
+  };
+
+  const { seller, isNewSeller } = await authService.syncSeller(sellerData);
+
+  return res
+    .status(isNewSeller ? httpStatus.CREATED : httpStatus.OK)
+    .json(new ApiResponse(isNewSeller ? httpStatus.CREATED : httpStatus.OK, seller, isNewSeller ? "Seller application submitted" : "Seller login successful"));
 });
 
 /**

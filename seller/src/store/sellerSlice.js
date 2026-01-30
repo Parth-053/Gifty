@@ -1,129 +1,66 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
-import { syncSellerProfile } from "./authSlice";  
 
-// 1. Fetch Seller Profile (Full Data)
-export const fetchSellerProfile = createAsyncThunk(
-  "seller/fetchProfile",
+// Fetch Pending Sellers
+export const fetchPendingSellers = createAsyncThunk(
+  "sellers/fetchPending",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/seller/profile");
+      // Must match the backend route defined above
+      const response = await api.get("/admin/approvals/sellers");
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch profile");
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch requests");
     }
   }
 );
 
-// 2. Update Personal Info (Name, Phone, Avatar)
-export const updatePersonalInfo = createAsyncThunk(
-  "seller/updatePersonal",
-  async (formData, { rejectWithValue, dispatch }) => {
+// Approve/Reject Seller
+export const verifySeller = createAsyncThunk(
+  "sellers/verify",
+  async ({ id, status, reason }, { rejectWithValue }) => {
     try {
-      // formData contains name, phone, avatar(file)
-      const response = await api.patch("/seller/profile", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const response = await api.put(`/admin/approvals/sellers/${id}`, { 
+        status, 
+        rejectionReason: reason 
       });
-      dispatch(syncSellerProfile()); // Refresh global auth state
-      return response.data.data;
+      return { id, status, data: response.data.data };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Update failed");
-    }
-  }
-);
-
-// 3. Update Store Settings (Name, Description, Address)
-export const updateStoreSettings = createAsyncThunk(
-  "seller/updateStore",
-  async (data, { rejectWithValue, dispatch }) => {
-    try {
-      const response = await api.patch("/seller/store", data);
-      dispatch(syncSellerProfile());
-      return response.data.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Update failed");
-    }
-  }
-);
-
-// 4. Update Bank Details
-export const updateBankDetails = createAsyncThunk(
-  "seller/updateBank",
-  async (data, { rejectWithValue }) => {
-    try {
-      const response = await api.patch("/seller/bank-details", data);
-      return response.data.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Update failed");
+      return rejectWithValue(error.response?.data?.message || "Action failed");
     }
   }
 );
 
 const sellerSlice = createSlice({
-  name: "seller",
+  name: "sellers",
   initialState: {
-    profile: null,
+    pendingSellers: [],
     loading: false,
-    actionLoading: false,
     error: null,
-    successMessage: null,
   },
-  reducers: {
-    clearSellerMessages: (state) => {
-      state.error = null;
-      state.successMessage = null;
-    }
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch
-      .addCase(fetchSellerProfile.pending, (state) => { state.loading = true; })
-      .addCase(fetchSellerProfile.fulfilled, (state, action) => {
+      // Fetch Pending
+      .addCase(fetchPendingSellers.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchPendingSellers.fulfilled, (state, action) => {
         state.loading = false;
-        state.profile = action.payload;
+        state.pendingSellers = action.payload;
       })
-      .addCase(fetchSellerProfile.rejected, (state, action) => {
+      .addCase(fetchPendingSellers.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Update Personal
-      .addCase(updatePersonalInfo.pending, (state) => { state.actionLoading = true; state.error = null; })
-      .addCase(updatePersonalInfo.fulfilled, (state, action) => {
-        state.actionLoading = false;
-        state.profile = action.payload;
-        state.successMessage = "Profile updated successfully!";
-      })
-      .addCase(updatePersonalInfo.rejected, (state, action) => {
-        state.actionLoading = false;
-        state.error = action.payload;
-      })
-
-      // Update Store
-      .addCase(updateStoreSettings.pending, (state) => { state.actionLoading = true; state.error = null; })
-      .addCase(updateStoreSettings.fulfilled, (state, action) => {
-        state.actionLoading = false;
-        state.profile = action.payload;
-        state.successMessage = "Store settings saved!";
-      })
-      .addCase(updateStoreSettings.rejected, (state, action) => {
-        state.actionLoading = false;
-        state.error = action.payload;
-      })
-
-      // Update Bank
-      .addCase(updateBankDetails.pending, (state) => { state.actionLoading = true; state.error = null; })
-      .addCase(updateBankDetails.fulfilled, (state, action) => {
-        state.actionLoading = false;
-        state.profile = action.payload;  
-        state.successMessage = "Bank details updated!";
-      })
-      .addCase(updateBankDetails.rejected, (state, action) => {
-        state.actionLoading = false;
-        state.error = action.payload;
+      // Verify Action
+      .addCase(verifySeller.fulfilled, (state, action) => {
+        // Remove the processed seller from the pending list
+        state.pendingSellers = state.pendingSellers.filter(
+          (seller) => seller._id !== action.payload.id
+        );
       });
   },
 });
 
-export const { clearSellerMessages } = sellerSlice.actions;
 export default sellerSlice.reducer;

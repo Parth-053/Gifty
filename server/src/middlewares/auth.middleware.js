@@ -36,9 +36,8 @@ export const verifyAuth = asyncHandler(async (req, res, next) => {
       return next();
     }
 
-    // --- THE FIX IS HERE ---
-    // 4. Allow Registration Routes to pass without a DB profile
-    // We added "register-seller" to this check
+    // --- CRITICAL FIX: Allow Registration Routes ---
+    // This allows the "Create Profile" request to pass even if the profile doesn't exist yet
     if (
         req.originalUrl.includes("/sync") || 
         req.path.includes("/sync") ||
