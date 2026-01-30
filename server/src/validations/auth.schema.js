@@ -2,11 +2,11 @@ import Joi from "joi";
 
 export const syncUserSchema = Joi.object({
   fullName: Joi.string().min(2).max(100).required(),
-  phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow(""),
+  phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow("", null),
   avatar: Joi.object({
     url: Joi.string().uri().required(),
     publicId: Joi.string().allow(null, "")
-  }).optional()
+  }).optional().allow(null)
 });
 
 export const syncSellerSchema = Joi.object({
@@ -14,15 +14,15 @@ export const syncSellerSchema = Joi.object({
   storeName: Joi.string().min(3).max(100).required(),
   phone: Joi.string().pattern(/^[0-9]{10,15}$/).required(),
   
-  // FIXED: Added .allow("") to prevent error on empty input
+  // Allow empty string OR null for optional GSTIN
   gstin: Joi.string()
     .pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)
     .optional()
-    .allow("") 
+    .allow("", null) 
     .messages({
       'string.pattern.base': 'Invalid GSTIN format'
     }),
     
-  email: Joi.string().email().optional(), // Token se milta hai
+  email: Joi.string().email().optional(), 
   role: Joi.string().optional()
 });

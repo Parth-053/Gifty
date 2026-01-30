@@ -4,9 +4,9 @@ import Joi from "joi";
 // Load .env file
 dotenv.config();
 
-// Define Schema
+// Define Schema to match your .env content
 const envSchema = Joi.object({
-  PORT: Joi.number().default(5000),
+  PORT: Joi.number().default(8000),
   NODE_ENV: Joi.string().valid("development", "production", "test").default("development"),
   MONGODB_URI: Joi.string().required(),
   CORS_ORIGIN: Joi.string().default("*"),
@@ -19,9 +19,12 @@ const envSchema = Joi.object({
   // Admin
   ADMIN_EMAIL: Joi.string().email().required(),
   
-  // Email Service (SMTP) - [ADDED THIS SECTION]
-  SMTP_EMAIL: Joi.string().email().required().description("Email used to send notifications"),
-  SMTP_PASSWORD: Joi.string().required().description("App Password for Gmail"),
+  // Email Service (Your .env names)
+  // We validate them here to ensure the app doesn't crash later
+  SMTP_HOST: Joi.string().default("smtp-relay.brevo.com"),
+  SMTP_PORT: Joi.number().default(587),
+  SMTP_EMAIL: Joi.string().email().required(),
+  SMTP_PASSWORD: Joi.string().required(), // This holds your 'xkeysib-' key
 
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: Joi.string().required(),
@@ -47,29 +50,33 @@ export const envConfig = {
   mongoose: { url: envVars.MONGODB_URI },
   cors: { origin: envVars.CORS_ORIGIN.split(","), credentials: true },
   
-  // Auth & Admin
   adminEmail: envVars.ADMIN_EMAIL,
+  
   firebase: {
     projectId: envVars.FIREBASE_PROJECT_ID,
     privateKey: envVars.FIREBASE_PRIVATE_KEY,
     clientEmail: envVars.FIREBASE_CLIENT_EMAIL,
   },
   
-  // Email Config [NEW]
+  // Email Config: Mapping your .env variables to usable keys
   email: {
-    smtpUser: envVars.SMTP_EMAIL,
-    smtpPass: envVars.SMTP_PASSWORD,
+    host: envVars.SMTP_HOST,
+    port: envVars.SMTP_PORT,
+    senderEmail: envVars.SMTP_EMAIL,   // gifty.app07@gmail.com
+    apiKey: envVars.SMTP_PASSWORD,     // xkeysib-... (Used as API Key)
   },
-
+  
   cloudinary: {
     cloud_name: envVars.CLOUDINARY_CLOUD_NAME,
     api_key: envVars.CLOUDINARY_API_KEY,
     api_secret: envVars.CLOUDINARY_API_SECRET,
   },
+
   razorpay: {
     keyId: envVars.RAZORPAY_KEY_ID,
     keySecret: envVars.RAZORPAY_KEY_SECRET,
   },
+
   ai: {
     geminiKey: envVars.GEMINI_API_KEY
   }

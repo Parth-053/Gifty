@@ -1,29 +1,30 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { logout, clearAuthError } from '../store/authSlice';
+import { logoutSeller, clearAuthError } from '../store/authSlice';
 
 export const useAuth = () => {
     const dispatch = useDispatch();
     
-    // Fetching state from authSlice
-    const { user, token, loading, error, isEmailVerified } = useSelector((state) => state.auth);
+    // 1. Fetch state from Redux store
+    const { seller, isAuthenticated, loading, error, isEmailVerified } = useSelector((state) => state.auth);
     
     return {
-        // Auth Flags
-        isAuthenticated: !!token, 
-        
-        // Seller Approval Check (Matches backend schema 'status')
-        isPending: user?.role === 'seller' && user?.status === 'pending', 
-        
-        // Email Verification Status
-        isEmailVerified: user?.isVerified || isEmailVerified, 
-        
-        // Data & UI States
-        user,
+        // --- State Data ---
+        user: seller, // Alias 'seller' to 'user' for generic usage if needed
+        seller,
         loading,
         error,
+        
+        // --- Flags ---
+        isAuthenticated,
+        isEmailVerified,
+        
+        // Check for specific statuses
+        isPending: seller?.status === 'pending',
+        isApproved: seller?.status === 'approved',
+        isRejected: seller?.status === 'rejected',
 
-        // Actions
-        handleLogout: () => dispatch(logout()),
+        // --- Actions ---
+        handleLogout: () => dispatch(logoutSeller()),
         clearErrors: () => dispatch(clearAuthError())
     };
 };

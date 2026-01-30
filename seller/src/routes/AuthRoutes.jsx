@@ -4,12 +4,10 @@ import Loader from '../components/common/Loader';
 // Lazy Load Pages
 const Login = lazy(() => import('../pages/auth/Login'));
 const Register = lazy(() => import('../pages/auth/Register'));
-//const VerifyEmail = lazy(() => import('../pages/auth/VerifyEmail'));
 const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword'));
-const ResetPassword = lazy(() => import('../pages/auth/ResetPassword'));
 const PendingApproval = lazy(() => import('../pages/auth/PendingApproval'));
 
-// Loading Wrapper (Fixes ESLint 'unused var' issue)
+// Loading Wrapper
 const SuspenseLoader = ({ children }) => (
   <Suspense fallback={<div className="h-screen flex items-center justify-center"><Loader /></div>}>
     {children}
@@ -22,7 +20,6 @@ const AuthRoutes = {
     { path: 'login', element: <SuspenseLoader><Login /></SuspenseLoader> },
     { path: 'register', element: <SuspenseLoader><Register /></SuspenseLoader> },
     { path: 'forgot-password', element: <SuspenseLoader><ForgotPassword /></SuspenseLoader> },
-    { path: 'reset-password/:token', element: <SuspenseLoader><ResetPassword /></SuspenseLoader> },
     { path: 'pending-approval', element: <SuspenseLoader><PendingApproval /></SuspenseLoader> },
   ]
 };

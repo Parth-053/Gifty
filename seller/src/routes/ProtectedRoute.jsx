@@ -12,22 +12,27 @@ const ProtectedRoute = () => {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
-  // Zombie State Check
+  // 1. Partial Register (404 Case)
   if (!seller) {
-    return <div className="p-10 text-center">Loading Profile...</div>; 
+    return <Navigate to="/auth/register" replace />;
   }
 
-  const isOnboardingPage = location.pathname === "/onboarding";
-  const isProfileComplete = seller?.onboardingCompleted;
-
-  if (!isProfileComplete && !isOnboardingPage) {
-    return <Navigate to="/onboarding" replace />;
+  // 2. Pending Approval Check
+  if (seller.status === "pending") {
+     // If already on pending page, don't redirect loop
+     if (location.pathname === "/auth/pending-approval") {
+         return <Outlet />;
+     }
+     return <Navigate to="/auth/pending-approval" replace />;
+  }
+  
+  // 3. Rejected Check (Optional)
+  if (seller.status === "rejected") {
+      // You might want a specific rejected page
+      return <Navigate to="/auth/login" replace />; 
   }
 
-  if (isProfileComplete && isOnboardingPage) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  // 4. Approved -> Dashboard
   return <Outlet />;
 };
 

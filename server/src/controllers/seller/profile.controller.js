@@ -1,5 +1,5 @@
 import { Seller } from "../../models/Seller.model.js";
-import { ApiError } from "../../utils/ApiError.js";
+import { ApiError } from "../../utils/apiError.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 
@@ -13,31 +13,22 @@ export const getProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, seller, "Profile fetched successfully"));
 });
 
-// Update Profile (Handles Onboarding)
+// Update Profile (Handles Onboarding Steps)
 export const updateProfile = asyncHandler(async (req, res) => {
   const updates = req.body;
   const sellerId = req.seller._id;
 
-  // Prevent updating sensitive fields directly
+  // 1. Prevent updating sensitive auth fields via this route
   delete updates.email;
   delete updates.firebaseUid;
-  delete updates.isVerified;
+  delete updates.isVerified; // Admin controlled
   delete updates.role;
+  delete updates.status; // Admin controlled
 
-  // Check if onboarding is happening
-  let isOnboarding = false;
-  if (updates.address && updates.bankDetails && updates.gstin) {
-      isOnboarding = true;
-  }
-
+  // 2. Perform the update
   const updatedSeller = await Seller.findByIdAndUpdate(
     sellerId,
-    { 
-      $set: {
-        ...updates,
-        onboardingCompleted: isOnboarding ? true : undefined // Only set true if all fields present, else keep existing
-      }
-    },
+    { $set: updates },
     { new: true, runValidators: true }
   );
 
@@ -45,8 +36,22 @@ export const updateProfile = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Seller not found");
   }
 
-  // Force onboardingCompleted = true if fields exist (Double check)
-  if (updatedSeller.address?.city && updatedSeller.bankDetails?.accountNumber && updatedSeller.gstin) {
+  // 3. Check for Onboarding Completion
+  // We check if specific critical fields are now present in the database
+  const hasAddress = 
+    updatedSeller.address?.street && 
+    updatedSeller.address?.city && 
+    updatedSeller.address?.state && 
+    updatedSeller.address?.pincode;
+
+  const hasBank = 
+    updatedSeller.bankDetails?.accountNumber && 
+    updatedSeller.bankDetails?.ifscCode && 
+    updatedSeller.bankDetails?.accountHolderName;
+
+  // We consider onboarding complete if Address and Bank details are filled.
+  // GSTIN might be optional depending on your business logic, but usually required for sellers.
+  if (hasAddress && hasBank && !updatedSeller.onboardingCompleted) {
       updatedSeller.onboardingCompleted = true;
       await updatedSeller.save();
   }
