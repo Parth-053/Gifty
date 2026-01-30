@@ -12,7 +12,9 @@ import {
 import { 
   getAllUsers, 
   getUserDetails, 
-  updateUserStatus, 
+  updateUserStatus,
+  getAllSellers,    // <--- Import this
+  getSellerDetails  // <--- Import this
 } from "../../controllers/admin/users.controller.js";
 import { 
   getAllOrders, 
@@ -39,12 +41,10 @@ import {
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
 import { createCouponSchema } from "../../validations/coupon.schema.js";
-// Note: Ensure updateStatusSchema exists in your admin.schema.js or remove the validation middleware below
-// import { updateStatusSchema } from "../../validations/admin.schema.js"; 
 
 const router = Router();
 
-// Protect all routes: Must be Logged In AND have 'admin' role
+// Protect all routes
 router.use(verifyAuth, authorizeRoles("admin"));
 
 // --- Analytics ---
@@ -53,16 +53,19 @@ router.get("/analytics/graph", getSalesGraph);
 
 // --- Approvals ---
 router.get("/approvals/sellers", getPendingSellers);
-// FIXED: Changed PATCH to PUT to match frontend sellerSlice.js
 router.put("/approvals/sellers/:id", updateSellerStatus);
 
 router.get("/approvals/products", getPendingProducts);
 router.put("/approvals/products/:id", updateProductStatus);
 
-// --- Users Management ---
+// --- Users & Sellers Management ---
 router.get("/users", getAllUsers);
 router.get("/users/:id", getUserDetails);
 router.patch("/users/:id/status", updateUserStatus);
+
+// NEW ROUTES FOR SELLERS LIST
+router.get("/sellers", getAllSellers);
+router.get("/sellers/:id", getSellerDetails);
 
 // --- Order Management ---
 router.get("/orders", getAllOrders);
@@ -72,7 +75,7 @@ router.patch("/orders/:id/status", updateAdminOrderStatus);
 router.get("/finance/transactions", getAllTransactions);
 router.get("/finance/payouts", getAllPayouts);
 
-// --- Returns Management ---
+// --- Returns ---
 router.get("/returns", getAllReturnRequests);
 router.patch("/returns/:id/status", updateReturnStatus);
 
@@ -83,7 +86,7 @@ router.route("/coupons")
 
 router.delete("/coupons/:id", deleteCoupon);
 
-// --- System Settings ---
+// --- Settings ---
 router.route("/settings")
   .get(getSettings)
   .put(updateSettings);

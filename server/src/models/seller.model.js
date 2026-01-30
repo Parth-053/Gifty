@@ -8,16 +8,21 @@ const sellerSchema = new mongoose.Schema({
   phone: { type: String, required: true },
   gstin: { type: String, default: "" },
   
-  // Status Field - This is what the Admin filters by
+  // --- STATUS FLAGS ---
   status: { 
     type: String, 
     enum: ["pending", "approved", "rejected", "suspended"], 
-    default: "pending" 
+    default: "pending", 
+    index: true 
   },
+  
+  // FIX: Default must be FALSE. Only Admin approval sets this to true.
+  isActive: { type: Boolean, default: false }, 
   
   isVerified: { type: Boolean, default: false }, // Email verification
   onboardingCompleted: { type: Boolean, default: false },
-  
+  rejectionReason: { type: String, default: "" },
+
   address: {
     street: String,
     city: String,
