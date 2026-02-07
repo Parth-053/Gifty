@@ -80,8 +80,13 @@ export const registerSeller = asyncHandler(async (req, res) => {
     storeName,
     phone,
     gstin: gstin || "",
-    status: "pending", // <--- Critical: Set to Pending for Admin Approval
-    isVerified: true,  // Email is verified via OTP
+    
+    // --- FIX START ---
+    status: "pending", 
+    isActive: false,    // Default false until Admin approves
+    isVerified: false,  // FIXED: Set to false so it shows in Admin Pending List
+    // --- FIX END ---
+
     onboardingCompleted: true,
     address,
     bankDetails

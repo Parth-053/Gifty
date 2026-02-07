@@ -1,7 +1,7 @@
 import { User } from "../../models/User.model.js";
 import { Seller } from "../../models/Seller.model.js";  
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
+import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/apiError.js";
 import { httpStatus } from "../../constants/httpStatus.js";
 
@@ -28,7 +28,7 @@ export const updateUserStatus = asyncHandler(async (req, res) => {
 
 export const getAllSellers = asyncHandler(async (req, res) => {
   // Fetch all sellers who are NOT pending (Approved, Rejected, Suspended)
-  const sellers = await Seller.find({ status: { $ne: "pending" } })
+  const sellers = await Seller.find({})
     .select("-firebaseUid")
     .sort({ createdAt: -1 });
 
