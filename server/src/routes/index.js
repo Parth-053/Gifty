@@ -20,7 +20,7 @@ const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
-router.use("/sellers", sellerRoutes);
+router.use("/seller", sellerRoutes);
 router.use("/admin", adminRoutes);
 router.use("/products", productRoutes);
 router.use("/categories", categoryRoutes);

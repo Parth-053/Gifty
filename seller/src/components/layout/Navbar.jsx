@@ -2,7 +2,7 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Bars3Icon, BellIcon } from "@heroicons/react/24/outline";
-import { logout } from "../../store/authSlice"; // Make sure path is correct
+import { logout } from "../../store/authSlice"; 
 
 const Navbar = ({ setSidebarOpen }) => {
   const dispatch = useDispatch();
@@ -11,7 +11,7 @@ const Navbar = ({ setSidebarOpen }) => {
 
   const handleLogout = async () => {
     await dispatch(logout());
-    navigate("/login");
+    navigate("/auth/login");
   };
 
   return (
@@ -35,7 +35,11 @@ const Navbar = ({ setSidebarOpen }) => {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-4">
-        <button className="p-2 text-gray-400 hover:text-gray-600 relative">
+        {/* FIX: Added onClick to navigate to notifications */}
+        <button 
+          onClick={() => navigate('/notifications')}
+          className="p-2 text-gray-400 hover:text-gray-600 relative transition-colors"
+        >
           <BellIcon className="w-6 h-6" />
           <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
         </button>

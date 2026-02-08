@@ -1,101 +1,112 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../api/axios";
-import { toast } from "react-hot-toast";
-import { syncSeller } from "./authSlice";
+import axiosInstance from "../api/axios";
 
-// --- Thunk: Update Store/Profile Details ---
-export const updateSellerProfile = createAsyncThunk(
-  "seller/updateProfile",
-  async (formData, { dispatch, rejectWithValue }) => {
+// --- 1. Fetch Full Profile ---
+export const fetchSellerProfile = createAsyncThunk(
+  "seller/fetchProfile",
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await api.put("/seller/profile", formData);
-      toast.success("Profile updated successfully");
-
-      // Critical: Refresh the global auth state to reflect changes in Navbar/Sidebar
-      await dispatch(syncSeller());
-
-      return response.data.data;
+      const response = await axiosInstance.get("/seller/profile");
+      // Returns { _id, storeName, bankDetails, user: { fullName, email, avatar }, ... }
+      return response.data.data; 
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Failed to update profile";
-      toast.error(message);
-      return rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch profile");
     }
-  },
+  }
 );
 
-// --- Thunk: Update Bank Details ---
+// --- 2. Update Personal Info (User Identity) ---
+export const updatePersonalInfo = createAsyncThunk(
+  "seller/updatePersonalInfo",
+  async (formData, { rejectWithValue }) => {
+    try {
+      const config = { headers: { "Content-Type": "multipart/form-data" } };
+      // Backend Route: PUT /api/v1/seller/profile/personal
+      const response = await axiosInstance.put("/seller/profile/personal", formData, config);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Personal update failed");
+    }
+  }
+);
+
+// --- 3. Update Store Settings (Business Info) ---
+export const updateStoreProfile = createAsyncThunk(
+  "seller/updateStoreProfile",
+  async (data, { rejectWithValue }) => {
+    try {
+      // Backend Route: PUT /api/v1/seller/profile
+      const response = await axiosInstance.put("/seller/profile", data);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Store update failed");
+    }
+  }
+);
+
+// --- 4. Update Bank Details (Finance) ---
 export const updateBankDetails = createAsyncThunk(
   "seller/updateBankDetails",
-  async (bankData, { dispatch, rejectWithValue }) => {
+  async (data, { rejectWithValue }) => {
     try {
-      const response = await api.put("/seller/bank-details", bankData);
-      toast.success("Bank details updated successfully");
-
-      // Refresh global state
-      await dispatch(syncSeller());
-
+      // Backend Route: PUT /api/v1/seller/bank-details
+      const response = await axiosInstance.put("/seller/bank-details", data);
       return response.data.data;
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Failed to update bank details";
-      toast.error(message);
-      return rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || "Bank update failed");
     }
-  },
+  }
 );
-
-const initialState = {
-  loading: false,
-  error: null,
-  success: false,
-};
 
 const sellerSlice = createSlice({
   name: "seller",
-  initialState,
+  initialState: {
+    profile: null,
+    loading: false,
+    actionLoading: false,
+    success: null,
+    error: null,
+  },
   reducers: {
-    resetSellerState: (state) => {
-      state.loading = false;
+    clearSellerMessages: (state) => {
+      state.success = null;
       state.error = null;
-      state.success = false;
     },
   },
   extraReducers: (builder) => {
     builder
-      // Update Profile
-      .addCase(updateSellerProfile.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-        state.success = false;
-      })
-      .addCase(updateSellerProfile.fulfilled, (state) => {
+      // Fetch
+      .addCase(fetchSellerProfile.pending, (state) => { state.loading = true; })
+      .addCase(fetchSellerProfile.fulfilled, (state, action) => {
         state.loading = false;
-        state.success = true;
+        state.profile = action.payload;
       })
-      .addCase(updateSellerProfile.rejected, (state, action) => {
+      .addCase(fetchSellerProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        state.success = false;
       })
-
-      // Update Bank Details
-      .addCase(updateBankDetails.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-        state.success = false;
-      })
-      .addCase(updateBankDetails.fulfilled, (state) => {
-        state.loading = false;
-        state.success = true;
-      })
-      .addCase(updateBankDetails.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-        state.success = false;
-      });
+      // Update Actions (Generic handler for all 3 updates to save space)
+      .addMatcher(
+        (action) => [updatePersonalInfo.pending, updateStoreProfile.pending, updateBankDetails.pending].includes(action.type),
+        (state) => { state.actionLoading = true; state.success = null; state.error = null; }
+      )
+      .addMatcher(
+        (action) => [updatePersonalInfo.fulfilled, updateStoreProfile.fulfilled, updateBankDetails.fulfilled].includes(action.type),
+        (state, action) => {
+          state.actionLoading = false;
+          state.profile = action.payload; // Update local state with fresh data
+          state.success = "Profile updated successfully!";
+        }
+      )
+      .addMatcher(
+        (action) => [updatePersonalInfo.rejected, updateStoreProfile.rejected, updateBankDetails.rejected].includes(action.type),
+        (state, action) => {
+          state.actionLoading = false;
+          state.error = action.payload;
+        }
+      );
   },
 });
 
-export const { resetSellerState } = sellerSlice.actions;
+export const { clearSellerMessages } = sellerSlice.actions;
 export default sellerSlice.reducer;

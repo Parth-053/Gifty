@@ -18,9 +18,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
     { name: "Products", href: "/products", icon: CubeIcon },
     { name: "Orders", href: "/orders", icon: ShoppingBagIcon },
-    { name: "Finance", href: "/finance", icon: BanknotesIcon },
+    // FIX: Point explicitly to '/finance/transactions' instead of just '/finance'
+    { name: "Finance", href: "/finance/transactions", icon: BanknotesIcon },
     { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
-    { name: "Profile", href: "/profile", icon: UserCircleIcon },
+    // FIX: Point explicitly to '/profile/store-settings'
+    { name: "Profile", href: "/profile/store-settings", icon: UserCircleIcon },
     { name: "Support", href: "/support", icon: LifebuoyIcon },
   ];
 
@@ -37,12 +39,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       )}
 
       {/* --- SIDEBAR CONTAINER --- */}
-      {/* 1. fixed inset-y-0 left-0: Sticks to left side
-          2. z-50: Always on top
-          3. transform transition-transform: Smooth animation
-          4. lg:translate-x-0: ALWAYS show on Desktop (Large Screens)
-          5. -translate-x-full: Hide on mobile by default
-      */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-sm
@@ -74,7 +70,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           {/* Navigation Links */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
+              // Check if the current path includes the item href (handles sub-routes like /products/add)
               const isActive = location.pathname.startsWith(item.href);
+              
               return (
                 <NavLink
                   key={item.name}
@@ -96,7 +94,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
           {/* Footer User Info */}
           <div className="p-4 border-t border-gray-100">
-            <div className="flex items-center gap-3 px-2">
+            <NavLink to="/profile/store-settings" className="flex items-center gap-3 px-2 hover:bg-gray-50 p-2 rounded-lg transition-colors">
               <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
                 <UserCircleIcon className="w-6 h-6" />
               </div>
@@ -104,7 +102,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 <p className="font-medium text-gray-700">My Store</p>
                 <p className="text-xs text-gray-500">View Profile</p>
               </div>
-            </div>
+            </NavLink>
           </div>
 
         </div>

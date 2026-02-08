@@ -12,11 +12,15 @@ const ProductDetails = lazy(() => import('../pages/products/ProductDetails'));
 const OrderList = lazy(() => import('../pages/orders/OrderList'));
 const OrderDetails = lazy(() => import('../pages/orders/OrderDetails'));
 const Analytics = lazy(() => import('../pages/analytics/Analytics'));
-const StoreSettings = lazy(() => import('../pages/profile/StoreSettings'));
 const PayoutHistory = lazy(() => import('../pages/finance/PayoutHistory'));
 const Transactions = lazy(() => import('../pages/finance/Transactions'));
 const Notifications = lazy(() => import('../pages/notifications/Notifications'));
 const HelpCenter = lazy(() => import('../pages/support/HelpCenter'));
+
+// --- Profile Pages ---
+const StoreSettings = lazy(() => import('../pages/profile/StoreSettings'));
+const SellerProfile = lazy(() => import('../pages/profile/SellerProfile'));
+const BankDetails = lazy(() => import('../pages/profile/BankDetails'));
 
 // Loading Wrapper
 const SuspenseLoader = ({ children }) => (
@@ -26,10 +30,8 @@ const SuspenseLoader = ({ children }) => (
 );
 
 const SellerRoutes = {
-  // FIX: Removed "path: '/'" so this acts as a Layout Wrapper for the parent path
   element: <SellerLayout />, 
   children: [
-    // Redirect / to /dashboard
     { index: true, element: <Navigate to="/dashboard" replace /> },
     
     // Dashboard
@@ -49,11 +51,15 @@ const SellerRoutes = {
     { path: 'analytics', element: <SuspenseLoader><Analytics /></SuspenseLoader> },
     
     // Finance
+    { path: 'finance', element: <Navigate to="/finance/transactions" replace /> },
     { path: 'finance/transactions', element: <SuspenseLoader><Transactions /></SuspenseLoader> },
     { path: 'finance/payouts', element: <SuspenseLoader><PayoutHistory /></SuspenseLoader> },
     
-    // Settings
+    // --- FIX: Profile Routes ---
+    { path: 'profile', element: <Navigate to="/profile/store-settings" replace /> },
     { path: 'profile/store-settings', element: <SuspenseLoader><StoreSettings /></SuspenseLoader> },
+    { path: 'profile/personal', element: <SuspenseLoader><SellerProfile /></SuspenseLoader> },
+    { path: 'profile/bank-details', element: <SuspenseLoader><BankDetails /></SuspenseLoader> },
     
     // Support & Notifications
     { path: 'notifications', element: <SuspenseLoader><Notifications /></SuspenseLoader> },

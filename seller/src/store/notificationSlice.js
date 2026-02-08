@@ -1,26 +1,38 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../api/axios";
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axiosInstance from '../api/axios';
 
-// Fetch Notifications
+// Async Actions
 export const fetchNotifications = createAsyncThunk(
-  "notifications/fetch",
+  'notifications/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/notifications");
-      return response.data.data;
+      const response = await axiosInstance.get('/notifications');
+      // Ensure we return the data part if the backend sends { success: true, data: [...] }
+      return response.data; 
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch notifications');
     }
   }
 );
 
-// Mark All as Read (Optional logic)
-export const markNotificationsRead = createAsyncThunk(
-  "notifications/markRead",
+export const markAsRead = createAsyncThunk(
+  'notifications/markAsRead',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.patch(`/notifications/${id}/read`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const markAllAsRead = createAsyncThunk(
+  'notifications/markAllAsRead',
   async (_, { rejectWithValue }) => {
     try {
-      await api.patch("/notifications/read");  
-      return true;
+      const response = await axiosInstance.patch('/notifications/mark-all-read');
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -28,26 +40,70 @@ export const markNotificationsRead = createAsyncThunk(
 );
 
 const notificationSlice = createSlice({
-  name: "notifications",
+  name: 'notifications',
   initialState: {
     items: [],
     unreadCount: 0,
     loading: false,
     error: null,
   },
+  reducers: {
+    // Real-time socket updates can use this
+    addNotification: (state, action) => {
+      state.items.unshift(action.payload);
+      state.unreadCount += 1;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchNotifications.pending, (state) => { state.loading = true; })
+      // Fetch All
+      .addCase(fetchNotifications.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload;
-        state.unreadCount = action.payload.filter(n => !n.isRead).length;
+        
+        // --- FIX: Handle different response structures safely ---
+        let notifications = [];
+        
+        if (Array.isArray(action.payload)) {
+          notifications = action.payload;
+        } else if (action.payload && Array.isArray(action.payload.data)) {
+          notifications = action.payload.data;
+        } else if (action.payload && Array.isArray(action.payload.notifications)) {
+          notifications = action.payload.notifications;
+        }
+
+        // Apply filter only if we confirmed it is an array
+        // (This replaces the logic that was causing the error at line 44)
+        state.items = notifications;
+        state.unreadCount = notifications.filter(n => !n.read).length;
       })
       .addCase(fetchNotifications.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // Mark As Read
+      .addCase(markAsRead.fulfilled, (state, action) => {
+        const id = action.meta.arg;
+        const notification = state.items.find((n) => n._id === id);
+        if (notification && !notification.read) {
+          notification.read = true;
+          state.unreadCount = Math.max(0, state.unreadCount - 1);
+        }
+      })
+
+      // Mark All As Read
+      .addCase(markAllAsRead.fulfilled, (state) => {
+        state.items.forEach((n) => {
+          n.read = true;
+        });
+        state.unreadCount = 0;
       });
   },
 });
 
+export const { addNotification } = notificationSlice.actions;
 export default notificationSlice.reducer;
