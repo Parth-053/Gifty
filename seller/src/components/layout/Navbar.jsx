@@ -1,113 +1,55 @@
-import React, { useState } from "react";
+import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { logoutSeller } from "../../store/authSlice";
-import { 
-  Bars3Icon, 
-  BellIcon, 
-  ChevronDownIcon,
-  UserCircleIcon,
-  ArrowRightOnRectangleIcon
-} from "@heroicons/react/24/outline";
+import { Bars3Icon, BellIcon } from "@heroicons/react/24/outline";
+import { logout } from "../../store/authSlice"; // Make sure path is correct
 
-const Navbar = ({ onMenuClick }) => {
+const Navbar = ({ setSidebarOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { seller } = useSelector((state) => state.auth);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleLogout = async () => {
-    await dispatch(logoutSeller());
-    navigate("/auth/login");
+    await dispatch(logout());
+    navigate("/login");
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-200 lg:pl-64">
-      <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        
-        {/* Left: Mobile Menu Button */}
+    <header className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 lg:px-8 z-10 sticky top-0">
+      
+      {/* Left: Mobile Menu Button & Brand */}
+      <div className="flex items-center gap-4">
+        {/* --- HAMBURGER BUTTON (Mobile Only) --- */}
         <button
-          type="button"
-          className="-m-2.5 p-2.5 text-gray-700 lg:hidden hover:bg-gray-100 rounded-md"
-          onClick={onMenuClick}
+          onClick={() => setSidebarOpen(true)}
+          className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-md focus:outline-none"
         >
-          <span className="sr-only">Open sidebar</span>
-          <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+          <Bars3Icon className="w-6 h-6" />
         </button>
 
-        <div className="flex flex-1 justify-end gap-x-4 self-stretch lg:gap-x-6">
-          <div className="flex items-center gap-x-4 lg:gap-x-6">
-            
-            {/* Notification Bell (Optional) */}
-            <button className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500">
-              <span className="sr-only">View notifications</span>
-              <BellIcon className="h-6 w-6" aria-hidden="true" />
-            </button>
+        {/* Page Title (Optional) */}
+        <h1 className="text-xl font-semibold text-gray-800 hidden sm:block">
+          Dashboard
+        </h1>
+      </div>
 
-            {/* Separator */}
-            <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" aria-hidden="true" />
+      {/* Right: Actions */}
+      <div className="flex items-center gap-4">
+        <button className="p-2 text-gray-400 hover:text-gray-600 relative">
+          <BellIcon className="w-6 h-6" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
 
-            {/* Profile Dropdown */}
-            <div className="relative">
-              <button
-                className="-m-1.5 flex items-center p-1.5"
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-              >
-                <span className="sr-only">Open user menu</span>
-                {seller?.avatar ? (
-                  <img
-                    className="h-8 w-8 rounded-full bg-gray-50 object-cover"
-                    src={seller.avatar}
-                    alt=""
-                  />
-                ) : (
-                  <UserCircleIcon className="h-8 w-8 text-gray-400" />
-                )}
-                
-                <span className="hidden lg:flex lg:items-center">
-                  <span className="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
-                    {seller?.fullName || "Seller"}
-                  </span>
-                  <ChevronDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
-                </span>
-              </button>
-
-              {/* Dropdown Menu */}
-              {isProfileOpen && (
-                <div 
-                  className="absolute right-0 z-10 mt-2.5 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
-                  onMouseLeave={() => setIsProfileOpen(false)}
-                >
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm text-gray-900 font-medium truncate">{seller?.storeName}</p>
-                    <p className="text-xs text-gray-500 truncate">{seller?.email}</p>
-                  </div>
-                  
-                  <button
-                    onClick={() => { navigate("/profile"); setIsProfileOpen(false); }}
-                    className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
-                  >
-                    Your Profile
-                  </button>
-                  
-                  <button
-                    onClick={() => { navigate("/settings/store"); setIsProfileOpen(false); }}
-                    className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
-                  >
-                    Store Settings
-                  </button>
-                  
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left flex items-center gap-2"
-                  >
-                    <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center gap-3 border-l pl-4 border-gray-200">
+          <span className="text-sm font-medium text-gray-700 hidden md:block">
+            {seller?.storeName || "Seller"}
+          </span>
+          <button 
+            onClick={handleLogout}
+            className="text-sm text-red-600 hover:text-red-700 font-medium"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </header>

@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
 import { toast } from "react-hot-toast";
-import { syncSellerProfile } from "./authSlice"; // Re-fetch user data after updates
+import { syncSeller } from "./authSlice";
 
 // --- Thunk: Update Store/Profile Details ---
 export const updateSellerProfile = createAsyncThunk(
@@ -10,17 +10,18 @@ export const updateSellerProfile = createAsyncThunk(
     try {
       const response = await api.put("/seller/profile", formData);
       toast.success("Profile updated successfully");
-      
+
       // Critical: Refresh the global auth state to reflect changes in Navbar/Sidebar
-      await dispatch(syncSellerProfile());
-      
+      await dispatch(syncSeller());
+
       return response.data.data;
     } catch (error) {
-      const message = error.response?.data?.message || "Failed to update profile";
+      const message =
+        error.response?.data?.message || "Failed to update profile";
       toast.error(message);
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 // --- Thunk: Update Bank Details ---
@@ -30,23 +31,24 @@ export const updateBankDetails = createAsyncThunk(
     try {
       const response = await api.put("/seller/bank-details", bankData);
       toast.success("Bank details updated successfully");
-      
+
       // Refresh global state
-      await dispatch(syncSellerProfile());
-      
+      await dispatch(syncSeller());
+
       return response.data.data;
     } catch (error) {
-      const message = error.response?.data?.message || "Failed to update bank details";
+      const message =
+        error.response?.data?.message || "Failed to update bank details";
       toast.error(message);
       return rejectWithValue(message);
     }
-  }
+  },
 );
 
 const initialState = {
   loading: false,
   error: null,
-  success: false
+  success: false,
 };
 
 const sellerSlice = createSlice({
@@ -57,7 +59,7 @@ const sellerSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.success = false;
-    }
+    },
   },
   extraReducers: (builder) => {
     builder

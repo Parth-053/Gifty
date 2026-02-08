@@ -3,10 +3,12 @@ import { RouterProvider } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./config/firebase";
-import { syncSellerProfile, logoutSeller, setLoading } from "./store/authSlice";
+import { Toaster } from "react-hot-toast";
+
+// --- FIXED IMPORTS: Used updated names 'syncSeller' and 'logout' ---
+import { syncSeller, logout, setLoading } from "./store/authSlice"; 
 import router from "./routes"; 
 import Loader from "./components/common/Loader";
-import { Toaster } from "react-hot-toast";
 
 const App = () => {
   const dispatch = useDispatch();
@@ -17,10 +19,12 @@ const App = () => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         // User is logged in to Firebase -> Fetch MongoDB Profile
-        dispatch(syncSellerProfile());
+        // --- FIX: Updated action name ---
+        dispatch(syncSeller());
       } else {
         // User is logged out -> Clear Redux State
-        dispatch(logoutSeller());
+        // --- FIX: Updated action name ---
+        dispatch(logout());
         dispatch(setLoading(false));
       }
     });

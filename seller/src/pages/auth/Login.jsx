@@ -1,39 +1,72 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../config/firebase';
-import Loader from '../../components/common/Loader';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useDispatch, useSelector } from "react-redux";
+import { auth } from "../../config/firebase";
+import { syncSeller } from "../../store/authSlice";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
+import { toast } from "react-hot-toast";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
   
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const { seller, isAuthenticated } = useSelector((state) => state.auth);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && seller) {
+      if (seller.status === "approved") {
+        navigate("/dashboard");
+      } else if (seller.status === "pending") {
+        navigate("/pending-approval");
+      }
+    }
+  }, [isAuthenticated, seller, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 1. Firebase Login
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      // 1. Firebase Login (Variable removed to fix lint error)
+      await signInWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+
+      // 2. Backend Sync
+      const resultAction = await dispatch(syncSeller());
       
-      toast.success("Welcome back!");
-      navigate('/'); 
+      if (syncSeller.fulfilled.match(resultAction)) {
+        const sellerData = resultAction.payload;
+        
+        toast.success("Welcome back! 👋");
+
+        // 3. Manual Redirect
+        if (sellerData.status === "approved") {
+          navigate("/dashboard");
+        } else {
+          navigate("/pending-approval");
+        }
+      } else {
+        toast.error("Seller account not found.");
+        auth.signOut();
+      }
 
     } catch (error) {
       console.error("Login Error:", error);
       let msg = "Failed to login.";
-      if (error.code === 'auth/invalid-credential') msg = "Invalid email or password.";
-      if (error.code === 'auth/user-not-found') msg = "No seller account found.";
+      if (error.code === "auth/invalid-credential") msg = "Invalid email or password.";
+      if (error.code === "auth/user-not-found") msg = "No account found with this email.";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -43,88 +76,51 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center">
+          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl">
+            G
+          </div>
+        </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Sign in to Seller Dashboard
+          Sign in to Seller Portal
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
-          <Link to="/auth/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-            create a new seller account
+          Or{" "}
+          <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+            register a new seller account
           </Link>
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            
-            {/* Email */}
+            <Input
+              label="Email address"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
+
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link to="/auth/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
-                  Forgot your password?
+              <Input
+                label="Password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+              />
+              <div className="mt-1 text-right">
+                <Link to="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+                  Forgot password?
                 </Link>
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                {loading ? <Loader size="sm" color="white" /> : 'Sign in'}
-              </button>
-            </div>
+            <Button type="submit" isLoading={loading} className="w-full">
+              Sign in
+            </Button>
           </form>
         </div>
       </div>

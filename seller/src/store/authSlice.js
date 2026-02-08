@@ -3,10 +3,12 @@ import api from "../api/axios";
 import { auth } from "../config/firebase";
 import { signOut } from "firebase/auth";
 
-export const syncSellerProfile = createAsyncThunk(
-  "auth/syncSellerProfile",
+// renamed to 'syncSeller' to match Login.jsx import
+export const syncSeller = createAsyncThunk(
+  "auth/syncSeller",
   async (_, { rejectWithValue }) => {
     try {
+      // Tries to fetch the profile (usually on page reload)
       const response = await api.get("/auth/me");
       return response.data.data; 
     } catch (error) {
@@ -17,8 +19,10 @@ export const syncSellerProfile = createAsyncThunk(
   }
 );
 
-export const logoutSeller = createAsyncThunk("auth/logoutSeller", async () => {
+// renamed to 'logout' to match Navbar.jsx import
+export const logout = createAsyncThunk("auth/logout", async () => {
     await signOut(auth);
+    localStorage.clear(); // Optional: clear local storage on logout
     return true;
 });
 
@@ -38,21 +42,19 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // FIX 1: Do NOT set global loading to true here. 
-      // This prevents App.jsx from unmounting the Register page.
-      .addCase(syncSellerProfile.pending, (state) => {
+      // --- SYNC SELLER CASES ---
+      .addCase(syncSeller.pending, (state) => {
         state.error = null;
       })
-      .addCase(syncSellerProfile.fulfilled, (state, action) => {
+      .addCase(syncSeller.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.seller = action.payload;
       })
-      .addCase(syncSellerProfile.rejected, (state, action) => {
+      .addCase(syncSeller.rejected, (state, action) => {
         state.loading = false;
         
-        // FIX 2: Handle 404 (New User) correctly
-        // User is Authenticated (Firebase) but has no Profile (MongoDB)
+        // Handle 404: User is in Firebase but has no MongoDB profile yet
         if (action.payload?.status === 404) {
              state.isAuthenticated = true; 
              state.seller = null; 
@@ -62,9 +64,12 @@ const authSlice = createSlice({
              state.error = action.payload?.message;
         }
       })
-      .addCase(logoutSeller.fulfilled, (state) => {
+
+      // --- LOGOUT CASES ---
+      .addCase(logout.fulfilled, (state) => {
         state.isAuthenticated = false;
         state.seller = null;
+        state.loading = false;
       });
   },
 });

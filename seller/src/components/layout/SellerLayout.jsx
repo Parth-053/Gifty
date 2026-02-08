@@ -8,19 +8,22 @@ const SellerLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar Navigation */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
+      {/* 1. The Sidebar Component */}
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-      {/* Main Content Area */}
-      <div className="flex flex-col min-h-screen">
-        <Navbar onMenuClick={() => setSidebarOpen(true)} />
+      {/* 2. Main Content Wrapper */}
+      {/* lg:pl-64 is CRITICAL. It pushes content to the right on Desktop so Sidebar doesn't cover it */}
+      <div className="lg:pl-64 flex flex-col min-h-screen transition-all duration-300">
         
-        <main className="flex-1 lg:pl-64">
-          <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            {/* Renders the child route component */}
-            <Outlet />
-          </div>
+        {/* Navbar */}
+        <Navbar setSidebarOpen={setSidebarOpen} />
+
+        {/* Page Content */}
+        <main className="flex-1 p-4 md:p-6 overflow-x-hidden">
+          <Outlet />
         </main>
+        
       </div>
     </div>
   );
