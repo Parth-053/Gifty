@@ -18,7 +18,7 @@ const Transactions = lazy(() => import('../pages/finance/Transactions'));
 const Notifications = lazy(() => import('../pages/notifications/Notifications'));
 const HelpCenter = lazy(() => import('../pages/support/HelpCenter'));
 
-// Loading Wrapper (Fixes ESLint 'unused var' issue)
+// Loading Wrapper
 const SuspenseLoader = ({ children }) => (
   <Suspense fallback={<div className="flex justify-center p-10"><Loader /></div>}>
     {children}
@@ -26,9 +26,10 @@ const SuspenseLoader = ({ children }) => (
 );
 
 const SellerRoutes = {
-  path: '/',
+  // FIX: Removed "path: '/'" so this acts as a Layout Wrapper for the parent path
   element: <SellerLayout />, 
   children: [
+    // Redirect / to /dashboard
     { index: true, element: <Navigate to="/dashboard" replace /> },
     
     // Dashboard
@@ -51,7 +52,7 @@ const SellerRoutes = {
     { path: 'finance/transactions', element: <SuspenseLoader><Transactions /></SuspenseLoader> },
     { path: 'finance/payouts', element: <SuspenseLoader><PayoutHistory /></SuspenseLoader> },
     
-    // Settings (Unified)
+    // Settings
     { path: 'profile/store-settings', element: <SuspenseLoader><StoreSettings /></SuspenseLoader> },
     
     // Support & Notifications

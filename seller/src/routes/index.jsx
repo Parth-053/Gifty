@@ -12,10 +12,9 @@ const router = createBrowserRouter([
     path: '/',
     element: <ProtectedRoute />, 
     children: [
-      // Redirect root to dashboard
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      
-      ...SellerRoutes.children
+      // FIX: Do not use "...SellerRoutes.children". 
+      // Use the object directly to ensure <SellerLayout> is rendered.
+      SellerRoutes 
     ]
   },
   

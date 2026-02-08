@@ -13,13 +13,13 @@ const SellerLayout = () => {
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
       {/* 2. Main Content Wrapper */}
-      {/* lg:pl-64 is CRITICAL. It pushes content to the right on Desktop so Sidebar doesn't cover it */}
+      {/* lg:pl-64 pushes content to the right on Desktop so Sidebar doesn't cover it */}
       <div className="lg:pl-64 flex flex-col min-h-screen transition-all duration-300">
         
         {/* Navbar */}
         <Navbar setSidebarOpen={setSidebarOpen} />
 
-        {/* Page Content */}
+        {/* Page Content - Renders the current route (Dashboard, Products, etc.) */}
         <main className="flex-1 p-4 md:p-6 overflow-x-hidden">
           <Outlet />
         </main>
