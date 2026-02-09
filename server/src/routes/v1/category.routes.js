@@ -12,7 +12,7 @@ import { createCategorySchema, updateCategorySchema } from "../../validations/ca
 
 const router = Router();
 
-// Public: Get All Categories
+// Public: Get All Categories (Dropdowns need this)
 router.get("/", getCategories);
 
 // Protected: Admin Management

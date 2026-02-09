@@ -1,37 +1,46 @@
 import { Category } from "../../models/Category.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/ApiResponse.js";
-import { ApiError } from "../../utils/ApiError.js";
+import {ApiResponse} from "../../utils/ApiResponse.js"; 
+import {ApiError} from "../../utils/ApiError.js";        
 import * as imageService from "../../services/image.service.js";  
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
  * @desc    Get Categories
  * @route   GET /api/v1/admin/categories
+ * @access  Public / Admin
  */
 export const getCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find()
+  // 1. Build Query: Allow filtering (e.g. ?isActive=true for frontend dropdowns)
+  const filter = {};
+  if (req.query.isActive) {
+    filter.isActive = req.query.isActive === 'true';
+  }
+
+  const categories = await Category.find(filter)
     .populate("parentId", "name")
     .sort({ createdAt: -1 });
 
   return res
     .status(httpStatus.OK)
-    .json(new ApiResponse(httpStatus.OK, categories, "Categories fetched"));
+    .json(new ApiResponse(httpStatus.OK, categories, "Categories fetched successfully"));
 });
 
 /**
  * @desc    Create Category
  * @route   POST /api/v1/admin/categories
+ * @access  Admin
  */
 export const createCategory = asyncHandler(async (req, res) => {
   const { name } = req.body;
 
+  // 1. Check Duplicates
   const existing = await Category.findOne({ name });
   if (existing) throw new ApiError(httpStatus.BAD_REQUEST, "Category already exists");
 
   let image = { url: "", publicId: "" };
   
-  // FIX: Upload to Cloudinary using the service (Buffer -> Cloud)
+  // 2. Handle Image Upload
   if (req.file) {
     try {
       const uploaded = await imageService.uploadImages([req.file], "categories");
@@ -43,7 +52,7 @@ export const createCategory = asyncHandler(async (req, res) => {
     }
   }
 
-  // FIX: Use ...req.body to capture 'isActive', 'description', 'parentId'
+  // 3. Create
   const category = await Category.create({
     ...req.body,
     image
@@ -51,12 +60,13 @@ export const createCategory = asyncHandler(async (req, res) => {
 
   return res
     .status(httpStatus.CREATED)
-    .json(new ApiResponse(httpStatus.CREATED, category, "Category created"));
+    .json(new ApiResponse(httpStatus.CREATED, category, "Category created successfully"));
 });
 
 /**
  * @desc    Update Category
  * @route   PUT /api/v1/admin/categories/:id
+ * @access  Admin
  */
 export const updateCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
@@ -69,7 +79,7 @@ export const updateCategory = asyncHandler(async (req, res) => {
       await imageService.deleteImages([{ publicId: category.image.publicId }]);
     }
     
-    // 2. Upload new image to Cloudinary
+    // 2. Upload new image
     const uploaded = await imageService.uploadImages([req.file], "categories");
     if (uploaded && uploaded.length > 0) {
       req.body.image = uploaded[0];
@@ -80,17 +90,19 @@ export const updateCategory = asyncHandler(async (req, res) => {
 
   return res
     .status(httpStatus.OK)
-    .json(new ApiResponse(httpStatus.OK, updatedCategory, "Category updated"));
+    .json(new ApiResponse(httpStatus.OK, updatedCategory, "Category updated successfully"));
 });
 
 /**
  * @desc    Delete Category
  * @route   DELETE /api/v1/admin/categories/:id
+ * @access  Admin
  */
 export const deleteCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
   if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
 
+  // Delete Image from Cloudinary
   if (category.image?.publicId) {
     await imageService.deleteImages([{ publicId: category.image.publicId }]);
   }
@@ -99,5 +111,5 @@ export const deleteCategory = asyncHandler(async (req, res) => {
 
   return res
     .status(httpStatus.OK)
-    .json(new ApiResponse(httpStatus.OK, {}, "Category deleted"));
+    .json(new ApiResponse(httpStatus.OK, {}, "Category deleted successfully"));
 });

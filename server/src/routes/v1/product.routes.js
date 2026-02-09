@@ -7,7 +7,7 @@ import {
 
 const router = Router();
 
-// Public Routes
+// Public Routes (Customer Facing)
 router.get("/", getProducts);
 router.get("/:id", getProductDetails);
 router.get("/:id/related", getRelatedProducts);

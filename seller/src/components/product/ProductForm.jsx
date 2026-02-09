@@ -21,13 +21,10 @@ const parseData = (data) => ({
 const ProductForm = ({ initialData = {}, onSubmit, isLoading }) => {
   const dispatch = useDispatch();
   
-  // --- FIX: Redux Selector Optimization ---
-  // 1. Select only the slice. If it's undefined, we handle it later.
-  // 2. This prevents the "selector returned a different result" warning.
-  const categoryState = useSelector((state) => state.category);
-  const categories = categoryState?.categories || [];
+  // Get Categories from Redux
+  const { categories, loading: isCategoryLoading } = useSelector((state) => state.category || { categories: [], loading: false });
 
-  // State Initialization (Lazy to prevent loop)
+  // State Initialization
   const [formData, setFormData] = useState(() => parseData(initialData));
   
   const [customInput, setCustomInput] = useState("");
@@ -37,7 +34,8 @@ const ProductForm = ({ initialData = {}, onSubmit, isLoading }) => {
     initialData.images?.map(img => img.url) || []
   );
 
-  // Fetch Categories on Mount
+  // --- FIX: Fetch Categories on Component Mount ---
+  // Removed the dependency on 'categories' to prevent infinite loops if DB is empty
   useEffect(() => {
     dispatch(fetchCategories());
   }, [dispatch]);
@@ -264,12 +262,15 @@ const ProductForm = ({ initialData = {}, onSubmit, isLoading }) => {
               required
             >
               <option value="" disabled>Select a Category</option>
-              {categories && categories.length > 0 ? (
+              
+              {isCategoryLoading ? (
+                <option value="" disabled>Loading categories...</option>
+              ) : categories && categories.length > 0 ? (
                 categories.map(cat => (
                   <option key={cat._id} value={cat._id}>{cat.name}</option>
                 ))
               ) : (
-                <option value="" disabled>Loading categories...</option>
+                <option value="" disabled>No categories found (Create one in Admin)</option>
               )}
             </select>
           </div>

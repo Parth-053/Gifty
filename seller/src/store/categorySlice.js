@@ -2,14 +2,13 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
 
 // Async Thunk: Fetch Categories
-// Maps to: GET /api/v1/categories (The public route you shared)
 export const fetchCategories = createAsyncThunk(
   "categories/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/categories"); 
-      // Assuming your API returns { status: 200, data: [...], message: "..." }
-      return response.data.data; 
+      const response = await api.get("/categories");
+      // Check if data exists in response.data.data (standard) or response.data (fallback)
+      return response.data.data || response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch categories"
@@ -21,8 +20,8 @@ export const fetchCategories = createAsyncThunk(
 const categorySlice = createSlice({
   name: "category",
   initialState: {
-    categories: [], // Stores the list for the dropdown
-    loading: false,
+    categories: [],
+    loading: false, // Ensure loading is false initially
     error: null,
   },
   reducers: {},

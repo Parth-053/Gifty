@@ -12,8 +12,8 @@ import {
 } from "../../controllers/seller/dashboard.controller.js";
 import { 
   getSellerOrders, 
-  updateOrderItemStatus,
-  getSellerOrderDetails, 
+  updateOrderItemStatus, 
+  getSellerOrderDetails 
 } from "../../controllers/seller/orders.controller.js";
 import { 
   getFinanceStats, 
@@ -22,7 +22,6 @@ import {
   getPayoutHistory,
   getSalesGraph  
 } from "../../controllers/seller/finance.controller.js";
-
 import { 
   getProfile, 
   updateProfile 
@@ -30,11 +29,6 @@ import {
 
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import { upload } from "../../middlewares/multer.middleware.js";
-import validate from "../../middlewares/validate.middleware.js";
-import { createProductSchema, updateProductSchema } from "../../validations/product.schema.js";
-
-// ✅ FIX: Import the new updateSellerSchema here
-import { syncSellerSchema, updateSellerSchema } from "../../validations/seller.schema.js";
 
 const router = Router();
  
@@ -45,20 +39,18 @@ router.use(verifyAuth, authorizeRoles("seller"));
 router.get("/dashboard/stats", getDashboardStats);
 router.get("/dashboard/chart", getDashboardChart);
 
-// --- 1. Inventory Management ---
-router.route("/inventory")
+// --- 1. Inventory Management (Route Fixed: /products) ---
+router.route("/products")
   .get(getMyInventory)
   .post(
     upload.array("images", 5), 
-    validate(createProductSchema), 
     addProduct
   );
 
-router.route("/inventory/:id")
+router.route("/products/:id")
   .get(getProductDetails) 
   .put(
     upload.array("images", 5), 
-    validate(updateProductSchema), 
     editProduct
   )
   .delete(deleteProduct);
@@ -77,11 +69,6 @@ router.post("/finance/withdraw", requestPayout);
 
 // --- 4. Profile & Settings --- 
 router.get("/profile", getProfile);
- 
-router.put(
-  "/profile", 
-  validate(updateSellerSchema), 
-  updateProfile
-); 
+router.put("/profile", upload.single("avatar"), updateProfile);
 
 export default router;
