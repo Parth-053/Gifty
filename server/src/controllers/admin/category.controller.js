@@ -2,7 +2,7 @@ import { Category } from "../../models/Category.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
-import * as imageService from "../../services/image.service.js";
+import * as imageService from "../../services/image.service.js"; 
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
@@ -30,14 +30,24 @@ export const createCategory = asyncHandler(async (req, res) => {
   if (existing) throw new ApiError(httpStatus.BAD_REQUEST, "Category already exists");
 
   let image = { url: "", publicId: "" };
+  
+  // 1. Upload Image to Cloudinary
   if (req.file) {
-    const uploaded = await imageService.uploadImages([req.file], "categories");
-    image = uploaded[0];
+    try {
+      const uploaded = await imageService.uploadImages([req.file], "categories");
+      // uploadImages returns an array, pick the first one
+      if (uploaded && uploaded.length > 0) {
+        image = uploaded[0];
+      }
+    } catch (error) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Image upload failed");
+    }
   }
 
+  // 2. Create Category in DB
   const category = await Category.create({
-    ...req.body,
-    image
+    ...req.body, // This includes name, description, parentId, and isActive
+    image // This overrides any 'image' field if it happened to be in body
   });
 
   return res
@@ -55,13 +65,16 @@ export const updateCategory = asyncHandler(async (req, res) => {
 
   // Handle Image Update
   if (req.file) {
-    // Delete old
+    // A. Delete old image from Cloudinary
     if (category.image?.publicId) {
       await imageService.deleteImages([{ publicId: category.image.publicId }]);
     }
-    // Upload new
+    
+    // B. Upload new image
     const uploaded = await imageService.uploadImages([req.file], "categories");
-    req.body.image = uploaded[0];
+    if (uploaded && uploaded.length > 0) {
+      req.body.image = uploaded[0];
+    }
   }
 
   const updatedCategory = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });

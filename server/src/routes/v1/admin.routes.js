@@ -13,8 +13,8 @@ import {
   getAllUsers, 
   getUserDetails, 
   updateUserStatus,
-  getAllSellers,    // <--- Import this
-  getSellerDetails  // <--- Import this
+  getAllSellers,
+  getSellerDetails
 } from "../../controllers/admin/users.controller.js";
 import { 
   getAllOrders, 
@@ -63,7 +63,6 @@ router.get("/users", getAllUsers);
 router.get("/users/:id", getUserDetails);
 router.patch("/users/:id/status", updateUserStatus);
 
-// NEW ROUTES FOR SELLERS LIST
 router.get("/sellers", getAllSellers);
 router.get("/sellers/:id", getSellerDetails);
 

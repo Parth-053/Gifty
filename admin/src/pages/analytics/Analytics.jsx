@@ -19,16 +19,34 @@ import formatCurrency from "../../utils/formatCurrency";
 const Analytics = () => {
   const dispatch = useDispatch();
   const { stats, salesGraph, loading } = useSelector((state) => state.dashboard);
-  const [timeRange, setTimeRange] = useState("monthly"); // 'weekly', 'monthly', 'yearly'
+  
+  // Default to "week" to show meaningful trend data initially
+  const [timeRange, setTimeRange] = useState("week"); 
 
   useEffect(() => {
-    dispatch(fetchDashboardStats());
+    // Pass the timeRange filter to the Redux actions
+    dispatch(fetchDashboardStats(timeRange));
     dispatch(fetchSalesGraph(timeRange));
   }, [dispatch, timeRange]);
 
   const handleRangeChange = (e) => {
     setTimeRange(e.target.value);
   };
+
+  // Helper to determine the dynamic label text (e.g., "from last week")
+  const getTrendLabel = () => {
+    switch (timeRange) {
+      case "today": return "from yesterday";
+      case "yesterday": return "from day before";
+      case "week": return "from last week";
+      case "year": return "from last year";
+      case "all": return ""; // No trend for all time
+      default: return "";
+    }
+  };
+
+  const trendLabel = getTrendLabel();
+  const showTrend = timeRange !== "all";
 
   if (loading && !stats) {
     return (
@@ -38,16 +56,15 @@ const Analytics = () => {
     );
   }
 
-  // Fallback data if API returns null/undefined
-  const cardData = stats || {
-    totalRevenue: 0,
-    totalOrders: 0,
-    totalUsers: 0,
-    totalProducts: 0
+  // Handle nested structure from the updated Backend
+  // Structure: { value: 1000, percentage: 10, isPositive: true }
+  const data = stats || {
+    revenue: { value: 0, percentage: 0, isPositive: true },
+    orders: { value: 0, percentage: 0, isPositive: true },
+    users: { value: 0, percentage: 0, isPositive: true },
+    products: { value: 0, percentage: 0, isPositive: true }
   };
 
-  // Mock graph data formatting if backend sends raw numbers
-  // Ideally, backend sends [{ label: 'Jan', value: 100 }, ...]
   const chartData = salesGraph || []; 
 
   return (
@@ -62,11 +79,13 @@ const Analytics = () => {
         <select
           value={timeRange}
           onChange={handleRangeChange}
-          className="bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm"
+          className="bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm outline-none cursor-pointer"
         >
-          <option value="weekly">This Week</option>
-          <option value="monthly">This Month</option>
-          <option value="yearly">This Year</option>
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="week">Last 7 Days</option>
+          <option value="year">Last Year</option>
+          <option value="all">All Time</option>
         </select>
       </div>
 
@@ -74,31 +93,47 @@ const Analytics = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Revenue"
-          value={formatCurrency(cardData.totalRevenue)}
+          value={formatCurrency(data.revenue?.value || 0)}
           icon={CurrencyRupeeIcon}
           color="green"
-          trend={{ value: 12.5, isPositive: true }} // Mock trend for now
+          trend={showTrend ? { 
+            value: data.revenue?.percentage || 0, 
+            isPositive: data.revenue?.isPositive,
+            label: trendLabel
+          } : null}
         />
         <StatsCard
           title="Total Orders"
-          value={cardData.totalOrders}
+          value={data.orders?.value || 0}
           icon={ShoppingBagIcon}
           color="blue"
-          trend={{ value: 8.2, isPositive: true }}
+          trend={showTrend ? { 
+            value: data.orders?.percentage || 0, 
+            isPositive: data.orders?.isPositive,
+            label: trendLabel
+          } : null}
         />
         <StatsCard
           title="Total Users"
-          value={cardData.totalUsers}
+          value={data.users?.value || 0}
           icon={UsersIcon}
           color="purple"
-          trend={{ value: 2.4, isPositive: true }}
+          trend={showTrend ? { 
+            value: data.users?.percentage || 0, 
+            isPositive: data.users?.isPositive,
+            label: trendLabel
+          } : null}
         />
         <StatsCard
           title="Total Products"
-          value={cardData.totalProducts}
+          value={data.products?.value || 0}
           icon={ArchiveBoxIcon}
           color="orange"
-          trend={{ value: 0, isPositive: true }}
+          trend={showTrend ? { 
+            value: data.products?.percentage || 0, 
+            isPositive: data.products?.isPositive,
+            label: trendLabel
+          } : null}
         />
       </div>
 
@@ -111,9 +146,9 @@ const Analytics = () => {
         <RevenueChart data={chartData} />
       </div>
 
-      {/* Full Width Chart */}
+      {/* Full Width Chart - User Growth */}
+      {/* Note: Ensure UsersChart can handle the graph data structure */}
       <div className="grid grid-cols-1 gap-6">
-        {/* User Growth (Line Chart) */}
         <UsersChart data={chartData} /> 
       </div>
     </div>

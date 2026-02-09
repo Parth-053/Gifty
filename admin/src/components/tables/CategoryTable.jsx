@@ -2,6 +2,19 @@ import React from "react";
 import { TrashIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import Badge from "../common/Badge";
 
+// Helper to construct correct image URL
+const getImageUrl = (url) => {
+  if (!url) return "https://via.placeholder.com/150";
+  
+  // If it's a full URL (e.g., Cloudinary), return it
+  if (url.startsWith("http")) return url;
+  
+  // If it's a relative path (Local), prepend the API Base URL
+  // We strip '/api/v1' because static files are served from root '/'
+  const apiBase = import.meta.env.VITE_API_URL?.replace("/api/v1", "") || "";
+  return `${apiBase}${url}`;
+};
+
 const CategoryTable = ({ categories, onEdit, onDelete }) => {
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
@@ -21,9 +34,12 @@ const CategoryTable = ({ categories, onEdit, onDelete }) => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-gray-200">
                   <img
-                    src={cat.image?.url || "https://via.placeholder.com/150"}
+                    src={getImageUrl(cat.image?.url)}
                     alt={cat.name}
                     className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.target.src = "https://via.placeholder.com/150?text=No+Img";
+                    }}
                   />
                 </div>
               </td>

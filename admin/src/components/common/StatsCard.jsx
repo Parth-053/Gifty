@@ -1,7 +1,7 @@
 import React from "react";
 
 const StatsCard = ({ title, value, icon: Icon, color, trend }) => {
-  // trend: { value: 12, isPositive: true }
+  // trend prop structure: { value: 12.5, isPositive: true, label: "from last week" }
   
   const colorClasses = {
     blue: "bg-blue-100 text-blue-600",
@@ -31,7 +31,8 @@ const StatsCard = ({ title, value, icon: Icon, color, trend }) => {
           >
             {trend.isPositive ? "+" : "-"}{Math.abs(trend.value)}%
           </span>
-          <span className="text-gray-500 ml-2">from last month</span>
+          {/* Dynamic Label Here */}
+          <span className="text-gray-500 ml-2">{trend.label}</span>
         </div>
       )}
     </div>

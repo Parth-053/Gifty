@@ -1,12 +1,14 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
 
-// Fetch Dashboard Cards Stats (Total Users, Sales, Orders)
+// Fetch Dashboard Cards Stats (Revenue, Users, Orders, Products with trends)
 export const fetchDashboardStats = createAsyncThunk(
   "dashboard/fetchStats",
-  async (_, { rejectWithValue }) => {
+  async (timeRange = "all", { rejectWithValue }) => {
     try {
-      const response = await api.get("/admin/analytics/dashboard");
+      const response = await api.get("/admin/analytics/dashboard", {
+        params: { timeRange }
+      });
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -14,13 +16,13 @@ export const fetchDashboardStats = createAsyncThunk(
   }
 );
 
-// Fetch Sales Graph Data (for Charts)
+// Fetch Sales Graph Data
 export const fetchSalesGraph = createAsyncThunk(
   "dashboard/fetchGraph",
-  async (period = "monthly", { rejectWithValue }) => {
+  async (timeRange = "all", { rejectWithValue }) => {
     try {
       const response = await api.get("/admin/analytics/graph", {
-        params: { type: period }
+        params: { timeRange }
       });
       return response.data.data;
     } catch (error) {

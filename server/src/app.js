@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import compression from "compression";
+import path from "path"; // <--- Imported path
 
 // Configs & Middlewares
 import { envConfig } from "./config/env.config.js";
@@ -19,7 +20,10 @@ const app = express();
 // 1. Global Middlewares (Security & Performance)
 
 // Set Security HTTP Headers
-app.use(helmet());
+// Note: We need to allow loading images from self (for local uploads)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Enable Gzip Compression
 app.use(compression());
@@ -37,7 +41,11 @@ app.use(express.json({ limit: "16kb" })); // Prevent huge payloads
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(cookieParser());
 
-// 2. Custom Middlewares (Logging & Limits)
+// 2. Static Files Serving (Crucial for Local Images)
+const __dirname = path.resolve();
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+
+// 3. Custom Middlewares (Logging & Limits)
 
 // Log every request (Method, URL, Status, Time)
 app.use(requestLogger);
@@ -45,9 +53,9 @@ app.use(requestLogger);
 // Rate Limiting (Prevent DDoS/Spam)
 app.use("/api", limiter);
 
-// 3. Routes
+// 4. Routes
 
-// Health Check (For Load Balancers/Uptime Monitors)
+// Health Check
 app.get("/health", (req, res) => {
   res.status(200).json({ 
     status: "OK", 
@@ -59,7 +67,7 @@ app.get("/health", (req, res) => {
 // Main API Entry Point
 app.use("/api/v1", routes);
 
-// 4. Error Handling (Must be last)
+// 5. Error Handling (Must be last)
 
 // Handle 404 Routes
 app.use(notFound);

@@ -16,14 +16,16 @@ const Dashboard = () => {
   const { stats, salesGraph, loading: dashboardLoading } = useSelector((state) => state.dashboard);
   const { orders: recentOrders, loading: ordersLoading } = useSelector((state) => state.orders);
   
-  // Local State
-  const [graphPeriod, setGraphPeriod] = useState("monthly");
+  // Local State: Filter
+  const [timeRange, setTimeRange] = useState("all");
 
   useEffect(() => {
-    dispatch(fetchDashboardStats());
-    dispatch(fetchSalesGraph(graphPeriod));
+    // Pass the timeRange filter to the API actions
+    dispatch(fetchDashboardStats(timeRange));
+    dispatch(fetchSalesGraph(timeRange));
+    
     dispatch(fetchOrders({ page: 1, limit: 5, sort: "-createdAt" }));
-  }, [dispatch, graphPeriod]);
+  }, [dispatch, timeRange]);
 
   const isLoading = dashboardLoading || ordersLoading;
 
@@ -37,7 +39,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 p-4 md:p-6 pb-20 max-w-[100vw] overflow-x-hidden">
-      {/* --- Responsive Header --- */}
+      {/* Header & Filter */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
@@ -46,30 +48,32 @@ const Dashboard = () => {
           </p>
         </div>
         
-        {/* Filter Dropdown */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500 whitespace-nowrap">View:</span>
           <select
-            value={graphPeriod}
-            onChange={(e) => setGraphPeriod(e.target.value)}
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
             className="w-full md:w-auto bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm outline-none cursor-pointer"
           >
-            <option value="weekly">Last 7 Days</option>
-            <option value="monthly">This Year</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="week">Last 7 Days</option>
+            <option value="year">Last Year</option>
+            <option value="all">Until Today</option>
           </select>
         </div>
       </div>
 
-      {/* --- 1. Key Statistics Grid --- */}
-      <StatsGrid stats={stats} loading={dashboardLoading} />
+      {/* 1. Stats Grid (Pass timeRange for dynamic labels) */}
+      <StatsGrid stats={stats} loading={dashboardLoading} timeRange={timeRange} />
 
-      {/* --- 2. Charts Section (Stacks on Mobile) --- */}
+      {/* 2. Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SalesChart data={salesGraph || []} />
         <RevenueChart data={salesGraph || []} />
       </div>
 
-      {/* --- 3. Recent Orders Table --- */}
+      {/* 3. Recent Orders */}
       <RecentOrders orders={recentOrders} loading={ordersLoading} />
     </div>
   );
