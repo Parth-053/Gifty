@@ -1,112 +1,109 @@
 import React from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { 
   HomeIcon, 
-  CubeIcon, 
   ShoppingBagIcon, 
-  BanknotesIcon, 
+  CubeIcon, 
   ChartBarIcon, 
-  UserCircleIcon, 
-  LifebuoyIcon,
-  XMarkIcon 
+  CurrencyRupeeIcon,
+  Cog6ToothIcon,
+  QuestionMarkCircleIcon,
+  ArrowLeftOnRectangleIcon
 } from "@heroicons/react/24/outline";
+import useAuth from "../../hooks/useAuth";  
 
-const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
+const NAVIGATION = [
+  { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
+  { name: "Orders", href: "/orders", icon: ShoppingBagIcon },
+  { name: "Products", href: "/products", icon: CubeIcon },
+  { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
+  { name: "Finance", href: "/finance", icon: CurrencyRupeeIcon },
+];
+
+const SECONDARY_NAV = [
+  { name: "Settings", href: "/profile", icon: Cog6ToothIcon },
+  { name: "Support", href: "/support", icon: QuestionMarkCircleIcon },
+];
+
+const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const { logout } = useAuth(); // <--- Get logout
 
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-    { name: "Products", href: "/products", icon: CubeIcon },
-    { name: "Orders", href: "/orders", icon: ShoppingBagIcon },
-    // FIX: Point explicitly to '/finance/transactions' instead of just '/finance'
-    { name: "Finance", href: "/finance/transactions", icon: BanknotesIcon },
-    { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
-    // FIX: Point explicitly to '/profile/store-settings'
-    { name: "Profile", href: "/profile/store-settings", icon: UserCircleIcon },
-    { name: "Support", href: "/support", icon: LifebuoyIcon },
-  ];
-
-  const closeSidebar = () => setSidebarOpen(false);
+  const NavItem = ({ item }) => {
+    const isActive = location.pathname.startsWith(item.href);
+    return (
+      <Link
+        to={item.href}
+        onClick={() => { if (window.innerWidth < 1024) onClose(); }}
+        className={`group flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors ${
+          isActive
+            ? "bg-indigo-50 text-indigo-600"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        }`}
+      >
+        <item.icon
+          className={`mr-3 h-5 w-5 flex-shrink-0 ${
+            isActive ? "text-indigo-600" : "text-gray-400 group-hover:text-gray-500"
+          }`}
+        />
+        {item.name}
+      </Link>
+    );
+  };
 
   return (
     <>
-      {/* --- MOBILE OVERLAY (Click outside to close) --- */}
-      {sidebarOpen && (
+      {/* Mobile Backdrop */}
+      {isOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-gray-900/80 lg:hidden transition-opacity"
-          onClick={closeSidebar}
-        />
+          className="fixed inset-0 bg-gray-600 bg-opacity-75 z-20 lg:hidden"
+          onClick={onClose}
+        ></div>
       )}
 
-      {/* --- SIDEBAR CONTAINER --- */}
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-sm
-          transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0 lg:block
-        `}
-      >
-        <div className="flex flex-col h-full">
-          
-          {/* Header (Logo + Close Button) */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-                G
-              </div>
-              <span className="text-xl font-bold text-gray-800">Seller Panel</span>
+      {/* Sidebar Container */}
+      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:h-screen flex flex-col ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        
+        {/* Logo Area */}
+        <div className="flex items-center justify-center h-16 border-b border-gray-200">
+          <Link to="/dashboard" className="flex items-center gap-2">
+             <span className="text-2xl font-bold text-indigo-600">Gifty</span>
+             <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Seller</span>
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex-1 flex flex-col overflow-y-auto pt-5 pb-4">
+          <nav className="flex-1 px-4 space-y-1">
+            {NAVIGATION.map((item) => (
+              <NavItem key={item.name} item={item} />
+            ))}
+
+            <div className="pt-6 pb-2">
+              <p className="px-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Account
+              </p>
             </div>
             
-            {/* Close Button (Mobile Only) */}
-            <button 
-              onClick={closeSidebar}
-              className="lg:hidden p-1 rounded-md text-gray-500 hover:bg-gray-100"
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
-              // Check if the current path includes the item href (handles sub-routes like /products/add)
-              const isActive = location.pathname.startsWith(item.href);
-              
-              return (
-                <NavLink
-                  key={item.name}
-                  to={item.href}
-                  onClick={closeSidebar} // Close sidebar on mobile when clicked
-                  className={`
-                    flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors
-                    ${isActive 
-                      ? "bg-blue-50 text-blue-700" 
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}
-                  `}
-                >
-                  <item.icon className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
-                  {item.name}
-                </NavLink>
-              );
-            })}
+            {SECONDARY_NAV.map((item) => (
+              <NavItem key={item.name} item={item} />
+            ))}
           </nav>
-
-          {/* Footer User Info */}
-          <div className="p-4 border-t border-gray-100">
-            <NavLink to="/profile/store-settings" className="flex items-center gap-3 px-2 hover:bg-gray-50 p-2 rounded-lg transition-colors">
-              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                <UserCircleIcon className="w-6 h-6" />
-              </div>
-              <div className="text-sm">
-                <p className="font-medium text-gray-700">My Store</p>
-                <p className="text-xs text-gray-500">View Profile</p>
-              </div>
-            </NavLink>
-          </div>
-
         </div>
-      </aside>
+
+        {/* Footer / Logout */}
+        <div className="border-t border-gray-200 p-4">
+          <button
+            onClick={logout}
+            className="flex w-full items-center px-4 py-2 text-sm font-medium text-red-600 rounded-md hover:bg-red-50 transition-colors"
+          >
+            <ArrowLeftOnRectangleIcon className="mr-3 h-5 w-5" />
+            Sign Out
+          </button>
+        </div>
+      </div>
     </>
   );
 };

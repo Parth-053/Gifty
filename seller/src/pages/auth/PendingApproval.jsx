@@ -1,37 +1,63 @@
-import React from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ClockIcon } from "@heroicons/react/24/outline";
+import useAuth from "../../hooks/useAuth";
+import Button from "../../components/common/Button";
 
 const PendingApproval = () => {
-    // 1. Destructure handleLogout from the hook
-    const { handleLogout } = useAuth();
-    
-    return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
-            <div className="bg-white p-8 rounded-lg shadow-lg max-w-md text-center">
-                <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-yellow-100 mb-6">
-                    <svg className="h-10 w-10 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Application Under Review</h2>
-                <p className="text-gray-600 mb-6">
-                    Your email has been verified and your application has been submitted. 
-                    <br/><br/>
-                    <strong>The Admin team is currently reviewing your details.</strong>
-                    <br/>
-                    You will be able to access the dashboard once your store is approved.
-                </p>
-                
-                {/* 2. Use handleLogout here */}
-                <button 
-                    onClick={handleLogout} 
-                    className="text-indigo-600 hover:text-indigo-500 font-medium underline"
-                >
-                    Sign Out
-                </button>
-            </div>
+  const { user, checkStatus } = useAuth();
+  const navigate = useNavigate();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Auto-Redirect if status becomes Approved
+  useEffect(() => {
+    if (user?.status === "approved") {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await checkStatus(); // Calls Redux thunk to update user state
+    setRefreshing(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4">
+      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg text-center space-y-6">
+        <div className="mx-auto h-24 w-24 bg-yellow-100 rounded-full flex items-center justify-center">
+          <ClockIcon className="h-12 w-12 text-yellow-600" />
         </div>
-    );
+
+        <h2 className="text-3xl font-extrabold text-gray-900">
+          Application Pending
+        </h2>
+        
+        <p className="text-gray-600 text-lg">
+          Thanks for registering, <strong>{user?.storeName}</strong>!
+        </p>
+
+        <div className="bg-blue-50 p-4 rounded-lg text-left text-sm text-blue-800">
+          <p className="mb-2"><strong>What happens next?</strong></p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Our team is reviewing your details.</li>
+            <li>Verification typically takes 24-48 hours.</li>
+            <li>You will receive an email upon approval.</li>
+          </ul>
+        </div>
+
+        <Button 
+          onClick={handleRefresh} 
+          isLoading={refreshing}
+          className="w-full"
+        >
+          Check Status
+        </Button>
+        
+        {/* Signout button removed as requested */}
+      </div>
+    </div>
+  );
 };
 
 export default PendingApproval;

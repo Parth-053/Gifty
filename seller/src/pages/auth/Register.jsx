@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword, 
-    updateProfile 
-} from 'firebase/auth';
-import { auth } from '../../config/firebase';
 import api from '../../api/axios'; 
 import Loader from '../../components/common/Loader';
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
-import { syncSellerProfile } from '../../store/authSlice';
+import { registerSeller } from '../../store/authSlice'; 
 
 const STEPS = { BASIC: 1, ADDRESS: 2, BANK: 3, OTP: 4 };
 
@@ -18,7 +12,7 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   
-  // --- Initialize State from Session Storage (Prevents Reset on Reload) ---
+  // --- Initialize State ---
   const getInitialState = (key, defaultValue) => {
     try {
       const saved = sessionStorage.getItem('registerState');
@@ -48,7 +42,7 @@ const Register = () => {
     accountHolderName: '', accountNumber: '', ifscCode: '', bankName: '', gstin: '' 
   }));
 
-  // --- Persist State on Change ---
+  // --- Persist State ---
   useEffect(() => {
     const stateToSave = { basicData, addressData, bankData, currentStep };
     sessionStorage.setItem('registerState', JSON.stringify(stateToSave));
@@ -59,6 +53,7 @@ const Register = () => {
   const handleBasicSubmit = (e) => {
     e.preventDefault();
     if (basicData.password !== basicData.confirmPassword) return toast.error("Passwords do not match");
+    if (basicData.password.length < 6) return toast.error("Password must be at least 6 characters");
     setCurrentStep(STEPS.ADDRESS);
   };
 
@@ -71,50 +66,20 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      let user = auth.currentUser;
-      
-      // 1. Ensure User Exists & is Logged In (Firebase)
-      if (!user) {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, basicData.email, basicData.password);
-          user = userCredential.user;
-        } catch (authError) {
-          if (authError.code === 'auth/email-already-in-use') {
-             // If email exists (e.g. they refreshed), log them in to resume
-             const loginCredential = await signInWithEmailAndPassword(auth, basicData.email, basicData.password);
-             user = loginCredential.user;
-          } else {
-             throw authError;
-          }
-        }
-      }
-
-      // 2. CRITICAL: Refresh Token to prevent "Token Expired" error
-      await user.reload();
-      user = auth.currentUser; 
-      await user.getIdToken(true); 
-
-      // 3. Update Firebase Display Name
-      try {
-        await updateProfile(user, { displayName: basicData.fullName });
-      } catch (profileError) {
-        console.warn("Profile update warning:", profileError);
-      }
-
-      // 4. Send OTP from Backend
+      // Send OTP (No Account Creation yet)
       await api.post('/auth/send-otp', { email: basicData.email });
       
       toast.success(`OTP sent to ${basicData.email}`);
       setCurrentStep(STEPS.OTP);
       
     } catch (error) {
-      console.error("Registration Step Error:", error);
-      const msg = error.response?.data?.message || error.message;
-      
-      if (msg.includes("token-expired") || msg.includes("unauthorized")) {
-          toast.error("Session expired. Please refresh page and try again.");
+      console.error("OTP Error:", error);
+      const msg = error.response?.data?.message || "Failed to send OTP";
+      if (msg.includes("Account already exists")) {
+         toast.error("An account with this email already exists. Please Login.");
+         navigate("/login");
       } else {
-          toast.error(msg);
+         toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -125,28 +90,31 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // 5. Final Registration: Verify OTP -> Create DB Record
-      await api.post('/auth/register-seller', {
+      // Final Step: Create Firebase Account + Verify OTP + Create DB Entry
+      await dispatch(registerSeller({
         otp,
         email: basicData.email,
+        password: basicData.password,
         fullName: basicData.fullName,
         storeName: basicData.storeName,
         phone: basicData.phone,
         gstin: bankData.gstin,
         address: addressData,
         bankDetails: bankData
-      });
+      })).unwrap();
 
-      // 6. Success: Clear Storage & Sync
+      // Success
       sessionStorage.removeItem('registerState');
-      await dispatch(syncSellerProfile()).unwrap();
-
       toast.success("Registration Successful!");
-      navigate('/auth/pending-approval');
+      navigate('/pending-approval');
 
     } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "Verification failed");
+      console.error("Registration Error:", error);
+      if (typeof error === 'string' && error.includes("email-already-in-use")) {
+         toast.error("This email is already registered. Please login.");
+      } else {
+         toast.error(typeof error === 'string' ? error : "Registration failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -174,7 +142,11 @@ const Register = () => {
          <input type="text" placeholder="State" required value={addressData.state} onChange={e=>setAddressData({...addressData, state:e.target.value})} className="input-field"/>
        </div>
        <input type="text" placeholder="Pincode" required value={addressData.pincode} onChange={e=>setAddressData({...addressData, pincode:e.target.value})} className="input-field"/>
-       <button type="submit" className="btn-primary w-full">Next: Bank Details</button>
+       
+       <div className="flex gap-3">
+         <button type="button" onClick={() => setCurrentStep(STEPS.BASIC)} className="btn-secondary w-1/3">Back</button>
+         <button type="submit" className="btn-primary w-2/3">Next: Bank Details</button>
+       </div>
     </form>
   );
 
@@ -188,7 +160,11 @@ const Register = () => {
        <input type="text" placeholder="Account Number" required value={bankData.accountNumber} onChange={e=>setBankData({...bankData, accountNumber:e.target.value})} className="input-field"/>
        <input type="text" placeholder="IFSC Code" required value={bankData.ifscCode} onChange={e=>setBankData({...bankData, ifscCode:e.target.value})} className="input-field"/>
        <input type="text" placeholder="Bank Name" required value={bankData.bankName} onChange={e=>setBankData({...bankData, bankName:e.target.value})} className="input-field"/>
-       <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? <Loader size="sm"/> : "Next: Verify Email"}</button>
+       
+       <div className="flex gap-3">
+         <button type="button" onClick={() => setCurrentStep(STEPS.ADDRESS)} className="btn-secondary w-1/3">Back</button>
+         <button type="submit" disabled={loading} className="btn-primary w-2/3">{loading ? <Loader size="sm"/> : "Next: Verify Email"}</button>
+       </div>
     </form>
   );
 
@@ -206,7 +182,11 @@ const Register = () => {
         onChange={e=>setOtp(e.target.value)} 
         className="block w-full text-center text-2xl tracking-widest border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
       />
-      <button type="submit" disabled={loading} className="btn-primary w-full mt-4">{loading ? <Loader size="sm"/> : "Verify & Submit Application"}</button>
+      
+      <div className="flex gap-3 mt-4">
+         <button type="button" onClick={() => setCurrentStep(STEPS.BANK)} disabled={loading} className="btn-secondary w-1/3">Back</button>
+         <button type="submit" disabled={loading} className="btn-primary w-2/3">{loading ? <Loader size="sm"/> : "Verify & Submit"}</button>
+      </div>
     </form>
   );
 
@@ -231,7 +211,7 @@ const Register = () => {
             <div className="mt-6 text-center">
                  <p className="text-sm text-gray-600">
                     Already have an account? {' '}
-                    <Link to="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">Sign in</Link>
+                    <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">Sign in</Link>
                 </p>
             </div>
           )}
@@ -239,8 +219,13 @@ const Register = () => {
       </div>
        <style>{`
         .input-field { display: block; width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; margin-bottom: 0.75rem; }
-        .btn-primary { background-color: #4f46e5; color: white; padding: 0.5rem; border-radius: 0.375rem; font-weight: 500; }
-        .btn-primary:disabled { opacity: 0.5; }
+        .btn-primary { background-color: #4f46e5; color: white; padding: 0.5rem; border-radius: 0.375rem; font-weight: 500; transition: background-color 0.2s; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-secondary { background-color: #e5e7eb; color: #374151; padding: 0.5rem; border-radius: 0.375rem; font-weight: 500; transition: background-color 0.2s; }
+        .btn-secondary:hover { background-color: #d1d5db; }
+        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
     </div>
   );

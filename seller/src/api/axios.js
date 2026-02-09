@@ -1,26 +1,45 @@
 import axios from "axios";
-import { auth } from "../config/firebase";  
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
-
+// Create Axios Instance
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: "http://localhost:8000/api/v1",  
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
-// Request Interceptor: Attach Firebase Token to every request
+// Request Interceptor: Attach Token from LocalStorage
 api.interceptors.request.use(
-  async (config) => {
-    const user = auth.currentUser;
-    if (user) {
-      const token = await user.getIdToken();
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Handle 401 (Unauthorized)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      // 1. Clear Token
+      localStorage.removeItem("token");
+      
+      // 2. Redirect to Login (FIX: Updated path to match AuthRoutes)
+      if (window.location.pathname !== "/auth/login") {
+        window.location.href = "/auth/login";
+      }
+    }
+    return Promise.reject(error);
+  }
 );
 
 export default api;
