@@ -39,6 +39,11 @@ import {
   getAllReturnRequests, 
   updateReturnStatus 
 } from "../../controllers/admin/return.controller.js";
+import {
+  getNotifications,
+  markAllAsRead,
+  deleteNotification
+} from "../../controllers/common/notification.controller.js"; // <--- Added Import
 
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
@@ -46,12 +51,17 @@ import { createCouponSchema, updateCouponSchema } from "../../validations/coupon
 
 const router = Router();
 
-// Protect all routes
+// Protect all routes (Admin Only)
 router.use(verifyAuth, authorizeRoles("admin"));
 
 // --- Analytics ---
 router.get("/analytics/dashboard", getDashboardStats);
 router.get("/analytics/graph", getSalesGraph);
+
+// --- Notifications (Added) ---
+router.get("/notifications", getNotifications);
+router.patch("/notifications/read-all", markAllAsRead);
+router.delete("/notifications/:id", deleteNotification);
 
 // --- Approvals ---
 router.get("/approvals/sellers", getPendingSellers);
@@ -89,8 +99,6 @@ router.route("/coupons/:id")
   .get(getCoupon)
   .put(validate(updateCouponSchema), updateCoupon)
   .delete(deleteCoupon);
-
-router.delete("/coupons/:id", deleteCoupon);
 
 // --- Settings ---
 router.route("/settings")

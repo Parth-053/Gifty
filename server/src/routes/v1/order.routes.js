@@ -3,7 +3,7 @@ import {
   createOrder, 
   getUserOrders, 
   getOrderDetails 
-} from "../../controllers/user/order.controller.js";
+} from "../../controllers/shop/order.controller.js";
 import { verifyAuth } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
 import { createOrderSchema } from "../../validations/order.schema.js";

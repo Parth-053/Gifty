@@ -6,6 +6,7 @@ import { Seller } from "../../models/Seller.model.js";
 import { User } from "../../models/User.model.js";
 import * as authService from "../../services/auth.service.js";
 import { sendOtpEmail, sendWelcomeEmail } from "../../services/email.service.js";
+import { notifyAdmin } from "../../services/notification.service.js";
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
@@ -81,11 +82,10 @@ export const registerSeller = asyncHandler(async (req, res) => {
     phone,
     gstin: gstin || "",
     
-    // --- FIX START ---
+    // Default Status for Approval Workflow
     status: "pending", 
-    isActive: false,    // Default false until Admin approves
-    isVerified: false,  // FIXED: Set to false so it shows in Admin Pending List
-    // --- FIX END ---
+    isActive: false,    
+    isVerified: false, 
 
     onboardingCompleted: true,
     address,
@@ -95,12 +95,21 @@ export const registerSeller = asyncHandler(async (req, res) => {
   // 4. Delete used OTP
   await Otp.deleteOne({ _id: validOtp._id });
 
-  // 5. Send Welcome Email (Async, don't block response)
+  // 5. Send Welcome Email (Async)
   try {
       await sendWelcomeEmail(email, fullName);
   } catch (err) {
       console.error("Welcome email failed", err);
   }
+
+  // --- NOTIFICATION TRIGGER (NEW) ---
+  await notifyAdmin({
+    type: "NEW_SELLER",
+    title: "New Seller Registration",
+    message: `Seller '${newSeller.storeName}' has registered and is pending approval.`,
+    data: { sellerId: newSeller._id, email: newSeller.email }
+  });
+  // ----------------------------------
 
   return res
     .status(httpStatus.CREATED)
@@ -123,6 +132,17 @@ export const syncUser = asyncHandler(async (req, res) => {
 
   const { user, isNewUser } = await authService.syncUser(userData);
 
+  // --- NOTIFICATION TRIGGER (NEW) ---
+  if (isNewUser) {
+    await notifyAdmin({
+      type: "NEW_USER",
+      title: "New User Registration",
+      message: `New user registered: ${user.fullName} (${user.email})`,
+      data: { userId: user._id, email: user.email }
+    });
+  }
+  // ----------------------------------
+
   return res
     .status(isNewUser ? httpStatus.CREATED : httpStatus.OK)
     .json(new ApiResponse(isNewUser ? httpStatus.CREATED : httpStatus.OK, user, isNewUser ? "User registered" : "User login successful"));
@@ -144,6 +164,18 @@ export const syncSeller = asyncHandler(async (req, res) => {
   };
 
   const { seller, isNewSeller } = await authService.syncSeller(sellerData);
+
+  // --- NOTIFICATION TRIGGER (NEW) ---
+  // In case a seller is created via Sync (rare if strict flow, but safe to keep)
+  if (isNewSeller) {
+    await notifyAdmin({
+      type: "NEW_SELLER",
+      title: "New Seller Registration",
+      message: `Seller '${seller.storeName}' has registered via Sync and is pending approval.`,
+      data: { sellerId: seller._id, email: seller.email }
+    });
+  }
+  // ----------------------------------
 
   return res
     .status(isNewSeller ? httpStatus.CREATED : httpStatus.OK)

@@ -2,44 +2,39 @@ import mongoose from "mongoose";
 
 const notificationSchema = new mongoose.Schema(
   {
-    recipientId: {
+    recipient: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      refPath: 'recipientModel',  
-      index: true
+      ref: "User",
+      required: false,  
     },
-    recipientModel: {
+    role: {
       type: String,
-      required: true,
-      enum: ['User', 'Seller'],  
-      default: 'User'
+      enum: ["user", "seller", "admin"], 
+      default: "user"
     },
     type: {
       type: String,
-      enum: ["order_update", "promotion", "system", "alert"],
-      default: "system"
+      enum: ["ORDER", "SYSTEM", "PROMOTION", "ACCOUNT", "INVENTORY", "NEW_USER", "NEW_SELLER"],
+      required: true,
     },
     title: {
       type: String,
       required: true,
-      trim: true
     },
     message: {
       type: String,
-      required: true
+      required: true,
     },
     data: {
-      type: Object  
+      type: Object, 
+      default: {},
     },
     isRead: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   { timestamps: true }
 );
-
-// Auto-delete notifications older than 30 days to save DB space
-notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export const Notification = mongoose.model("Notification", notificationSchema);

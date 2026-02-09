@@ -1,6 +1,8 @@
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
+import { ApiError } from "../../utils/ApiError.js";  
 import * as productService from "../../services/product.service.js";
+import { notifyAdmin } from "../../services/notification.service.js";  
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
@@ -13,6 +15,20 @@ export const addProduct = asyncHandler(async (req, res) => {
     req.files, 
     req.seller._id // Passed from auth middleware
   );
+
+  // --- NOTIFICATION TRIGGER (NEW) ---
+  // Notify Admin about the new product listing
+  await notifyAdmin({
+    type: "INVENTORY",
+    title: "New Product Added",
+    message: `Seller has added a new product: ${product.name}`,
+    data: { 
+      productId: product._id, 
+      sellerId: req.seller._id,
+      productName: product.name 
+    }
+  });
+  // ----------------------------------
 
   return res
     .status(httpStatus.CREATED)

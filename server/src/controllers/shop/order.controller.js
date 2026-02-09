@@ -2,6 +2,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
 import * as orderService from "../../services/order.service.js";
+import { notifyAdmin } from "../../services/notification.service.js"; // <--- IMPORT NOTIFICATION SERVICE
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
@@ -16,6 +17,20 @@ export const createOrder = asyncHandler(async (req, res) => {
     shippingAddress,
     paymentMethod,
   });
+
+  // --- NOTIFICATION TRIGGER (NEW) ---
+  // Notify Admin about the new order
+  await notifyAdmin({
+    type: "ORDER",
+    title: "New Order Received",
+    message: `Order #${order.orderId || order._id} placed by ${req.user.fullName || 'User'} for ₹${order.totalAmount}`,
+    data: { 
+      orderId: order._id, 
+      amount: order.totalAmount,
+      userId: req.user._id
+    }
+  });
+  // ----------------------------------
 
   return res
     .status(httpStatus.CREATED)
