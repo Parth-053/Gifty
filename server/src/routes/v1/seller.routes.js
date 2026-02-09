@@ -33,41 +33,36 @@ import { upload } from "../../middlewares/multer.middleware.js";
 const router = Router();
  
 // Protect all routes
+// This middleware MUST populate req.user or req.seller
 router.use(verifyAuth, authorizeRoles("seller"));
 
-// --- 0. Dashboard  ---
+// --- Dashboard ---
 router.get("/dashboard/stats", getDashboardStats);
 router.get("/dashboard/chart", getDashboardChart);
 
-// --- 1. Inventory Management (Route Fixed: /products) ---
+// --- Inventory (Products) ---
 router.route("/products")
   .get(getMyInventory)
-  .post(
-    upload.array("images", 5), 
-    addProduct
-  );
+  .post(upload.array("images", 5), addProduct);
 
 router.route("/products/:id")
   .get(getProductDetails) 
-  .put(
-    upload.array("images", 5), 
-    editProduct
-  )
+  .put(upload.array("images", 5), editProduct)
   .delete(deleteProduct);
 
-// --- 2. Order Management ---
+// --- Orders ---
 router.get("/orders", getSellerOrders);
 router.get("/orders/:id", getSellerOrderDetails);
 router.patch("/orders/:orderId/items/:itemId", updateOrderItemStatus);
 
-// --- 3. Finance & Payouts ---
+// --- Finance ---
 router.get("/finance/stats", getFinanceStats);
 router.get("/finance/transactions", getTransactionHistory);
 router.get("/finance/payouts", getPayoutHistory);
 router.get("/finance/graph", getSalesGraph);
 router.post("/finance/withdraw", requestPayout);
 
-// --- 4. Profile & Settings --- 
+// --- Profile --- 
 router.get("/profile", getProfile);
 router.put("/profile", upload.single("avatar"), updateProfile);
 

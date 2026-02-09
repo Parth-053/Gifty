@@ -12,14 +12,16 @@ import { createCategorySchema, updateCategorySchema } from "../../validations/ca
 
 const router = Router();
 
-// Public: Get All Categories (Dropdowns need this)
+// --- PUBLIC ROUTES (Accessible by Seller & Shop) ---
+// This allows the product form to fetch the list
 router.get("/", getCategories);
 
-// Protected: Admin Management
+// --- PROTECTED ROUTES (Admin Only) ---
+// All routes below this line require Admin Login
+router.use(verifyAuth, authorizeRoles("admin"));
+
 router.post(
   "/", 
-  verifyAuth, 
-  authorizeRoles("admin"), 
   upload.single("image"),
   validate(createCategorySchema),
   createCategory
@@ -27,18 +29,11 @@ router.post(
 
 router.put(
   "/:id", 
-  verifyAuth, 
-  authorizeRoles("admin"), 
   upload.single("image"), 
   validate(updateCategorySchema),
   updateCategory
 );
 
-router.delete(
-  "/:id", 
-  verifyAuth, 
-  authorizeRoles("admin"), 
-  deleteCategory
-);
+router.delete("/:id", deleteCategory);
 
 export default router;

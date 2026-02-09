@@ -8,7 +8,6 @@ const parseData = (data) => ({
   name: data.name || '',
   price: data.price || '',
   discountPrice: data.discountPrice || '',
-  // Logic: Use populated object _id OR string ID OR fall back to empty
   categoryId: data.categoryId?._id || data.categoryId || data.category || '', 
   stock: data.stock || '',
   description: data.description || '',
@@ -20,11 +19,12 @@ const parseData = (data) => ({
 
 const ProductForm = ({ initialData = {}, onSubmit, isLoading }) => {
   const dispatch = useDispatch();
-  
-  // Get Categories from Redux
-  const { categories, loading: isCategoryLoading } = useSelector((state) => state.category || { categories: [], loading: false });
-
-  // State Initialization
+   
+  const categoryState = useSelector((state) => state.category || state.categories);
+ 
+  const categories = categoryState?.categories || [];
+  const isCategoryLoading = categoryState?.loading || false;
+ 
   const [formData, setFormData] = useState(() => parseData(initialData));
   
   const [customInput, setCustomInput] = useState("");
@@ -34,8 +34,7 @@ const ProductForm = ({ initialData = {}, onSubmit, isLoading }) => {
     initialData.images?.map(img => img.url) || []
   );
 
-  // --- FIX: Fetch Categories on Component Mount ---
-  // Removed the dependency on 'categories' to prevent infinite loops if DB is empty
+  // Fetch Categories on Mount
   useEffect(() => {
     dispatch(fetchCategories());
   }, [dispatch]);
@@ -82,6 +81,11 @@ const ProductForm = ({ initialData = {}, onSubmit, isLoading }) => {
     if(formData.discountPrice) data.append("discountPrice", formData.discountPrice);
     data.append("stock", formData.stock);
     
+    // Validation
+    if (!formData.categoryId) {
+        alert("Please select a category");
+        return;
+    }
     data.append("categoryId", formData.categoryId);
     data.append("isCustomizable", formData.isCustomizable);
     
@@ -270,7 +274,7 @@ const ProductForm = ({ initialData = {}, onSubmit, isLoading }) => {
                   <option key={cat._id} value={cat._id}>{cat.name}</option>
                 ))
               ) : (
-                <option value="" disabled>No categories found (Create one in Admin)</option>
+                <option value="" disabled>No categories found (Please Create One)</option>
               )}
             </select>
           </div>
