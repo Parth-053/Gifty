@@ -41,9 +41,11 @@ import Payouts from "./pages/finance/Payouts";
 
 import BannersList from "./pages/banners/BannersList";
 import AddBanner from "./pages/banners/AddBanner";
+import EditBanner from "./pages/banners/EditBanner";
 
 import CouponsList from "./pages/coupons/CouponsList"; 
 import AddCoupon from "./pages/coupons/AddCoupon"; 
+import EditCoupon from "./pages/coupons/EditCoupon";
 
 import Settings from "./pages/settings/Settings"; 
 import ReturnRequests from "./pages/returns/ReturnRequests"; 
@@ -137,8 +139,10 @@ const AppRoutes = () => {
             {/* Marketing */}
             <Route path="/banners" element={<BannersList />} />
             <Route path="/banners/add" element={<AddBanner />} />
+            <Route path="/banners/edit/:id" element={<EditBanner />} />
             <Route path="/coupons" element={<CouponsList />} />
             <Route path="/coupons/add" element={<AddCoupon />} />
+            <Route path="/coupons/edit/:id" element={<EditCoupon />} />
 
             {/* System */}
             <Route path="/settings" element={<Settings />} />

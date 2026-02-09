@@ -7,20 +7,49 @@ export const fetchBanners = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get("/banners");
-      return response.data.data; // Expecting array of banners
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Create Banner (Supports Image Upload)
+// Fetch Single Banner
+export const fetchBannerDetails = createAsyncThunk(
+  "banners/fetchOne",
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/banners/${id}`);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Create Banner
 export const createBanner = createAsyncThunk(
   "banners/create",
   async (formData, { rejectWithValue }) => {
     try {
-      // Axios automatically detects FormData and sets 'multipart/form-data'
-      const response = await api.post("/banners", formData);
+      const response = await api.post("/banners", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Update Banner
+export const updateBanner = createAsyncThunk(
+  "banners/update",
+  async ({ id, formData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/banners/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -45,16 +74,19 @@ const bannerSlice = createSlice({
   name: "banners",
   initialState: {
     banners: [],
+    selectedBanner: null, // Store for the details/edit page
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearSelectedBanner: (state) => {
+      state.selectedBanner = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
-      // Fetch
-      .addCase(fetchBanners.pending, (state) => {
-        state.loading = true;
-      })
+      // Fetch All
+      .addCase(fetchBanners.pending, (state) => { state.loading = true; })
       .addCase(fetchBanners.fulfilled, (state, action) => {
         state.loading = false;
         state.banners = action.payload;
@@ -63,9 +95,25 @@ const bannerSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      // Fetch One
+      .addCase(fetchBannerDetails.pending, (state) => { state.loading = true; })
+      .addCase(fetchBannerDetails.fulfilled, (state, action) => {
+        state.loading = false;
+        state.selectedBanner = action.payload;
+      })
+      .addCase(fetchBannerDetails.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // Create
       .addCase(createBanner.fulfilled, (state, action) => {
         state.banners.push(action.payload);
+      })
+      // Update
+      .addCase(updateBanner.fulfilled, (state, action) => {
+        state.selectedBanner = action.payload;
+        const index = state.banners.findIndex(b => b._id === action.payload._id);
+        if (index !== -1) state.banners[index] = action.payload;
       })
       // Delete
       .addCase(deleteBanner.fulfilled, (state, action) => {
@@ -74,4 +122,5 @@ const bannerSlice = createSlice({
   },
 });
 
+export const { clearSelectedBanner } = bannerSlice.actions;
 export default bannerSlice.reducer;

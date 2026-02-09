@@ -26,7 +26,9 @@ import {
 } from "../../controllers/admin/finance.controller.js";
 import {
   getCoupons,
+  getCoupon,
   createCoupon,
+  updateCoupon,
   deleteCoupon
 } from "../../controllers/admin/coupon.controller.js";
 import {
@@ -40,7 +42,7 @@ import {
 
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
-import { createCouponSchema } from "../../validations/coupon.schema.js";
+import { createCouponSchema, updateCouponSchema } from "../../validations/coupon.schema.js";
 
 const router = Router();
 
@@ -82,6 +84,11 @@ router.patch("/returns/:id/status", updateReturnStatus);
 router.route("/coupons")
   .get(getCoupons)
   .post(validate(createCouponSchema), createCoupon);
+
+router.route("/coupons/:id")
+  .get(getCoupon)
+  .put(validate(updateCouponSchema), updateCoupon)
+  .delete(deleteCoupon);
 
 router.delete("/coupons/:id", deleteCoupon);
 

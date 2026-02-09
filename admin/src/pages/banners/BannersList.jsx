@@ -5,7 +5,7 @@ import { fetchBanners, deleteBanner } from "../../store/bannerSlice";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 // Components
-import BannerTable from "../../components/tables/BannerTable";  
+import BannerTable from "../../components/tables/BannerTable";
 import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
 import EmptyState from "../../components/common/EmptyState";
@@ -22,6 +22,10 @@ const BannersList = () => {
   useEffect(() => {
     dispatch(fetchBanners());
   }, [dispatch]);
+
+  const handleEditClick = (banner) => {
+    navigate(`/banners/edit/${banner._id}`);
+  };
 
   const handleDeleteClick = (banner) => {
     setSelectedBanner(banner);
@@ -64,7 +68,11 @@ const BannersList = () => {
       )}
 
       {banners.length > 0 ? (
-        <BannerTable banners={banners} onDelete={handleDeleteClick} />
+        <BannerTable 
+          banners={banners} 
+          onEdit={handleEditClick} 
+          onDelete={handleDeleteClick} 
+        />
       ) : (
         !loading && (
           <EmptyState

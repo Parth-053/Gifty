@@ -14,8 +14,10 @@ const AddCoupon = () => {
 
   const [form, setForm] = useState({ 
     code: "", 
+    description: "", // Added Field
     discountType: "percentage",  
     discountValue: "", 
+    maxDiscountAmount: "", // Added Field
     minPurchaseAmount: 0,
     usageLimit: 100,
     expirationDate: "" 
@@ -33,7 +35,7 @@ const AddCoupon = () => {
     setError("");
     
     // Basic Validation
-    if(form.discountType === 'percentage' && form.discountValue > 100) {
+    if(form.discountType === 'percentage' && Number(form.discountValue) > 100) {
         setError("Percentage discount cannot be more than 100%");
         return;
     }
@@ -48,7 +50,7 @@ const AddCoupon = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 pb-20">
       <div className="flex items-center gap-4">
         <button onClick={() => navigate("/coupons")} className="p-2 hover:bg-gray-100 rounded-full">
             <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
@@ -59,6 +61,7 @@ const AddCoupon = () => {
       <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
         <form onSubmit={handleSubmit} className="space-y-6">
           
+          {/* Row 1: Code & Type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input 
                 label="Coupon Code" 
@@ -81,6 +84,19 @@ const AddCoupon = () => {
             />
           </div>
 
+          {/* Row 2: Description (New) */}
+          <div>
+            <Input 
+                label="Description" 
+                name="description"
+                value={form.description} 
+                onChange={handleChange}
+                placeholder="50% off for summer sale"
+                required 
+            />
+          </div>
+
+          {/* Row 3: Values */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input 
                 label="Discount Value" 
@@ -92,16 +108,20 @@ const AddCoupon = () => {
                 required 
             />
             
-            <Input 
-                label="Expiration Date" 
-                type="date" 
-                name="expirationDate"
-                value={form.expirationDate} 
-                onChange={handleChange}
-                required 
-            />
+            {/* Conditional Max Discount Amount (Only for Percentage) */}
+            {form.discountType === 'percentage' && (
+              <Input 
+                  label="Max Discount Amount (₹)" 
+                  type="number" 
+                  name="maxDiscountAmount"
+                  value={form.maxDiscountAmount} 
+                  onChange={handleChange}
+                  placeholder="Optional limit (e.g. 500)"
+              />
+            )}
           </div>
 
+          {/* Row 4: Date & Limits */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <Input 
                 label="Min Purchase Amount (₹)" 
@@ -119,9 +139,21 @@ const AddCoupon = () => {
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input 
+                label="Expiration Date" 
+                type="date" 
+                name="expirationDate"
+                value={form.expirationDate} 
+                onChange={handleChange}
+                required 
+            />
+          </div>
 
-          <div className="flex justify-end pt-4">
+          {error && <p className="text-red-500 text-sm bg-red-50 p-3 rounded">{error}</p>}
+
+          <div className="flex justify-end pt-4 border-t border-gray-100">
+            <Button variant="secondary" onClick={() => navigate("/coupons")} className="mr-3">Cancel</Button>
             <Button type="submit" isLoading={loading}>Create Coupon</Button>
           </div>
         </form>

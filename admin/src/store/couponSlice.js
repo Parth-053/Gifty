@@ -4,9 +4,23 @@ import api from "../api/axios";
 // Fetch All Coupons
 export const fetchCoupons = createAsyncThunk(
   "coupons/fetchAll",
-  async (_, { rejectWithValue }) => {
+  async (queryParams, { rejectWithValue }) => {
     try {
-      const response = await api.get("/admin/coupons");
+      // Pass queryParams for pagination/search if needed
+      const response = await api.get("/admin/coupons", { params: queryParams });
+      return response.data.data; // Returns object: { coupons: [], total: N }
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Fetch Single Coupon (For Edit)
+export const fetchCouponDetails = createAsyncThunk(
+  "coupons/fetchOne",
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/admin/coupons/${id}`);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -20,6 +34,19 @@ export const createCoupon = createAsyncThunk(
   async (couponData, { rejectWithValue }) => {
     try {
       const response = await api.post("/admin/coupons", couponData);
+      return response.data.data; // Returns the single created coupon object
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Update Coupon
+export const updateCoupon = createAsyncThunk(
+  "coupons/update",
+  async ({ id, couponData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/admin/coupons/${id}`, couponData);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -43,29 +70,67 @@ export const deleteCoupon = createAsyncThunk(
 const couponSlice = createSlice({
   name: "coupons",
   initialState: {
-    coupons: [],
+    coupons: [],       // MUST be an array
+    total: 0,          // Store total count separately
+    selectedCoupon: null, 
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearSelectedCoupon: (state) => {
+      state.selectedCoupon = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchCoupons.pending, (state) => { state.loading = true; })
+      // Fetch All
+      .addCase(fetchCoupons.pending, (state) => { 
+        state.loading = true; 
+        state.error = null;
+      })
       .addCase(fetchCoupons.fulfilled, (state, action) => {
         state.loading = false;
-        state.coupons = action.payload;
+        // FIX: Extract the array from the payload object
+        state.coupons = action.payload.coupons || []; 
+        state.total = action.payload.total || 0;
       })
       .addCase(fetchCoupons.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      .addCase(createCoupon.fulfilled, (state, action) => {
-        state.coupons.push(action.payload);
+      
+      // Fetch One
+      .addCase(fetchCouponDetails.pending, (state) => { state.loading = true; })
+      .addCase(fetchCouponDetails.fulfilled, (state, action) => {
+        state.loading = false;
+        state.selectedCoupon = action.payload;
       })
+      .addCase(fetchCouponDetails.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Create
+      .addCase(createCoupon.fulfilled, (state, action) => {
+        // Now safe because state.coupons is guaranteed to be an array
+        state.coupons.push(action.payload);
+        state.total += 1; // Optional: update total count
+      })
+
+      // Update
+      .addCase(updateCoupon.fulfilled, (state, action) => {
+        const index = state.coupons.findIndex(c => c._id === action.payload._id);
+        if (index !== -1) state.coupons[index] = action.payload;
+        state.selectedCoupon = action.payload;
+      })
+
+      // Delete
       .addCase(deleteCoupon.fulfilled, (state, action) => {
         state.coupons = state.coupons.filter(c => c._id !== action.payload);
+        state.total -= 1; // Optional: update total count
       });
   },
 });
 
+export const { clearSelectedCoupon } = couponSlice.actions;
 export default couponSlice.reducer;

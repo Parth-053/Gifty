@@ -1,8 +1,8 @@
 import React from "react";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import Badge from "../common/Badge";
 
-const BannerTable = ({ banners, onDelete }) => {
+const BannerTable = ({ banners, onEdit, onDelete }) => {
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
       <table className="min-w-full divide-y divide-gray-200 bg-white">
@@ -20,11 +20,12 @@ const BannerTable = ({ banners, onDelete }) => {
           {banners.map((banner) => (
             <tr key={banner._id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="h-16 w-32 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                <div className="h-16 w-32 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-100">
                   <img
-                    src={banner.image?.url || banner.image} // Backend returns object { url, publicId }
+                    src={banner.image?.url || banner.image} 
                     alt={banner.title}
                     className="h-full w-full object-cover object-center"
+                    onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=No+Image"; }}
                   />
                 </div>
               </td>
@@ -44,13 +45,22 @@ const BannerTable = ({ banners, onDelete }) => {
                 </Badge>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button
-                  onClick={() => onDelete(banner)}
-                  className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-full transition-colors"
-                  title="Delete Banner"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => onEdit(banner)}
+                    className="text-indigo-600 hover:text-indigo-900 p-2 hover:bg-indigo-50 rounded-full transition-colors"
+                    title="Edit Banner"
+                  >
+                    <PencilSquareIcon className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(banner)}
+                    className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-full transition-colors"
+                    title="Delete Banner"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
