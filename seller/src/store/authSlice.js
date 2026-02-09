@@ -5,20 +5,17 @@ import api from "../api/axios";
 
 // --- Async Thunks ---
 
-// 1. Sync Seller Profile (Fetch from MongoDB)
-// We use 'syncSeller' as the action name
+// FIX: Renamed from fetchSellerProfile to syncSeller
 export const syncSeller = createAsyncThunk(
   "auth/syncSeller",
   async (_, { rejectWithValue }) => {
     try {
-      // Ensure Firebase user exists
       if (!auth.currentUser) return rejectWithValue("No user logged in");
 
-      // Get Token & Sync to LocalStorage
+      // Get fresh token
       const token = await auth.currentUser.getIdToken(true);
       localStorage.setItem("token", token);
       
-      // Fetch Profile
       const response = await api.get("/auth/me", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -42,6 +39,7 @@ export const loginSeller = createAsyncThunk(
   async ({ email, password }, { dispatch, rejectWithValue }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // FIX: Dispatch syncSeller
       const result = await dispatch(syncSeller()).unwrap();
       return result;
     } catch (error) {
@@ -68,6 +66,7 @@ export const registerSeller = createAsyncThunk(
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      // FIX: Dispatch syncSeller
       const result = await dispatch(syncSeller()).unwrap();
       return result;
 
@@ -98,17 +97,17 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setLoading: (state, action) => { state.loading = action.payload; },
-    // FIX: Renamed to clearError to match your hooks/components
     clearError: (state) => { state.error = null; }
   },
   extraReducers: (builder) => {
     builder
-      // Sync
+      // Sync (Renamed cases)
       .addCase(syncSeller.pending, (state) => { state.error = null; })
       .addCase(syncSeller.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.seller = action.payload;
+        state.error = null;
       })
       .addCase(syncSeller.rejected, (state, action) => {
         state.loading = false;
@@ -153,6 +152,5 @@ const authSlice = createSlice({
   },
 });
 
-// EXPORTS
 export const { setLoading, clearError } = authSlice.actions;
 export default authSlice.reducer;

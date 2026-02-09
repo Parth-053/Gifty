@@ -44,8 +44,8 @@ const RevenueChart = ({ data }) => {
           </BarChart>
         </ResponsiveContainer>
       ) : (
-        <div className="flex h-full items-center justify-center text-sm text-gray-400">
-          No revenue data available
+        <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+          No data available for this period
         </div>
       )}
     </div>
