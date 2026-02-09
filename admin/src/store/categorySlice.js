@@ -19,7 +19,10 @@ export const createCategory = createAsyncThunk(
   "categories/create",
   async (formData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/categories", formData);
+      // FIX: Override default JSON header to allow File Upload
+      const response = await api.post("/categories", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -32,7 +35,10 @@ export const updateCategory = createAsyncThunk(
   "categories/update",
   async ({ id, formData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/categories/${id}`, formData);
+      // FIX: Override default JSON header to allow File Upload
+      const response = await api.put(`/categories/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.message);

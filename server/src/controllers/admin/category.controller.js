@@ -2,7 +2,7 @@ import { Category } from "../../models/Category.model.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
-import * as imageService from "../../services/image.service.js"; 
+import * as imageService from "../../services/image.service.js";  
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
@@ -31,11 +31,10 @@ export const createCategory = asyncHandler(async (req, res) => {
 
   let image = { url: "", publicId: "" };
   
-  // 1. Upload Image to Cloudinary
+  // FIX: Upload to Cloudinary using the service (Buffer -> Cloud)
   if (req.file) {
     try {
       const uploaded = await imageService.uploadImages([req.file], "categories");
-      // uploadImages returns an array, pick the first one
       if (uploaded && uploaded.length > 0) {
         image = uploaded[0];
       }
@@ -44,10 +43,10 @@ export const createCategory = asyncHandler(async (req, res) => {
     }
   }
 
-  // 2. Create Category in DB
+  // FIX: Use ...req.body to capture 'isActive', 'description', 'parentId'
   const category = await Category.create({
-    ...req.body, // This includes name, description, parentId, and isActive
-    image // This overrides any 'image' field if it happened to be in body
+    ...req.body,
+    image
   });
 
   return res
@@ -65,12 +64,12 @@ export const updateCategory = asyncHandler(async (req, res) => {
 
   // Handle Image Update
   if (req.file) {
-    // A. Delete old image from Cloudinary
+    // 1. Delete old image from Cloudinary
     if (category.image?.publicId) {
       await imageService.deleteImages([{ publicId: category.image.publicId }]);
     }
     
-    // B. Upload new image
+    // 2. Upload new image to Cloudinary
     const uploaded = await imageService.uploadImages([req.file], "categories");
     if (uploaded && uploaded.length > 0) {
       req.body.image = uploaded[0];
