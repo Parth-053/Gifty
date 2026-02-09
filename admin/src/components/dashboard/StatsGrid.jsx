@@ -9,7 +9,6 @@ import StatsCard from "../common/StatsCard";
 import formatCurrency from "../../utils/formatCurrency";
 
 const StatsGrid = ({ stats, loading }) => {
-  // Safe defaults to prevent crashes if backend data is missing
   const data = stats || {
     totalRevenue: 0,
     totalOrders: 0,
@@ -19,7 +18,7 @@ const StatsGrid = ({ stats, loading }) => {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 animate-pulse">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
         ))}
@@ -28,7 +27,7 @@ const StatsGrid = ({ stats, loading }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
       <StatsCard
         title="Total Revenue"
         value={formatCurrency(data.totalRevenue)}

@@ -15,7 +15,10 @@ import useDebounce from "../../hooks/useDebounce";
 const UsersList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { list: users, total, loading, error } = useSelector((state) => state.users);
+  
+  // FIX: Destructure with default values to prevent undefined errors
+  const { list, total, loading, error } = useSelector((state) => state.users || {});
+  const users = list || []; // Ensure users is always an array
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -43,17 +46,23 @@ const UsersList = () => {
       await dispatch(deleteUser(selectedUser._id));
       setDeleteModalOpen(false);
       setSelectedUser(null);
+      // Refresh list
+      dispatch(fetchUsers({ page, search: debouncedSearch }));
     }
   };
 
   if (loading && users.length === 0) {
-    return <div className="flex justify-center h-[80vh] items-center"><Loader size="lg" /></div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Header & Search */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="mt-1 text-sm text-gray-500">Manage registered customers and administrators.</p>
@@ -71,13 +80,14 @@ const UsersList = () => {
         <div className="bg-red-50 text-red-700 p-4 rounded-lg">Error: {error}</div>
       )}
 
+      {/* Users List Table */}
       {users.length > 0 ? (
         <>
           <UserTable users={users} onView={handleView} onDelete={handleDeleteClick} />
           <div className="mt-4">
             <Pagination
               currentPage={page}
-              totalItems={total}
+              totalItems={total || 0}
               itemsPerPage={10}
               onPageChange={setPage}
             />
@@ -92,6 +102,7 @@ const UsersList = () => {
         )
       )}
 
+      {/* Delete Confirmation Modal */}
       <ConfirmDialog
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

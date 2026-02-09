@@ -8,7 +8,6 @@ const sellerSchema = new mongoose.Schema({
   phone: { type: String, required: true },
   gstin: { type: String, default: "" },
   
-  // --- STATUS FLAGS ---
   status: { 
     type: String, 
     enum: ["pending", "approved", "rejected", "suspended"], 
@@ -16,7 +15,7 @@ const sellerSchema = new mongoose.Schema({
     index: true 
   },
   
-  // FIX: Default must be FALSE. Only Admin approval sets this to true.
+  // Default must be FALSE. Only Admin approval sets this to true.
   isActive: { type: Boolean, default: false }, 
   
   isVerified: { type: Boolean, default: false }, // Email verification

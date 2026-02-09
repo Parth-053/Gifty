@@ -9,11 +9,13 @@ import {
   UserCircleIcon 
 } from "@heroicons/react/24/outline";
 
+// Ensure 'setSidebarOpen' is destructured from props
 const Topbar = ({ setSidebarOpen }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   
+  // Safe check for notifications
   const notificationCount = useSelector((state) => state.notifications?.unreadCount || 0);
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -30,7 +32,7 @@ const Topbar = ({ setSidebarOpen }) => {
           
           {/* Left Side: Toggle & Search */}
           <div className="flex items-center gap-4">
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button - Triggers the function passed from AdminLayout */}
             <button
               type="button"
               className="lg:hidden -m-2.5 p-2.5 text-gray-700 hover:text-gray-900"
@@ -40,7 +42,7 @@ const Topbar = ({ setSidebarOpen }) => {
               <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
 
-            {/* Global Search Bar (Now Visible) */}
+            {/* Global Search Bar (Hidden on small mobile) */}
             <div className="hidden md:flex items-center max-w-md">
               <div className="relative w-full">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -62,7 +64,7 @@ const Topbar = ({ setSidebarOpen }) => {
             <button 
               type="button" 
               className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 relative"
-              onClick={() => navigate("/notifications")}
+              onClick={() => navigate("/notifications")} // Correct Path
             >
               <span className="sr-only">View notifications</span>
               <BellIcon className="h-6 w-6" aria-hidden="true" />
