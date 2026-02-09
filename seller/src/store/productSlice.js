@@ -1,43 +1,39 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
 
-// 1. Fetch All Products (Inventory)
+// Fetch All Products
 export const fetchProducts = createAsyncThunk(
   "products/fetchAll",
-  async ({ page = 1, limit = 10, search = "", category = "" } = {}, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10 } = {}, { rejectWithValue }) => {
     try {
-      let query = `/seller/inventory?page=${page}&limit=${limit}`;
-      if (search) query += `&search=${search}`;
-      if (category) query += `&category=${category}`;
-      
-      const response = await api.get(query);
-      return response.data.data;  
+      const response = await api.get(`/seller/products?page=${page}&limit=${limit}`);
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch inventory");
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch products");
     }
   }
 );
 
-// 2. Fetch Single Product (For Edit/View)
+// Fetch Single Product Details
 export const fetchProductDetails = createAsyncThunk(
   "products/fetchOne",
   async (id, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/seller/inventory/${id}`);
+      const response = await api.get(`/seller/products/${id}`);
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch product details");
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch product");
     }
   }
 );
 
-// 3. Create Product (Multipart Form Data)
+// Create Product (Supports Images + Data)
 export const createProduct = createAsyncThunk(
   "products/create",
-  async (productData, { rejectWithValue }) => {
+  async (formData, { rejectWithValue }) => {
     try {
-      // productData should be a FormData object
-      const response = await api.post("/seller/inventory", productData, {
+      // Must set Content-Type to multipart/form-data for image uploads
+      const response = await api.post("/seller/products", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data.data;
@@ -47,13 +43,12 @@ export const createProduct = createAsyncThunk(
   }
 );
 
-// 4. Update Product
+// Update Product
 export const updateProduct = createAsyncThunk(
   "products/update",
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      // data should be FormData
-      const response = await api.put(`/seller/inventory/${id}`, data, {
+      const response = await api.put(`/seller/products/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data.data;
@@ -63,12 +58,12 @@ export const updateProduct = createAsyncThunk(
   }
 );
 
-// 5. Delete Product
+// Delete Product
 export const deleteProduct = createAsyncThunk(
   "products/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/seller/inventory/${id}`);
+      await api.delete(`/seller/products/${id}`);
       return id;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to delete product");
@@ -81,11 +76,10 @@ const productSlice = createSlice({
   initialState: {
     items: [],
     currentProduct: null,
-    totalProducts: 0,
-    currentPage: 1,
     totalPages: 1,
+    currentPage: 1,
     loading: false,
-    actionLoading: false,  
+    actionLoading: false, // Specific loading state for Save/Update buttons
     error: null,
     successMessage: null,
   },
@@ -104,56 +98,38 @@ const productSlice = createSlice({
       .addCase(fetchProducts.pending, (state) => { state.loading = true; })
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload.products;
-        state.totalProducts = action.payload.total;
-        // Calculate pagination if backend sends total docs
-        state.totalPages = Math.ceil(action.payload.total / 10) || 1;
+        state.items = action.payload.products || action.payload; 
+        state.totalPages = action.payload.totalPages || 1;
+        state.currentPage = action.payload.currentPage || 1;
       })
-      .addCase(fetchProducts.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(fetchProducts.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
       // Fetch One
       .addCase(fetchProductDetails.pending, (state) => { state.loading = true; })
-      .addCase(fetchProductDetails.fulfilled, (state, action) => {
-        state.loading = false;
-        state.currentProduct = action.payload;
-      })
-      .addCase(fetchProductDetails.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(fetchProductDetails.fulfilled, (state, action) => { state.loading = false; state.currentProduct = action.payload; })
+      .addCase(fetchProductDetails.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 
       // Create
-      .addCase(createProduct.pending, (state) => { state.actionLoading = true; state.error = null; })
+      .addCase(createProduct.pending, (state) => { state.actionLoading = true; state.error = null; state.successMessage = null; })
       .addCase(createProduct.fulfilled, (state, action) => {
         state.actionLoading = false;
-        state.items.unshift(action.payload); // Add to top
-        state.successMessage = "Product created successfully!";
+        state.items.unshift(action.payload);
+        state.successMessage = "Product created successfully";
       })
-      .addCase(createProduct.rejected, (state, action) => {
-        state.actionLoading = false;
-        state.error = action.payload;
-      })
+      .addCase(createProduct.rejected, (state, action) => { state.actionLoading = false; state.error = action.payload; })
 
       // Update
-      .addCase(updateProduct.pending, (state) => { state.actionLoading = true; state.error = null; })
+      .addCase(updateProduct.pending, (state) => { state.actionLoading = true; state.error = null; state.successMessage = null; })
       .addCase(updateProduct.fulfilled, (state, action) => {
         state.actionLoading = false;
-        state.items = state.items.map(p => p._id === action.payload._id ? action.payload : p);
         state.currentProduct = action.payload;
-        state.successMessage = "Product updated successfully!";
+        state.successMessage = "Product updated successfully";
       })
-      .addCase(updateProduct.rejected, (state, action) => {
-        state.actionLoading = false;
-        state.error = action.payload;
-      })
+      .addCase(updateProduct.rejected, (state, action) => { state.actionLoading = false; state.error = action.payload; })
 
       // Delete
       .addCase(deleteProduct.fulfilled, (state, action) => {
         state.items = state.items.filter(p => p._id !== action.payload);
-        state.successMessage = "Product deleted.";
       });
   },
 });

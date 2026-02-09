@@ -5,6 +5,7 @@ import { fetchProductDetails, updateProduct, clearProductErrors, clearCurrentPro
 import ProductForm from "../../components/product/ProductForm";
 import Loader from "../../components/common/Loader";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import toast from "react-hot-toast";
 
 const EditProduct = () => {
   const { id } = useParams();
@@ -22,6 +23,7 @@ const EditProduct = () => {
 
   useEffect(() => {
     if (successMessage) {
+      toast.success("Product updated successfully");
       navigate("/products");
       dispatch(clearProductErrors());
     }
@@ -36,12 +38,20 @@ const EditProduct = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate("/products")} className="p-2 hover:bg-gray-100 rounded-full">
+        {/* FIX: Added type="button" */}
+        <button 
+          type="button" 
+          onClick={() => navigate("/products")} 
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
           <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
+          <p className="text-sm text-gray-500">Update product details</p>
+        </div>
       </div>
 
       {error && (
@@ -54,7 +64,6 @@ const EditProduct = () => {
         initialData={currentProduct} 
         onSubmit={handleSubmit} 
         isLoading={actionLoading} 
-        isEdit={true}
       />
     </div>
   );
