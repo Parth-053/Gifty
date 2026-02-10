@@ -11,6 +11,7 @@ import {
 } from "../../controllers/admin/approvals.controller.js";
 import {
   getAllProducts,
+  getProductDetails, // Import Added
   deleteProductAdmin
 } from "../../controllers/admin/product.controller.js";
 import { 
@@ -58,8 +59,7 @@ const router = Router();
 // Protect all routes (Admin Only)
 router.use(verifyAuth, authorizeRoles("admin"));
 
-// --- Analytics (FIXED ROUTE PATHS) ---
-// Changed from "/dashboard/stats" to "/analytics/dashboard" to match frontend
+// --- Analytics ---
 router.get("/analytics/dashboard", getDashboardStats); 
 router.get("/analytics/graph", getSalesGraph);
 
@@ -77,7 +77,9 @@ router.patch("/approvals/products/:id", updateProductStatus);
 
 // --- Product Management ---
 router.get("/products", getAllProducts);          
-router.delete("/products/:id", deleteProductAdmin); 
+router.route("/products/:id")
+  .get(getProductDetails)    // Added GET handler to fix 404
+  .delete(deleteProductAdmin); 
 
 // --- Users & Sellers Management ---
 router.get("/users", getAllUsers);

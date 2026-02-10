@@ -44,6 +44,19 @@ const ProductDetails = () => {
     return <div className="flex justify-center h-[80vh] items-center"><Loader size="lg" /></div>;
   }
 
+  // Helper to determine Badge appearance
+  const getStatusBadge = () => {
+    if (product.isDeleted) {
+      return <Badge variant="danger">DELETED</Badge>;
+    }
+    
+    switch (product.verificationStatus) {
+      case 'approved': return <Badge variant="success">APPROVED</Badge>;
+      case 'rejected': return <Badge variant="danger">REJECTED</Badge>;
+      default: return <Badge variant="warning">PENDING</Badge>;
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -58,13 +71,12 @@ const ProductDetails = () => {
           </div>
         </div>
         
-        <Badge variant={product.verificationStatus === "approved" ? "success" : product.verificationStatus === "rejected" ? "danger" : "warning"}>
-          {product.verificationStatus.toUpperCase()}
-        </Badge>
+        {/* Status Badge (Updates if Deleted) */}
+        {getStatusBadge()}
       </div>
 
-      {/* Verification Actions (Only if Pending or specific mode) */}
-      {product.verificationStatus === "pending" && (
+      {/* Verification Actions (Only if Pending AND Not Deleted) */}
+      {product.verificationStatus === "pending" && !product.isDeleted && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
              <div className="p-2 bg-yellow-100 rounded-full text-yellow-700">!</div>

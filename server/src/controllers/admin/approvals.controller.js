@@ -42,10 +42,10 @@ export const updateSellerStatus = asyncHandler(async (req, res) => {
 
   await seller.save();
 
-  // Notify Seller (Non-blocking)
+ // Notify Seller
   try {
     await notifySeller(seller._id, {
-      type: "ACCOUNT_STATUS",
+      type: "ACCOUNT_STATUS", 
       title: `Account ${status === 'approved' ? 'Approved' : 'Rejected'}`,
       message: reason || `Your seller account has been ${status}.`
     });
@@ -104,10 +104,12 @@ export const updateProductStatus = asyncHandler(async (req, res) => {
   
   await product.save();
 
-  // Notify Seller (Non-blocking)
-  if (product.sellerId?._id) {
+ // Notify Seller logic 
+  const recipientId = product.sellerId?._id || product.sellerId;
+
+  if (recipientId) {
       try {
-        await notifySeller(product.sellerId._id, {
+        await notifySeller(recipientId, {
           type: "PRODUCT_STATUS",
           title: `Product ${status === 'approved' ? 'Approved' : 'Rejected'}`,
           message: `Your product "${product.name}" has been ${status}. ${reason ? `Reason: ${reason}` : ''}`,

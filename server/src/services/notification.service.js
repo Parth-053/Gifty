@@ -4,38 +4,32 @@ import { sendEmail } from "./email.service.js";
 import { logger } from "../config/logger.js";
 
 /**
- * @desc    Centralized system to Notify Admins (DB + Email)
- * @param   {Object} params
- * @param   {String} params.type - Enum: "NEW_USER", "NEW_SELLER", "ORDER", "INVENTORY"
- * @param   {String} params.title - Title for UI and Email Subject
- * @param   {String} params.message - Body text
- * @param   {Object} params.data - Metadata (userId, orderId, etc.)
+ * @desc    Notify Seller (Saved to DB for Seller Dashboard)
  */
-
 export const notifySeller = async (sellerId, { type, title, message, data }) => {
   try {
     await Notification.create({
       recipient: sellerId,
-      role: 'Seller', 
+      role: 'seller',  
       type,
       title,
       message,
       data,
       isRead: false
-    });
-    // Optional: Integrate Socket.io here for real-time alerts
+    }); 
   } catch (error) {
     console.error("Notification Service Error:", error);
-    // Don't throw error to prevent blocking main flow
   }
 };
 
+/**
+ * @desc    Notify Admin (DB + Email)
+ */
 export const notifyAdmin = async ({ type, title, message, data = {} }) => {
   try {
-    // 1. Create DB Notification (For Admin Dashboard)
-    // We set role: "admin" so all admins can see it in their dashboard
+    // 1. Create DB Notification
     await Notification.create({
-      recipient: null, // null implies system-wide for the specific role
+      recipient: null,
       role: "admin",
       type,
       title,
@@ -48,7 +42,7 @@ export const notifyAdmin = async ({ type, title, message, data = {} }) => {
     const admins = await User.find({ role: "admin" }).select("email");
     const adminEmails = admins.map(admin => admin.email);
 
-    // 3. Send Email Alert (If admins exist)
+    // 3. Send Email Alert
     if (adminEmails.length > 0) {
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
@@ -67,7 +61,6 @@ export const notifyAdmin = async ({ type, title, message, data = {} }) => {
         </div>
       `;
 
-      // Use the updated sendEmail that accepts an array
       await sendEmail({
         to: adminEmails,
         subject: `[Admin Alert] ${title}`,
@@ -76,7 +69,6 @@ export const notifyAdmin = async ({ type, title, message, data = {} }) => {
     }
 
   } catch (error) {
-    // Log error but don't crash the app (Notification failure shouldn't stop the main flow)
     logger.error(`⚠️ Notification Service Failed: ${error.message}`);
   }
 };

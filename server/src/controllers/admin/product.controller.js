@@ -1,5 +1,6 @@
 import { Product } from "../../models/Product.model.js";
 import * as imageService from "../../services/image.service.js";
+import * as productService from "../../services/product.service.js"; // Import Service
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
@@ -27,6 +28,23 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
   return res.status(httpStatus.OK).json(
     new ApiResponse(httpStatus.OK, { products, total }, "All products fetched")
+  );
+});
+
+/**
+ * @desc    Get Single Product Details (Admin View)
+ * @route   GET /api/v1/admin/products/:id
+ */
+export const getProductDetails = asyncHandler(async (req, res) => {
+  // Pass 'true' to showDeleted to allow Admin to view soft-deleted items
+  const product = await productService.getProductById(req.params.id, true);
+
+  if (!product) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Product not found");
+  }
+
+  return res.status(httpStatus.OK).json(
+    new ApiResponse(httpStatus.OK, product, "Product details fetched")
   );
 });
 

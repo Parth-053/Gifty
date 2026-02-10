@@ -14,7 +14,7 @@ export const fetchProducts = createAsyncThunk(
   }
 );
 
-// 2. Fetch Pending Products
+// 2. Fetch Pending Products (Approvals Page)
 export const fetchPendingProducts = createAsyncThunk(
   "products/fetchPending",
   async (_, { rejectWithValue }) => {
@@ -27,12 +27,11 @@ export const fetchPendingProducts = createAsyncThunk(
   }
 );
 
-// 3. Fetch Single Product Details (FIXED for Admin)
+// 3. Fetch Single Product Details
 export const fetchProductDetails = createAsyncThunk(
   "products/fetchDetails",
   async (id, { rejectWithValue }) => {
     try {
-      // --- FIX: Use ADMIN route to avoid 404 on pending/deleted items ---
       const response = await api.get(`/admin/products/${id}`);
       return response.data.data;
     } catch (error) {
@@ -41,19 +40,35 @@ export const fetchProductDetails = createAsyncThunk(
   }
 );
 
+// 4. Update Product Status (Approve/Reject)
 export const updateProductStatus = createAsyncThunk(
   "products/updateStatus",
   async ({ id, status, reason }, { rejectWithValue }) => {
     try {
       const response = await api.patch(`/admin/approvals/products/${id}`, { status, reason });
-      // Ensure we return the FULL updated object from backend to update state correctly
-      return response.data.data; 
+      return response.data.data; // Returns full product object
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to update status");
     }
   }
 );
 
+// 5. Edit Product (Admin Edit Page)
+export const editProduct = createAsyncThunk(
+  "products/edit",
+  async ({ id, formData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/admin/products/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to edit product");
+    }
+  }
+);
+
+// 6. Hard Delete Product
 export const deleteProduct = createAsyncThunk(
   "products/delete",
   async (id, { rejectWithValue }) => {
@@ -83,46 +98,60 @@ const productSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Fetch All
+      // --- Fetch All ---
+      .addCase(fetchProducts.pending, (state) => { state.loading = true; })
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.loading = false;
         state.products = action.payload.products;
         state.totalProducts = action.payload.total || 0;
       })
+      .addCase(fetchProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       
-      // Fetch Pending
+      // --- Fetch Pending ---
+      .addCase(fetchPendingProducts.pending, (state) => { state.loading = true; })
       .addCase(fetchPendingProducts.fulfilled, (state, action) => {
         state.loading = false;
         state.pendingList = action.payload;
       })
 
-      // Fetch Details
-      .addCase(fetchProductDetails.pending, (state) => { state.loading = true; })
+      // --- Fetch Details ---
       .addCase(fetchProductDetails.fulfilled, (state, action) => {
-        state.loading = false;
         state.currentProduct = action.payload;
       })
 
-      // Update Status (Optimistic/Immediate UI Update)
+      // --- Update Status ---
       .addCase(updateProductStatus.fulfilled, (state, action) => {
         const updatedProduct = action.payload;
         
-        // 1. Remove from Pending List if it was there
+        // 1. Remove from Pending List
         state.pendingList = state.pendingList.filter(p => p._id !== updatedProduct._id);
         
-        // 2. Update in Main Product List if it exists there
+        // 2. Update in Main Product List
         const index = state.products.findIndex(p => p._id === updatedProduct._id);
         if (index !== -1) {
           state.products[index] = updatedProduct; 
         }
         
-        // 3. Update Current Product View if open
+        // 3. Update Current Product View
         if (state.currentProduct?._id === updatedProduct._id) {
           state.currentProduct = updatedProduct;
         }
       })
 
-      // Delete Product (Immediate UI Update)
+      // --- Edit Product ---
+      .addCase(editProduct.fulfilled, (state, action) => {
+        state.currentProduct = action.payload;
+        // Also update in list if present
+        const index = state.products.findIndex(p => p._id === action.payload._id);
+        if (index !== -1) {
+          state.products[index] = action.payload;
+        }
+      })
+
+      // --- Delete Product ---
       .addCase(deleteProduct.fulfilled, (state, action) => {
         state.products = state.products.filter(p => p._id !== action.payload);
         state.totalProducts -= 1;

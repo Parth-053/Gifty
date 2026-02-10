@@ -21,6 +21,7 @@ import Analytics from "./pages/analytics/Analytics";
 import ProductsList from "./pages/products/ProductsList";
 import ProductDetails from "./pages/products/ProductDetails";
 import ProductApproval from "./pages/products/ProductApproval";
+import EditProduct from "./pages/products/EditProduct";
 
 import CategoriesList from "./pages/categories/CategoriesList";
 import AddCategory from "./pages/categories/AddCategory";
@@ -110,6 +111,7 @@ const AppRoutes = () => {
             <Route path="/products" element={<ProductsList />} />
             <Route path="/products/approvals" element={<ProductApproval />} />
             <Route path="/products/:id" element={<ProductDetails />} />
+            <Route path="/products/edit/:id" element={<EditProduct />} />
 
             {/* Categories */}
             <Route path="/categories" element={<CategoriesList />} />
