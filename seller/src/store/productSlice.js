@@ -63,6 +63,7 @@ export const deleteProduct = createAsyncThunk(
   "products/delete",
   async (id, { rejectWithValue }) => {
     try {
+      // Backend performs Soft Delete
       await api.delete(`/seller/products/${id}`);
       return id;
     } catch (error) {

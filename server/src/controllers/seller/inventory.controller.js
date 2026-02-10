@@ -1,21 +1,34 @@
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
-// FIX: Import productService so it is defined
 import * as productService from "../../services/product.service.js"; 
 import { notifyAdmin } from "../../services/notification.service.js";
 import { httpStatus } from "../../constants/httpStatus.js";
+import { createProductSchema, updateProductSchema } from "../../validations/product.schema.js";
 
-// Helper to parse FormData
-const parseProductData = (body) => {
+// Helper to parse FormData and Validate
+const parseAndValidate = (body, schema) => {
   const data = { ...body };
+  
+  // Convert numeric strings to numbers
   if (data.price) data.price = Number(data.price);
   if (data.stock) data.stock = Number(data.stock);
-  if (data.discountPrice) data.discountPrice = Number(data.discountPrice);
+  // Handle discountPrice: if empty string or null, set to null, else Number
+  if (data.discountPrice) {
+      data.discountPrice = Number(data.discountPrice);
+  } else {
+      data.discountPrice = null;
+  }
+  
+  // Convert booleans
   if (data.isCustomizable !== undefined) data.isCustomizable = data.isCustomizable === 'true';
-  if (data.tags && !Array.isArray(data.tags)) data.tags = [data.tags];
-  if (data.customizationOptions && !Array.isArray(data.customizationOptions)) data.customizationOptions = [data.customizationOptions];
-  return data;
+  
+  // Joi Validation
+  const { error, value } = schema.validate(data, { stripUnknown: true });
+  if (error) {
+    throw new ApiError(httpStatus.BAD_REQUEST, error.details[0].message);
+  }
+  return value;
 };
 
 /**
@@ -27,7 +40,8 @@ export const addProduct = asyncHandler(async (req, res) => {
   const ownerId = req.user?._id || req.seller?._id;
   if (!ownerId) throw new ApiError(httpStatus.UNAUTHORIZED, "User not authenticated");
 
-  const productData = parseProductData(req.body);
+  // Parse and Validate Data
+  const productData = parseAndValidate(req.body, createProductSchema);
   const imageFiles = req.files || [];
 
   if (imageFiles.length === 0) {
@@ -40,7 +54,7 @@ export const addProduct = asyncHandler(async (req, res) => {
     ownerId
   );
 
-  // Notify Admin
+  // Notify Admin (Non-blocking)
   try {
     await notifyAdmin({
       type: "INVENTORY",
@@ -49,7 +63,7 @@ export const addProduct = asyncHandler(async (req, res) => {
       data: { productId: product._id, sellerId: ownerId, productName: product.name }
     });
   } catch (err) {
-    console.error("Notification Error:", err.message); // Don't block response
+    console.error("Notification Error:", err.message); 
   }
 
   return res
@@ -68,8 +82,8 @@ export const getMyInventory = asyncHandler(async (req, res) => {
   // Force sellerId filter
   req.query.sellerId = ownerId;
   
-  // Use the imported service
-  const { products, total } = await productService.getAllProducts(req.query);
+  // FIX: Pass 'false' to hide deleted items from Seller view
+  const { products, total } = await productService.getAllProducts(req.query, false);
 
   return res
     .status(httpStatus.OK)
@@ -82,7 +96,9 @@ export const getMyInventory = asyncHandler(async (req, res) => {
  */
 export const getProductDetails = asyncHandler(async (req, res) => {
   const ownerId = req.user?._id || req.seller?._id;
-  const product = await productService.getProductById(req.params.id);
+  
+  // FIX: Pass 'false' so sellers can't view deleted items via ID
+  const product = await productService.getProductById(req.params.id, false);
   
   // Security Check
   if (product.sellerId?._id?.toString() !== ownerId.toString() && product.sellerId?.toString() !== ownerId.toString()) {
@@ -100,7 +116,9 @@ export const getProductDetails = asyncHandler(async (req, res) => {
  */
 export const editProduct = asyncHandler(async (req, res) => {
   const ownerId = req.user?._id || req.seller?._id;
-  const updates = parseProductData(req.body);
+  
+  // Parse and Validate Updates
+  const updates = parseAndValidate(req.body, updateProductSchema);
 
   const product = await productService.updateProduct(
     ownerId, 
@@ -115,11 +133,13 @@ export const editProduct = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Delete Product
+ * @desc    Delete Product (Soft Delete)
  * @route   DELETE /api/v1/seller/products/:id
  */
 export const deleteProduct = asyncHandler(async (req, res) => {
   const ownerId = req.user?._id || req.seller?._id;
+  
+  // Service handles Soft Delete logic
   await productService.deleteProduct(ownerId, req.params.id);
 
   return res

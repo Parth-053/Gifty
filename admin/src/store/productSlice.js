@@ -41,20 +41,19 @@ export const fetchProductDetails = createAsyncThunk(
   }
 );
 
-// 4. Update Status
 export const updateProductStatus = createAsyncThunk(
   "products/updateStatus",
   async ({ id, status, reason }, { rejectWithValue }) => {
     try {
       const response = await api.patch(`/admin/approvals/products/${id}`, { status, reason });
-      return { id, status, ...response.data.data };
+      // Ensure we return the FULL updated object from backend to update state correctly
+      return response.data.data; 
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to update status");
     }
   }
 );
 
-// 5. Delete Product (Hard Delete)
 export const deleteProduct = createAsyncThunk(
   "products/delete",
   async (id, { rejectWithValue }) => {
@@ -104,22 +103,32 @@ const productSlice = createSlice({
         state.currentProduct = action.payload;
       })
 
-      // Update Status (Immediate UI)
+      // Update Status (Optimistic/Immediate UI Update)
       .addCase(updateProductStatus.fulfilled, (state, action) => {
-        state.pendingList = state.pendingList.filter(p => p._id !== action.payload.id);
-        const index = state.products.findIndex(p => p._id === action.payload.id);
+        const updatedProduct = action.payload;
+        
+        // 1. Remove from Pending List if it was there
+        state.pendingList = state.pendingList.filter(p => p._id !== updatedProduct._id);
+        
+        // 2. Update in Main Product List if it exists there
+        const index = state.products.findIndex(p => p._id === updatedProduct._id);
         if (index !== -1) {
-          state.products[index].verificationStatus = action.payload.status;
+          state.products[index] = updatedProduct; 
         }
-        if (state.currentProduct?._id === action.payload.id) {
-          state.currentProduct.verificationStatus = action.payload.status;
+        
+        // 3. Update Current Product View if open
+        if (state.currentProduct?._id === updatedProduct._id) {
+          state.currentProduct = updatedProduct;
         }
       })
 
-      // Delete Product (Immediate UI)
+      // Delete Product (Immediate UI Update)
       .addCase(deleteProduct.fulfilled, (state, action) => {
         state.products = state.products.filter(p => p._id !== action.payload);
         state.totalProducts -= 1;
+        if (state.currentProduct?._id === action.payload) {
+            state.currentProduct = null;
+        }
       });
   },
 });

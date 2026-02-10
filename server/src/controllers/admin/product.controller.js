@@ -16,7 +16,6 @@ export const getAllProducts = asyncHandler(async (req, res) => {
   if (search) filter.name = { $regex: search, $options: "i" };
   if (status) filter.verificationStatus = status;
 
-  // Admin sees EVERYTHING (Active, Inactive, Deleted)
   const products = await Product.find(filter)
     .populate("sellerId", "storeName email")
     .populate("categoryId", "name")
@@ -28,24 +27,6 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
   return res.status(httpStatus.OK).json(
     new ApiResponse(httpStatus.OK, { products, total }, "All products fetched")
-  );
-});
-
-/**
- * @desc    Get Single Product (Admin View - No Filters)
- * @route   GET /api/v1/admin/products/:id
- */
-export const getProductDetailsAdmin = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id)
-    .populate("sellerId", "storeName fullName email phone")
-    .populate("categoryId", "name");
-
-  if (!product) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Product not found");
-  }
-
-  return res.status(httpStatus.OK).json(
-    new ApiResponse(httpStatus.OK, product, "Product details fetched")
   );
 });
 
@@ -73,6 +54,6 @@ export const deleteProductAdmin = asyncHandler(async (req, res) => {
   await product.deleteOne();
 
   return res.status(httpStatus.OK).json(
-    new ApiResponse(httpStatus.OK, {}, "Product permanently deleted")
+    new ApiResponse(httpStatus.OK, { id: req.params.id }, "Product permanently deleted")
   );
 });
