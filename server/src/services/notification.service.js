@@ -11,6 +11,25 @@ import { logger } from "../config/logger.js";
  * @param   {String} params.message - Body text
  * @param   {Object} params.data - Metadata (userId, orderId, etc.)
  */
+
+export const notifySeller = async (sellerId, { type, title, message, data }) => {
+  try {
+    await Notification.create({
+      recipient: sellerId,
+      role: 'Seller', 
+      type,
+      title,
+      message,
+      data,
+      isRead: false
+    });
+    // Optional: Integrate Socket.io here for real-time alerts
+  } catch (error) {
+    console.error("Notification Service Error:", error);
+    // Don't throw error to prevent blocking main flow
+  }
+};
+
 export const notifyAdmin = async ({ type, title, message, data = {} }) => {
   try {
     // 1. Create DB Notification (For Admin Dashboard)

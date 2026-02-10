@@ -1,44 +1,54 @@
-import { cloudinary } from "../config/cloudinary.js";
-import { logger } from "../config/logger.js"; 
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 /**
- * Upload Image to Cloudinary (from Buffer)
- * @param {Buffer} buffer - File buffer from Multer
- * @param {String} folder - Folder name in Cloudinary 
+ * Upload Image to Cloudinary (From Local Path)
  */
-export const uploadOnCloudinary = async (buffer, folder = "general") => {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: `gifty/${folder}`, // Organized folder structure
-        resource_type: "auto",
-      },
-      (error, result) => {
-        if (error) {
-          logger.error(`Cloudinary Upload Error: ${error.message}`);
-          return reject(error);
-        }
-        resolve({
-          url: result.secure_url,
-          publicId: result.public_id,
-        });
-      }
-    );
-    // Write buffer to stream
-    uploadStream.end(buffer);
-  });
+export const uploadOnCloudinary = async (localFilePath, folder = "general") => {
+  try {
+    if (!localFilePath) return null;
+
+    // Upload
+    const response = await cloudinary.uploader.upload(localFilePath, {
+      folder: `gifty/${folder}`,
+      resource_type: "auto",
+    });
+
+    // Clean up local file
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
+
+    return {
+      url: response.secure_url,
+      publicId: response.public_id,
+    };
+  } catch (error) {
+    console.error("Cloudinary Upload Error:", error.message);
+    // Clean up local file on error
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
+    return null;
+  }
 };
 
 /**
  * Delete Image from Cloudinary
- * @param {String} publicId - Cloudinary Public ID
  */
 export const deleteFromCloudinary = async (publicId) => {
   try {
     if (!publicId) return null;
     return await cloudinary.uploader.destroy(publicId);
   } catch (error) {
-    logger.error(`Cloudinary Delete Error: ${error.message}`);
+    console.error("Cloudinary Delete Error:", error.message);
     return null;
   }
 };

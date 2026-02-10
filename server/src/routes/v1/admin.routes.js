@@ -9,6 +9,10 @@ import {
   getPendingProducts, 
   updateProductStatus 
 } from "../../controllers/admin/approvals.controller.js";
+import {
+  getAllProducts,
+  deleteProductAdmin
+} from "../../controllers/admin/product.controller.js";
 import { 
   getAllUsers, 
   getUserDetails, 
@@ -21,7 +25,7 @@ import {
   updateAdminOrderStatus 
 } from "../../controllers/admin/order.controller.js";
 import { 
-  getAllTransactions,
+  getAllTransactions, 
   getAllPayouts 
 } from "../../controllers/admin/finance.controller.js";
 import {
@@ -43,7 +47,7 @@ import {
   getNotifications,
   markAllAsRead,
   deleteNotification
-} from "../../controllers/common/notification.controller.js"; // <--- Added Import
+} from "../../controllers/common/notification.controller.js"; 
 
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
@@ -54,21 +58,26 @@ const router = Router();
 // Protect all routes (Admin Only)
 router.use(verifyAuth, authorizeRoles("admin"));
 
-// --- Analytics ---
-router.get("/analytics/dashboard", getDashboardStats);
+// --- Analytics (FIXED ROUTE PATHS) ---
+// Changed from "/dashboard/stats" to "/analytics/dashboard" to match frontend
+router.get("/analytics/dashboard", getDashboardStats); 
 router.get("/analytics/graph", getSalesGraph);
 
-// --- Notifications (Added) ---
+// --- Notifications ---
 router.get("/notifications", getNotifications);
 router.patch("/notifications/read-all", markAllAsRead);
 router.delete("/notifications/:id", deleteNotification);
 
 // --- Approvals ---
 router.get("/approvals/sellers", getPendingSellers);
-router.put("/approvals/sellers/:id", updateSellerStatus);
+router.patch("/approvals/sellers/:id", updateSellerStatus);
 
 router.get("/approvals/products", getPendingProducts);
-router.put("/approvals/products/:id", updateProductStatus);
+router.patch("/approvals/products/:id", updateProductStatus);
+
+// --- Product Management ---
+router.get("/products", getAllProducts);          
+router.delete("/products/:id", deleteProductAdmin); 
 
 // --- Users & Sellers Management ---
 router.get("/users", getAllUsers);

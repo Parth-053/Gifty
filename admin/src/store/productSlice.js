@@ -1,40 +1,39 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
 
-// 1. Fetch All Products (Public/General List)
+// 1. Fetch All Products (Admin View)
 export const fetchProducts = createAsyncThunk(
   "products/fetchAll",
   async (params, { rejectWithValue }) => {
     try {
-      // Using public route since Admin route doesn't exist yet for "all"
-      // Params: { page, limit, sort, search }
-      const response = await api.get("/products", { params });
-      return response.data.data; // { products: [], totalDocs: 100 }
+      const response = await api.get("/admin/products", { params });
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch products");
     }
   }
 );
 
-// 2. Fetch Pending Products (For Approval Page)
+// 2. Fetch Pending Products
 export const fetchPendingProducts = createAsyncThunk(
   "products/fetchPending",
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get("/admin/approvals/products");
-      return response.data.data; // Expecting array of pending products
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch pending products");
     }
   }
 );
 
-// 3. Fetch Single Product Details
+// 3. Fetch Single Product Details (FIXED for Admin)
 export const fetchProductDetails = createAsyncThunk(
   "products/fetchDetails",
-  async (slugOrId, { rejectWithValue }) => {
+  async (id, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/products/${slugOrId}`);
+      // --- FIX: Use ADMIN route to avoid 404 on pending/deleted items ---
+      const response = await api.get(`/admin/products/${id}`);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch product details");
@@ -42,20 +41,28 @@ export const fetchProductDetails = createAsyncThunk(
   }
 );
 
-// 4. Approve or Reject Product
+// 4. Update Status
 export const updateProductStatus = createAsyncThunk(
   "products/updateStatus",
   async ({ id, status, reason }, { rejectWithValue }) => {
     try {
-      // Backend expects: { status: 'approved' | 'rejected', reason: '...' }
-      // Route: PATCH /admin/approvals/products/:id
-      const response = await api.patch(`/admin/approvals/products/${id}`, { 
-        status, 
-        reason 
-      });
-      return { id, status, product: response.data.data };
+      const response = await api.patch(`/admin/approvals/products/${id}`, { status, reason });
+      return { id, status, ...response.data.data };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Update failed");
+      return rejectWithValue(error.response?.data?.message || "Failed to update status");
+    }
+  }
+);
+
+// 5. Delete Product (Hard Delete)
+export const deleteProduct = createAsyncThunk(
+  "products/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`/admin/products/${id}`);
+      return id;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Delete failed");
     }
   }
 );
@@ -63,8 +70,8 @@ export const updateProductStatus = createAsyncThunk(
 const productSlice = createSlice({
   name: "products",
   initialState: {
-    products: [],      // General List
-    pendingList: [],   // Approval List
+    products: [],      
+    pendingList: [],   
     currentProduct: null,
     totalProducts: 0,
     loading: false,
@@ -77,43 +84,42 @@ const productSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // --- Fetch All ---
-      .addCase(fetchProducts.pending, (state) => { state.loading = true; })
+      // Fetch All
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.loading = false;
         state.products = action.payload.products;
-        state.totalProducts = action.payload.totalDocs;
+        state.totalProducts = action.payload.total || 0;
       })
       
-      // --- Fetch Pending ---
-      .addCase(fetchPendingProducts.pending, (state) => { state.loading = true; })
+      // Fetch Pending
       .addCase(fetchPendingProducts.fulfilled, (state, action) => {
         state.loading = false;
         state.pendingList = action.payload;
       })
 
-      // --- Fetch Details ---
+      // Fetch Details
       .addCase(fetchProductDetails.pending, (state) => { state.loading = true; })
       .addCase(fetchProductDetails.fulfilled, (state, action) => {
         state.loading = false;
         state.currentProduct = action.payload;
       })
 
-      // --- Update Status ---
+      // Update Status (Immediate UI)
       .addCase(updateProductStatus.fulfilled, (state, action) => {
-        // Remove from pending list
         state.pendingList = state.pendingList.filter(p => p._id !== action.payload.id);
-        
-        // Update in general list if exists
         const index = state.products.findIndex(p => p._id === action.payload.id);
         if (index !== -1) {
           state.products[index].verificationStatus = action.payload.status;
         }
-        
-        // Update current product view
         if (state.currentProduct?._id === action.payload.id) {
           state.currentProduct.verificationStatus = action.payload.status;
         }
+      })
+
+      // Delete Product (Immediate UI)
+      .addCase(deleteProduct.fulfilled, (state, action) => {
+        state.products = state.products.filter(p => p._id !== action.payload);
+        state.totalProducts -= 1;
       });
   },
 });
