@@ -108,58 +108,61 @@ const ProductsList = () => {
         <div className="flex justify-center h-64 items-center"><Loader size="lg" /></div>
       ) : products.length > 0 ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Seller</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {products.map((product) => (
-                <tr key={product._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0">
-                        <img className="h-10 w-10 rounded-full object-cover" 
-                             src={product.images?.[0]?.url || "https://via.placeholder.com/40"} 
-                             alt="" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                        <div className="text-sm text-gray-500">{product.category?.name || "No Category"}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {product.sellerId?.storeName || "Unknown"}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    ${product.price}
-                  </td>
-                  <td className="px-6 py-4">
-                    {getStatusBadge(product)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => handleView(product._id)} className="text-blue-600 hover:text-blue-900" title="View">
-                        <Eye size={18} />
-                      </button>
-                      <button onClick={() => handleEdit(product._id)} className="text-indigo-600 hover:text-indigo-900" title="Edit">
-                        <Edit size={18} />
-                      </button>
-                      <button onClick={() => confirmDelete(product)} className="text-red-600 hover:text-red-900" title="Delete Permanently">
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
+          {/* FIX: Added overflow-x-auto wrapper so the table scrolls on mobile */}
+          <div className="overflow-x-auto w-full">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Seller</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {products.map((product) => (
+                  <tr key={product._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          <img className="h-10 w-10 rounded-full object-cover" 
+                               src={product.images?.[0]?.url || "https://via.placeholder.com/40"} 
+                               alt="" />
+                        </div>
+                        <div className="ml-4 min-w-[150px]"> {/* Added min-width for mobile */}
+                          <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                          <div className="text-sm text-gray-500">{product.category?.name || "No Category"}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                      {product.sellerId?.storeName || "Unknown"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
+                      ${product.price}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(product)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleView(product._id)} className="text-blue-600 hover:text-blue-900" title="View">
+                          <Eye size={18} />
+                        </button>
+                        <button onClick={() => handleEdit(product._id)} className="text-indigo-600 hover:text-indigo-900" title="Edit">
+                          <Edit size={18} />
+                        </button>
+                        <button onClick={() => confirmDelete(product)} className="text-red-600 hover:text-red-900" title="Delete Permanently">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="p-4 border-t border-gray-200">
             <Pagination
               currentPage={page}
@@ -173,12 +176,13 @@ const ProductsList = () => {
         <EmptyState title="No products found" description="Try changing filters." />
       )}
 
+      {/* FIX: Changed onCancel to onClose to prevent react-dialog crash */}
       <ConfirmDialog
         isOpen={isDeleteOpen}
         title="Permanently Delete Product?"
         message={`Are you sure you want to delete "${productToDelete?.name}"? This action cannot be undone.`}
         onConfirm={executeDelete}
-        onCancel={() => setIsDeleteOpen(false)}
+        onClose={() => setIsDeleteOpen(false)}
         confirmText="Delete Permanently"
         variant="danger"
       />

@@ -1,13 +1,12 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from "../api/axios";
 
-// --- 1. Fetch Full Profile ---
+// --- 1. Fetch Full Seller Profile ---
 export const fetchSellerProfile = createAsyncThunk(
   "seller/fetchProfile",
   async (_, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.get("/seller/profile");
-      // Returns { _id, storeName, bankDetails, user: { fullName, email, avatar }, ... }
       return response.data.data; 
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch profile");
@@ -15,45 +14,31 @@ export const fetchSellerProfile = createAsyncThunk(
   }
 );
 
-// --- 2. Update Personal Info (User Identity) ---
-export const updatePersonalInfo = createAsyncThunk(
-  "seller/updatePersonalInfo",
+// --- 2. Update Complete Profile (Personal, Store & Bank) ---
+// Replaces the old separate update functions with one unified call
+export const updateSellerProfile = createAsyncThunk(
+  "seller/updateProfile",
   async (formData, { rejectWithValue }) => {
     try {
-      const config = { headers: { "Content-Type": "multipart/form-data" } };
-      // Backend Route: PUT /api/v1/seller/profile/personal
-      const response = await axiosInstance.put("/seller/profile/personal", formData, config);
-      return response.data.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Personal update failed");
-    }
-  }
-);
-
-// --- 3. Update Store Settings (Business Info) ---
-export const updateStoreProfile = createAsyncThunk(
-  "seller/updateStoreProfile",
-  async (data, { rejectWithValue }) => {
-    try {
       // Backend Route: PUT /api/v1/seller/profile
-      const response = await axiosInstance.put("/seller/profile", data);
+      const response = await axiosInstance.put("/seller/profile", formData);
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Store update failed");
+      return rejectWithValue(error.response?.data?.message || "Profile update failed");
     }
   }
 );
 
-// --- 4. Update Bank Details (Finance) ---
-export const updateBankDetails = createAsyncThunk(
-  "seller/updateBankDetails",
-  async (data, { rejectWithValue }) => {
+// --- 3. Soft Delete Seller Account ---
+export const deleteSellerAccount = createAsyncThunk(
+  "seller/deleteAccount",
+  async (_, { rejectWithValue }) => {
     try {
-      // Backend Route: PUT /api/v1/seller/bank-details
-      const response = await axiosInstance.put("/seller/bank-details", data);
-      return response.data.data;
+      // Backend Route: DELETE /api/v1/seller/profile
+      const response = await axiosInstance.delete("/seller/profile");
+      return response.data.message || "Account deleted successfully";
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Bank update failed");
+      return rejectWithValue(error.response?.data?.message || "Failed to delete account");
     }
   }
 );
@@ -72,11 +57,17 @@ const sellerSlice = createSlice({
       state.success = null;
       state.error = null;
     },
+    clearSellerProfile: (state) => {
+      state.profile = null;
+    }
   },
   extraReducers: (builder) => {
     builder
-      // Fetch
-      .addCase(fetchSellerProfile.pending, (state) => { state.loading = true; })
+      // --- Fetch Profile ---
+      .addCase(fetchSellerProfile.pending, (state) => { 
+        state.loading = true; 
+        state.error = null;
+      })
       .addCase(fetchSellerProfile.fulfilled, (state, action) => {
         state.loading = false;
         state.profile = action.payload;
@@ -85,28 +76,39 @@ const sellerSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Update Actions (Generic handler for all 3 updates to save space)
-      .addMatcher(
-        (action) => [updatePersonalInfo.pending, updateStoreProfile.pending, updateBankDetails.pending].includes(action.type),
-        (state) => { state.actionLoading = true; state.success = null; state.error = null; }
-      )
-      .addMatcher(
-        (action) => [updatePersonalInfo.fulfilled, updateStoreProfile.fulfilled, updateBankDetails.fulfilled].includes(action.type),
-        (state, action) => {
-          state.actionLoading = false;
-          state.profile = action.payload; // Update local state with fresh data
-          state.success = "Profile updated successfully!";
-        }
-      )
-      .addMatcher(
-        (action) => [updatePersonalInfo.rejected, updateStoreProfile.rejected, updateBankDetails.rejected].includes(action.type),
-        (state, action) => {
-          state.actionLoading = false;
-          state.error = action.payload;
-        }
-      );
+
+      // --- Update Profile ---
+      .addCase(updateSellerProfile.pending, (state) => { 
+        state.actionLoading = true; 
+        state.success = null; 
+        state.error = null; 
+      })
+      .addCase(updateSellerProfile.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.profile = action.payload; // Update local state with fresh data
+        state.success = "Profile updated successfully!";
+      })
+      .addCase(updateSellerProfile.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // --- Delete Account ---
+      .addCase(deleteSellerAccount.pending, (state) => {
+        state.actionLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteSellerAccount.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.profile = null; // Clear profile on successful delete
+        state.success = action.payload;
+      })
+      .addCase(deleteSellerAccount.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      });
   },
 });
 
-export const { clearSellerMessages } = sellerSlice.actions;
+export const { clearSellerMessages, clearSellerProfile } = sellerSlice.actions;
 export default sellerSlice.reducer;

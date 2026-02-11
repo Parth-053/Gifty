@@ -19,9 +19,7 @@ const HelpCenter = lazy(() => import('../pages/support/HelpCenter'));
 const ContactSupport = lazy(() => import('../pages/support/ContactSupport'));
 
 // Profile Pages
-const StoreSettings = lazy(() => import('../pages/profile/StoreSettings'));
 const SellerProfile = lazy(() => import('../pages/profile/SellerProfile'));
-const BankDetails = lazy(() => import('../pages/profile/BankDetails'));
 
 // Helper Wrapper for Lazy Loading
 const SuspenseLoader = ({ children }) => (
@@ -58,10 +56,7 @@ const SellerRoutes = () => {
         <Route path="/finance/payouts" element={<SuspenseLoader><PayoutHistory /></SuspenseLoader>} />
         
         {/* Profile Routes */}
-        <Route path="/profile" element={<Navigate to="/profile/store-settings" replace />} />
-        <Route path="/profile/store-settings" element={<SuspenseLoader><StoreSettings /></SuspenseLoader>} />
-        <Route path="/profile/personal" element={<SuspenseLoader><SellerProfile /></SuspenseLoader>} />
-        <Route path="/profile/bank-details" element={<SuspenseLoader><BankDetails /></SuspenseLoader>} />
+        <Route path="/profile" element={<SuspenseLoader><SellerProfile /></SuspenseLoader>} />
         
         {/* Support & Notifications */}
         <Route path="/notifications" element={<SuspenseLoader><Notifications /></SuspenseLoader>} />

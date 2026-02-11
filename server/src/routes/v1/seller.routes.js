@@ -24,7 +24,8 @@ import {
 } from "../../controllers/seller/finance.controller.js";
 import { 
   getProfile, 
-  updateProfile 
+  updateProfile,
+  deleteSellerProfile 
 } from "../../controllers/seller/profile.controller.js";  
 
 import { verifyAuth, authorizeRoles } from "../../middlewares/auth.middleware.js";
@@ -65,5 +66,6 @@ router.post("/finance/withdraw", requestPayout);
 // --- Profile --- 
 router.get("/profile", getProfile);
 router.put("/profile", upload.single("avatar"), updateProfile);
+router.delete("/profile", deleteSellerProfile);
 
 export default router;

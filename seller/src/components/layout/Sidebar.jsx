@@ -22,7 +22,7 @@ const NAVIGATION = [
 ];
 
 const SECONDARY_NAV = [
-  { name: "Settings", href: "/profile", icon: Cog6ToothIcon },
+  { name: "Profile", href: "/profile", icon: Cog6ToothIcon },
   { name: "Support", href: "/support", icon: QuestionMarkCircleIcon },
 ];
 

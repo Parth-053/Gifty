@@ -60,3 +60,24 @@ export const updateProfile = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, updatedSeller, "Profile updated successfully"));
 });
+
+// Example Backend Logic for Soft Deleting the Seller & Products
+export const deleteSellerProfile = asyncHandler(async (req, res) => {
+  const sellerId = req.seller._id;
+
+  // 1. Mark Seller as soft-deleted and inactive
+  const seller = await Seller.findByIdAndUpdate(
+    sellerId, 
+    { status: "suspended", isActive: false, isVerified: false }, 
+    { new: true }
+  );
+
+  // 2. Soft Delete all Products owned by this seller
+  // This hides them from users but keeps them in DB for Admin
+  await Product.updateMany(
+    { sellerId: sellerId },
+    { $set: { isDeleted: true, isActive: false } }
+  );
+
+  res.status(200).json(new ApiResponse(200, {}, "Account soft deleted successfully"));
+});
