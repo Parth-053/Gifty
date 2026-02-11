@@ -1,67 +1,118 @@
+// client/src/store/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  updateProfile, 
+  sendEmailVerification 
+} from "firebase/auth";
+import { auth } from '../config/firebase';
 import api from '../api/axios';
-import toast from 'react-hot-toast';
 
-// Login User
+// 1. Sync User (Fetches Profile & Checks Session)
+export const syncUser = createAsyncThunk(
+  "auth/syncUser",
+  async (_, { rejectWithValue }) => {
+    try {
+      if (!auth.currentUser) return rejectWithValue("No user logged in");
+
+      // Get fresh Firebase token
+      const token = await auth.currentUser.getIdToken(true);
+      localStorage.setItem("token", token);
+
+      // Fetch user from DB
+      const response = await api.get("/auth/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch profile");
+    }
+  }
+);
+
+// 2. Login User
 export const loginUser = createAsyncThunk(
-  'auth/login',
-  async ({ email, password }, { rejectWithValue }) => {
+  "auth/login",
+  async ({ email, password }, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      return response.data.data;
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      // Sync with backend & fetch profile
+      const result = await dispatch(syncUser()).unwrap();
+      return result;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      let errorMessage = error.message;
+      if (error.code === 'auth/invalid-credential') errorMessage = 'Invalid email or password';
+      return rejectWithValue(errorMessage);
     }
   }
 );
 
-// Register User
+// 3. Register User
 export const registerUser = createAsyncThunk(
-  'auth/register',
-  async (userData, { rejectWithValue }) => {
+  "auth/register",
+  async ({ fullName, email, password, phone }, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.post('/auth/register', userData);
-      return response.data.data;
+      // Create Firebase account
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await updateProfile(user, { displayName: fullName });
+      await sendEmailVerification(user);
+
+      // Get token to securely sync with backend
+      const token = await user.getIdToken();
+      localStorage.setItem("token", token);
+
+      // Sync with backend to create MongoDB User record
+      await api.post('/auth/sync/user', 
+        { fullName, phone }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Return the synced user so they stay logged in for the verify-email page
+      return await dispatch(syncUser()).unwrap();
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Registration failed');
+      // Rollback Firebase user if backend sync fails
+      if (auth.currentUser) {
+        try { await auth.currentUser.delete(); } catch (e) { console.warn("Rollback failed:", e); }
+      }
+      let errorMessage = error.message;
+      if (error.code === 'auth/email-already-in-use') errorMessage = 'This email is already registered';
+      return rejectWithValue(error.response?.data?.message || errorMessage);
     }
   }
 );
 
-// Logout User
+// 4. Logout User
 export const logoutUser = createAsyncThunk(
-  'auth/logout',
+  "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      await api.post('/auth/logout');
+      await signOut(auth);
+      localStorage.removeItem("token");
+      await api.post('/auth/logout'); // Optional backend invalidation
       return true;
-    } catch  {
-      return rejectWithValue('Logout failed');
+    } catch (error) {
+      console.error("Logout error:", error); 
+      return rejectWithValue("Logout failed");
     }
   }
 );
 
-// Check Auth Status (Load User on App Start)
-export const checkAuthStatus = createAsyncThunk(
-  'auth/check',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get('/auth/me');
-      return response.data.data;
-    } catch   {
-      return rejectWithValue('Session expired');
-    }
-  }
-);
+const initialState = {
+  user: null,
+  isAuthenticated: false,
+  loading: true, // Start true to check session on initial load
+  error: null,
+};
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState: {
-    user: null,
-    isAuthenticated: false,
-    loading: true, // Start true to check session
-    error: null,
-  },
+  initialState,
   reducers: {
     clearAuthError: (state) => {
       state.error = null;
@@ -69,51 +120,45 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Login
-      .addCase(loginUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
+      // Sync User Profile
+      .addCase(syncUser.pending, (state) => { state.error = null; })
+      .addCase(syncUser.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        toast.success('Welcome back!');
+        state.user = action.payload;
+        state.error = null;
       })
+      .addCase(syncUser.rejected, (state, action) => {
+        state.loading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+        if (action.payload !== "No user logged in") {
+          state.error = action.payload;
+        }
+      })
+      
+      // Login User
+      .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(loginUser.fulfilled, () => { /* State managed by syncUser */ }) 
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        toast.error(action.payload);
       })
-      // Register
-      .addCase(registerUser.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(registerUser.fulfilled, (state) => {
-        state.loading = false;
-        toast.success('Registration successful! Please login.');
-      })
+
+      // Register User
+      .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(registerUser.fulfilled, (state) => { state.loading = false; })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        toast.error(action.payload);
       })
-      // Check Auth
-      .addCase(checkAuthStatus.fulfilled, (state, action) => {
-        state.isAuthenticated = true;
-        state.user = action.payload;
-        state.loading = false;
-      })
-      .addCase(checkAuthStatus.rejected, (state) => {
-        state.isAuthenticated = false;
-        state.user = null;
-        state.loading = false;
-      })
+
       // Logout
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
-        toast.success('Logged out successfully');
+        state.loading = false;
+        state.error = null;
       });
   },
 });

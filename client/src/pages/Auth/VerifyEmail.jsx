@@ -1,33 +1,41 @@
-// client/src/pages/auth/VerifyEmail.jsx
+// client/src/pages/Auth/VerifyEmail.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sendEmailVerification, signOut } from "firebase/auth";
+import { sendEmailVerification } from "firebase/auth";
 import { auth } from "../../config/firebase";
+import { useDispatch } from 'react-redux';
+import { syncUser } from '../../store/authSlice';
 import toast from 'react-hot-toast';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(false);
   const user = auth.currentUser;
 
-  // 1. Auto-check every 3 seconds if email is verified
+  // Auto-check if email is verified
   useEffect(() => {
+    if (!user) {
+        navigate('/login');
+        return;
+    }
+
     const interval = setInterval(async () => {
       if (auth.currentUser) {
-        await auth.currentUser.reload(); // Refresh user data from Firebase
+        await auth.currentUser.reload(); 
         if (auth.currentUser.emailVerified) {
           clearInterval(interval);
+          // Crucial: Sync with backend so MongoDB sets isEmailVerified: true
+          await dispatch(syncUser()).unwrap(); 
           toast.success("Email Verified! Redirecting...");
-          navigate('/'); // Go to Home/Dashboard
+          navigate('/'); 
         }
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [navigate]);
+  }, [navigate, dispatch, user]);
 
-  // 2. Resend Verification Link
   const handleResend = async () => {
     if (!user) return;
     setLoading(true);
@@ -35,7 +43,6 @@ const VerifyEmail = () => {
       await sendEmailVerification(user);
       toast.success("Verification link sent again!");
     } catch (error) {
-      console.error(error);
       if (error.code === 'auth/too-many-requests') {
         toast.error("Please wait a bit before requesting again.");
       } else {
@@ -46,37 +53,14 @@ const VerifyEmail = () => {
     }
   };
 
-  // 3. Manual Check Button
-  const handleManualCheck = async () => {
-    setChecking(true);
-    if (auth.currentUser) {
-        await auth.currentUser.reload();
-        if (auth.currentUser.emailVerified) {
-            toast.success("Verified!");
-            navigate('/');
-        } else {
-            toast.error("Not verified yet. Please check your inbox (and spam).");
-        }
-    }
-    setChecking(false);
-  };
-
-  // 4. Logout (in case they want to use another account)
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate('/login');
-  };
-
-  if (!user) {
-      navigate('/login');
-      return null;
-  }
+  if (!user) return null; // Prevent flicker before redirect
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg text-center">
-        <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 text-center">
+        
+        <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 text-blue-600">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </div>
@@ -88,29 +72,18 @@ const VerifyEmail = () => {
         </p>
 
         <div className="space-y-3">
-          <button 
-            onClick={handleManualCheck}
-            disabled={checking}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors"
-          >
-            {checking ? "Checking..." : "I've Verified My Email"}
+          <button disabled className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">
+            Waiting for verification...
           </button>
 
           <button 
             onClick={handleResend}
             disabled={loading}
-            className="w-full bg-white border border-gray-300 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-50 transition-colors"
+            className="w-full bg-white text-blue-600 border border-blue-600 py-3 rounded-xl font-bold hover:bg-blue-50 transition-colors disabled:opacity-50"
           >
-            {loading ? "Sending..." : "Resend Verification Link"}
+            {loading ? "Sending..." : "Resend Link"}
           </button>
         </div>
-
-        <button 
-          onClick={handleLogout}
-          className="mt-8 text-sm text-gray-500 hover:text-red-600 hover:underline"
-        >
-          Log out
-        </button>
       </div>
     </div>
   );

@@ -3,8 +3,8 @@ import { useDispatch } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 
 // Components & Routes
-import AppRoutes from './routes'; // The file we created with all the Paths
-import { checkAuthStatus } from './store/authSlice';
+import AppRoutes from './routes'; 
+import { syncUser } from './store/authSlice'; // 👈 Updated Import
 import { fetchCart } from './store/cartSlice';
 import { fetchWishlist } from './store/wishlistSlice';
 
@@ -24,12 +24,11 @@ const App = () => {
 
   // Global Initialization
   useEffect(() => {
-    // 1. Check if user is logged in
+    // 1. Check if user is logged in using the new syncUser thunk
     const initApp = async () => {
-      const userAction = await dispatch(checkAuthStatus());
-      
-      // 2. If logged in, fetch their cart and wishlist immediately
-      if (checkAuthStatus.fulfilled.match(userAction)) {
+      const userAction = await dispatch(syncUser());  
+       
+      if (syncUser.fulfilled.match(userAction)) {  
         dispatch(fetchCart());
         dispatch(fetchWishlist());
       }

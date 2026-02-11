@@ -1,9 +1,11 @@
+// client/src/pages/Auth/ForgotPassword.jsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
-import api from '../../api/axios';
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "../../config/firebase";
 import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {
@@ -15,11 +17,14 @@ const ForgotPassword = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/auth/forgot-password', { email });
+      await sendPasswordResetEmail(auth, email);
       setSent(true);
       toast.success("Reset link sent!");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send link");
+      let errorMsg = "Failed to send reset link.";
+      if (error.code === 'auth/user-not-found') errorMsg = "No account found with this email.";
+      if (error.code === 'auth/invalid-email') errorMsg = "Invalid email address.";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -32,14 +37,12 @@ const ForgotPassword = () => {
           <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle size={32} />
           </div>
-          <h2 className="text-2xl font-black text-gray-900 mb-2">Check your mail</h2>
-          <p className="text-gray-500 text-sm mb-8">
-            We have sent a password reset link to <span className="font-bold text-gray-800">{email}</span>
+          <h2 className="text-2xl font-black text-gray-900 mb-4">Check your email</h2>
+          <p className="text-gray-500 mb-8">
+            We have sent password reset instructions to <br />
+            <span className="font-medium text-gray-900">{email}</span>
           </p>
-          <Link 
-            to="/auth/login"
-            className="block w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-all"
-          >
+          <Link to="/login" className="block w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-black transition-all">
             Back to Login
           </Link>
         </div>
@@ -52,7 +55,7 @@ const ForgotPassword = () => {
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
         
         <div className="bg-gray-900 p-8 text-center relative">
-          <Link to="/auth/login" className="absolute left-6 top-8 text-white/50 hover:text-white transition-colors">
+          <Link to="/login" className="absolute left-6 top-8 text-white/50 hover:text-white transition-colors">
             <ArrowLeft size={24} />
           </Link>
           <h2 className="text-2xl font-black text-white mb-2">Forgot Password?</h2>
@@ -71,15 +74,19 @@ const ForgotPassword = () => {
               required
             />
 
-            <Button 
-              type="submit" 
-              fullWidth 
-              size="lg" 
-              isLoading={loading}
-            >
+            <Button type="submit" fullWidth size="lg" isLoading={loading}>
               Send Reset Link
             </Button>
           </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-500">
+              Remember your password?{' '}
+              <Link to="/login" className="font-bold text-gray-900 hover:underline">
+                Login here
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -79,9 +79,10 @@ const ProductCard = ({ product }) => {
         <div className="flex justify-between items-start mb-2">
           <p className="text-xs text-gray-500 font-medium">{product.category?.name || "Category"}</p>
           <div className="flex items-center gap-1 bg-yellow-50 px-1.5 py-0.5 rounded text-yellow-700 text-xs font-bold">
-            <Star size={10} fill="currentColor" />
-            <span>{product.rating || 4.5}</span>
-          </div>
+          <Star size={10} fill="currentColor" />
+          {/* Extract the 'average' property from the rating object */}
+          <span>{product.rating?.average || 4.5}</span>
+        </div>
         </div>
 
         {/* Title */}

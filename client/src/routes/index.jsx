@@ -7,7 +7,7 @@ import ProtectedRoute from './ProtectedRoute';
 import Login from '../pages/Auth/Login';
 import Register from '../pages/Auth/Register';
 import ForgotPassword from '../pages/Auth/ForgotPassword';
-import VerifyEmail from '../pages/Auth/VerifyEmail'; // [ADDED] New Page
+import VerifyEmail from '../pages/Auth/VerifyEmail'; 
 
 // --- MAIN PAGES ---
 import Home from '../pages/Main/Home';
@@ -40,7 +40,7 @@ import About from '../pages/Utility/About';
 import Contact from '../pages/Utility/Contact';
 
 // --- ERROR PAGE ---
-import NotFound from '../pages/NotFound'; // Ensure you have this or remove
+import NotFound from '../pages/Utility/NotFound'; // Ensure correct path
 
 const AppRoutes = () => {
   return (
@@ -49,13 +49,19 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} /> {/* [ADDED] */}
+      <Route path="/verify-email" element={<VerifyEmail />} /> 
 
       {/* 2. App Layout Routes (Navbar, Footer, etc.) */}
       <Route element={<AppLayout />}>
         
-        {/* Public Pages inside Layout */}
-        <Route path="/" element={<Home />} />
+        {/* === HOME PAGE (Now Protected) === */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Home />
+          </ProtectedRoute>
+        } />
+
+        {/* Public Browsing Pages inside Layout (Optional: Wrap these in ProtectedRoute too if you want the ENTIRE app locked down) */}
         <Route path="/categories" element={<Categories />} />
         <Route path="/customize" element={<Customize />} />
         <Route path="/search" element={<Search />} />
