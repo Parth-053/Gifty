@@ -4,8 +4,7 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
-  updateProfile, 
-  sendEmailVerification 
+  updateProfile
 } from "firebase/auth";
 import { auth } from '../config/firebase';
 import api from '../api/axios';
@@ -17,11 +16,9 @@ export const syncUser = createAsyncThunk(
     try {
       if (!auth.currentUser) return rejectWithValue("No user logged in");
 
-      // Get fresh Firebase token
       const token = await auth.currentUser.getIdToken(true);
       localStorage.setItem("token", token);
 
-      // Fetch user from DB
       const response = await api.get("/auth/me", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -39,8 +36,6 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { dispatch, rejectWithValue }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      
-      // Sync with backend & fetch profile
       const result = await dispatch(syncUser()).unwrap();
       return result;
     } catch (error) {
@@ -51,32 +46,31 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-// 3. Register User
+// 3. Register User (Now handles Address internally & assumes OTP is already verified)
 export const registerUser = createAsyncThunk(
   "auth/register",
-  async ({ fullName, email, password, phone }, { dispatch, rejectWithValue }) => {
+  async ({ fullName, email, password, phone, addressData }, { dispatch, rejectWithValue }) => {
     try {
-      // Create Firebase account
+      // 1. Create Firebase account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // 2. Set Display Name
       await updateProfile(user, { displayName: fullName });
-      await sendEmailVerification(user);
 
-      // Get token to securely sync with backend
+      // 3. Get token to securely sync with backend
       const token = await user.getIdToken();
       localStorage.setItem("token", token);
 
-      // Sync with backend to create MongoDB User record
+      // 4. Sync with backend to create MongoDB User record AND Address
       await api.post('/auth/sync/user', 
-        { fullName, phone }, 
+        { fullName, phone, addressData }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Return the synced user so they stay logged in for the verify-email page
+      // 5. Fetch and return full user profile
       return await dispatch(syncUser()).unwrap();
     } catch (error) {
-      // Rollback Firebase user if backend sync fails
       if (auth.currentUser) {
         try { await auth.currentUser.delete(); } catch (e) { console.warn("Rollback failed:", e); }
       }
@@ -94,7 +88,7 @@ export const logoutUser = createAsyncThunk(
     try {
       await signOut(auth);
       localStorage.removeItem("token");
-      await api.post('/auth/logout'); // Optional backend invalidation
+      await api.post('/auth/logout'); 
       return true;
     } catch (error) {
       console.error("Logout error:", error); 
@@ -106,7 +100,7 @@ export const logoutUser = createAsyncThunk(
 const initialState = {
   user: null,
   isAuthenticated: false,
-  loading: true, // Start true to check session on initial load
+  loading: true, 
   error: null,
 };
 
@@ -120,7 +114,6 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Sync User Profile
       .addCase(syncUser.pending, (state) => { state.error = null; })
       .addCase(syncUser.fulfilled, (state, action) => {
         state.loading = false;
@@ -136,24 +129,18 @@ const authSlice = createSlice({
           state.error = action.payload;
         }
       })
-      
-      // Login User
       .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(loginUser.fulfilled, () => { /* State managed by syncUser */ }) 
+      .addCase(loginUser.fulfilled, () => {  }) 
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Register User
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(registerUser.fulfilled, (state) => { state.loading = false; })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Logout
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;

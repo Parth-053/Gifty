@@ -4,28 +4,65 @@ import { Product } from "../../models/Product.model.js";
 import * as imageService from "../../services/image.service.js";  
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
-import { ApiError } from "../../utils/apiError.js";
+import { ApiError } from "../../utils/ApiError.js";
 import { httpStatus } from "../../constants/httpStatus.js";
 
 // --- User Management ---
-
 export const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find().select("-password").sort({ createdAt: -1 });
-  return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, users, "Users fetched"));
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const search = req.query.search || "";
+ 
+  let query = { role: "user" };
+  
+  if (search) {
+    query.$or = [
+      { fullName: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } }
+    ];
+  }
+
+  const total = await User.countDocuments(query);
+  const users = await User.find(query)
+    .select("-password")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  // FIXED: Returned as { users, total } to match what Redux expects
+  return res.status(httpStatus.OK).json(
+    new ApiResponse(httpStatus.OK, { users, total }, "Users fetched successfully")
+  );
 });
 
 export const getUserDetails = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select("-password");
+  const user = await User.findById(req.params.id)
+    .select("-password")
+    .populate("addresses"); 
+    
   if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, user, "User details fetched"));
 });
 
 export const updateUserStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body; // 'active' or 'blocked'
-  const user = await User.findByIdAndUpdate(req.params.id, { isActive: status === 'active' }, { new: true });
+  const { isActive, status } = req.body; 
+  
+  let newStatus;
+  if (isActive !== undefined) {
+      newStatus = isActive; // From Admin Panel
+  } else {
+      newStatus = status === 'active'; // Fallback
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.params.id, 
+    { isActive: newStatus }, 
+    { new: true }
+  ).select("-password").populate("addresses");
+
   return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, user, "User status updated"));
 });
-
 
 // --- Seller Management ---
 

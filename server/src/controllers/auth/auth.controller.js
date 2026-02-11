@@ -1,6 +1,6 @@
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
-import { ApiError } from "../../utils/apiError.js";
+import { ApiError } from "../../utils/ApiError.js";
 import { Otp } from "../../models/Otp.model.js";
 import { Seller } from "../../models/Seller.model.js"; 
 import { User } from "../../models/User.model.js";
@@ -10,7 +10,7 @@ import { notifyAdmin } from "../../services/notification.service.js";
 import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
- * @desc    Generate and Send OTP
+ * @desc    Generate and Send OTP (Works for both Buyers and Sellers)
  * @route   POST /api/v1/auth/send-otp
  * @access  Public
  */
@@ -24,14 +24,20 @@ export const sendOtp = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Account already exists. Please login.");
   }
 
-  // 2. Generate 6-digit OTP
+  // 2. Check if User already exists in DB 
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new ApiError(400, "Account already exists. Please login.");
+  }
+
+  // 3. Generate 6-digit OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // 3. Store in DB (Delete any old OTPs for this email first)
+  // 4. Store in DB (Delete any old OTPs for this email first)
   await Otp.deleteMany({ email });
   await Otp.create({ email, otp });
 
-  // 4. Send Email via Service
+  // 5. Send Email via Service
   const emailSent = await sendOtpEmail(email, otp);
   
   if (!emailSent) {
@@ -41,6 +47,29 @@ export const sendOtp = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, `Verification code sent to ${email}`));
+});
+
+/**
+ * @desc    Verify OTP for Users
+ * @route   POST /api/v1/auth/verify-otp
+ * @access  Public
+ */
+export const verifyOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  
+  if (!email || !otp) {
+     throw new ApiError(400, "Email and OTP are required");
+  }
+
+  const validOtp = await Otp.findOne({ email, otp });
+  if (!validOtp) {
+    throw new ApiError(400, "Invalid or expired OTP");
+  }
+
+  // Delete OTP after successful verification
+  await Otp.deleteOne({ _id: validOtp._id });
+
+  return res.status(200).json(new ApiResponse(200, {}, "OTP verified successfully"));
 });
 
 /**
@@ -63,7 +92,7 @@ export const registerSeller = asyncHandler(async (req, res) => {
   
   const firebaseUid = req.uid; // From auth middleware
 
-  // 1. Verify OTP
+  // 1. Verify OTP for Seller
   const validOtp = await Otp.findOne({ email, otp });
   if (!validOtp) {
     throw new ApiError(400, "Invalid or expired OTP");
@@ -102,7 +131,7 @@ export const registerSeller = asyncHandler(async (req, res) => {
       console.error("Welcome email failed", err);
   }
 
-  // --- NOTIFICATION TRIGGER (NEW) ---
+  // --- NOTIFICATION TRIGGER ---
   await notifyAdmin({
     type: "NEW_SELLER",
     title: "New Seller Registration",
@@ -128,11 +157,12 @@ export const syncUser = asyncHandler(async (req, res) => {
     fullName: req.body.fullName,
     phone: req.body.phone,
     avatar: req.body.avatar, 
+    addressData: req.body.addressData // Pass Address Data from Client
   };
 
   const { user, isNewUser } = await authService.syncUser(userData);
 
-  // --- NOTIFICATION TRIGGER (NEW) ---
+  // --- NOTIFICATION TRIGGER ---
   if (isNewUser) {
     await notifyAdmin({
       type: "NEW_USER",
@@ -165,8 +195,7 @@ export const syncSeller = asyncHandler(async (req, res) => {
 
   const { seller, isNewSeller } = await authService.syncSeller(sellerData);
 
-  // --- NOTIFICATION TRIGGER (NEW) ---
-  // In case a seller is created via Sync (rare if strict flow, but safe to keep)
+  // --- NOTIFICATION TRIGGER ---
   if (isNewSeller) {
     await notifyAdmin({
       type: "NEW_SELLER",

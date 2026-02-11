@@ -1,18 +1,16 @@
 import { User } from "../models/User.model.js";
 import { Seller } from "../models/Seller.model.js";
+import { Address } from "../models/Address.model.js";
 import { ApiError } from "../utils/ApiError.js";
 
-/**
- * Sync User (Login/Register)
- */
 export const syncUser = async (userData) => {
-  const { firebaseUid, email, fullName, avatar, phone } = userData;
+  const { firebaseUid, email, fullName, avatar, phone, addressData } = userData;
 
   let user = await User.findOne({ firebaseUid });
   let isNewUser = false;
 
   if (!user) {
-    // Create New
+    // Create New User (Force isEmailVerified to true since OTP is handled first)
     user = await User.create({
       firebaseUid,
       email,
@@ -20,11 +18,22 @@ export const syncUser = async (userData) => {
       avatar,
       phone,
       role: "user",
-      isEmailVerified: userData.isEmailVerified
+      isEmailVerified: true 
     });
     isNewUser = true;
+
+    // Save Address if user provided it during registration
+    if (addressData) {
+      const newAddress = await Address.create({
+        ...addressData,
+        user: user._id,
+        fullName: fullName,
+        phone: phone || "0000000000"
+      });
+      user.addresses.push(newAddress._id);
+      await user.save();
+    }
   } else {
-    // Update Existing
     if (fullName) user.fullName = fullName;
     if (avatar?.url) user.avatar = avatar;
     if (phone) user.phone = phone;
@@ -34,9 +43,6 @@ export const syncUser = async (userData) => {
   return { user, isNewUser };
 };
 
-/**
- * Sync Seller (Application)
- */
 export const syncSeller = async (sellerData) => {
   const { firebaseUid, email, fullName, storeName, phone, gstin } = sellerData;
 
@@ -44,20 +50,14 @@ export const syncSeller = async (sellerData) => {
   let isNewSeller = false;
 
   if (!seller) {
-    // Check if email already used by a regular User
     const existingUser = await User.findOne({ email });
     if (existingUser) {
         throw new ApiError(400, "Account exists as a Buyer. Contact support to upgrade.");
     }
 
     seller = await Seller.create({
-      firebaseUid,
-      email,
-      fullName,
-      storeName,
-      phone,
-      gstin,
-      status: "pending", // Requires Admin Approval
+      firebaseUid, email, fullName, storeName, phone, gstin,
+      status: "pending", 
       businessAddress: { street: "", city: "", state: "", zipCode: "", country: "India" },
       bankDetails: { accountNumber: "", ifscCode: "", bankName: "", accountName: "" }
     });
@@ -71,16 +71,14 @@ export const syncSeller = async (sellerData) => {
   return { seller, isNewSeller };
 };
 
-/**
- * Get Profile by Role
- */
 export const getProfile = async (uid, role) => {
   if (role === "seller") {
     const seller = await Seller.findOne({ firebaseUid: uid });
     if (!seller) throw new ApiError(404, "Seller profile not found");
     return seller;
   } else {
-    const user = await User.findOne({ firebaseUid: uid });
+    // Use .populate("addresses") so the UI gets the actual address data, not just IDs
+    const user = await User.findOne({ firebaseUid: uid }).populate("addresses");
     if (!user) throw new ApiError(404, "User profile not found");
     return user;
   }

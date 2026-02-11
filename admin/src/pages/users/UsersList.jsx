@@ -1,11 +1,11 @@
+// admin/src/pages/users/UsersList.jsx
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { fetchUsers, deleteUser } from "../../store/userSlice";
+import { fetchUsers } from "../../store/userSlice";
 
 // Components
 import UserTable from "../../components/tables/UserTable";
-import Loader from "../../components/common/Loader";
 import Pagination from "../../components/common/Pagination";
 import EmptyState from "../../components/common/EmptyState";
 import Input from "../../components/common/Input";
@@ -16,20 +16,18 @@ const UsersList = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  // FIX: Destructure with default values to prevent undefined errors
   const { list, total, loading, error } = useSelector((state) => state.users || {});
-  const users = list || []; // Ensure users is always an array
+  const users = list || []; 
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   
-  // Delete Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
-    dispatch(fetchUsers({ page, search: debouncedSearch }));
+    dispatch(fetchUsers({ page, limit: 10, search: debouncedSearch }));
   }, [dispatch, page, debouncedSearch]);
 
   const handleView = (id) => {
@@ -42,27 +40,14 @@ const UsersList = () => {
   };
 
   const confirmDelete = async () => {
-    if (selectedUser) {
-      await dispatch(deleteUser(selectedUser._id));
-      setDeleteModalOpen(false);
-      setSelectedUser(null);
-      // Refresh list
-      dispatch(fetchUsers({ page, search: debouncedSearch }));
-    }
+    if (!selectedUser) return;
+    // Implementation for delete if you decide to add it later
+    setDeleteModalOpen(false);
   };
-
-  if (loading && users.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      {/* Header & Search */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="mt-1 text-sm text-gray-500">Manage registered customers and administrators.</p>
@@ -102,7 +87,6 @@ const UsersList = () => {
         )
       )}
 
-      {/* Delete Confirmation Modal */}
       <ConfirmDialog
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

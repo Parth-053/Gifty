@@ -6,7 +6,8 @@ export const syncUserSchema = Joi.object({
   avatar: Joi.object({
     url: Joi.string().uri().required(),
     publicId: Joi.string().allow(null, "")
-  }).optional().allow(null)
+  }).optional().allow(null),
+  addressData: Joi.any().optional() 
 });
 
 export const syncSellerSchema = Joi.object({

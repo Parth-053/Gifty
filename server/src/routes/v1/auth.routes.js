@@ -3,25 +3,26 @@ import * as authController from "../../controllers/auth/auth.controller.js";
 import { verifyAuth } from "../../middlewares/auth.middleware.js";
 import validate from "../../middlewares/validate.middleware.js";
 import { syncUserSchema } from "../../validations/auth.schema.js";
-// Note: You may want to create a validation schema for registerSeller in validations/seller.schema.js
 
 const router = Router();
 
 // --- Public Routes ---
-// Send OTP (Does not require token usually, or you can require it if user is logged in via Firebase)
+// Send OTP (Used by both User and Seller registration)
 router.post("/send-otp", authController.sendOtp); 
+
+// Verify OTP (Standalone verifier used by User registration)
+router.post("/verify-otp", authController.verifyOtp);
 
 // --- Protected Routes (Requires Firebase Token) ---
 
-// Register Seller (Final Step with OTP)
+// Register Seller (Verifies OTP inside the controller and creates seller account)
 router.post(
   "/register-seller",
   verifyAuth,
-  // Add validate(registerSellerSchema) here if you create one
   authController.registerSeller
 );
 
-// Sync User (Buyer)
+// Sync User (Buyer Login & Registration Sync)
 router.post(
   "/sync/user",
   verifyAuth,
@@ -29,7 +30,14 @@ router.post(
   authController.syncUser
 );
 
-// Common Auth
+// Sync Seller (Seller Login Only)
+router.post(
+  "/sync/seller", 
+  verifyAuth, 
+  authController.syncSeller
+);
+
+// Common Auth (Fetch profile, Logout)
 router.get("/me", verifyAuth, authController.getMe);
 router.post("/logout", verifyAuth, authController.logout);
 

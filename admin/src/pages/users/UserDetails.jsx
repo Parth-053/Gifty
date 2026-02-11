@@ -1,3 +1,4 @@
+// admin/src/pages/users/UserDetails.jsx
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
@@ -9,13 +10,13 @@ import Button from "../../components/common/Button";
 import Badge from "../../components/common/Badge";
 import Loader from "../../components/common/Loader";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import EmptyState from "../../components/common/EmptyState";
 
 const UserDetails = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // FIX: safely access state
   const { currentUser: user, loading } = useSelector((state) => state.users || {});
   
   const [blockModalOpen, setBlockModalOpen] = useState(false);
@@ -36,105 +37,105 @@ const UserDetails = () => {
     setBlockModalOpen(false);
   };
 
-  // 1. Loading State
-  if (loading) {
+  if (loading && !user) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader size="lg" />
+      <div className="flex justify-center items-center h-64">
+        <Loader />
       </div>
     );
   }
 
-  // 2. Error/Not Found State (Prevents crash if user is null)
   if (!user) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">User not found.</p>
-        <Button variant="outline" onClick={() => navigate("/users")} className="mt-4">
-          Go Back
-        </Button>
+      <div className="mt-8">
+        <EmptyState 
+            title="User not found" 
+            description="The user you are looking for does not exist or has been deleted." 
+            action={{ label: "Back to Users", onClick: () => navigate('/users') }}
+        />
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header Navigation */}
-      <button 
-        onClick={() => navigate("/users")}
-        className="flex items-center text-gray-500 hover:text-gray-900 transition-colors"
-      >
-        <ArrowLeftIcon className="h-4 w-4 mr-2" />
-        Back to Users
-      </button>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate('/users')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">User Details</h1>
+            <p className="text-sm text-gray-500">ID: {user._id}</p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Button 
+            variant={user.isActive === false ? "primary" : "danger"}
+            icon={user.isActive === false ? ShieldExclamationIcon : NoSymbolIcon}
+            onClick={() => setBlockModalOpen(true)}
+          >
+            {user.isActive === false ? "Unblock User" : "Block User"}
+          </Button>
+        </div>
+      </div>
 
-      {/* Main Profile Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Banner/Header */}
-        <div className="bg-gray-50 px-6 py-8 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-20 w-20 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-2xl font-bold uppercase">
-              {user.fullName?.[0] || "U"}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Col: Profile Card */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
+            <img 
+              src={user.avatar?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}&background=random`} 
+              alt={user.fullName}
+              className="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-gray-50 object-cover"
+            />
+            <h2 className="text-xl font-bold text-gray-900">{user.fullName}</h2>
+            <p className="text-gray-500 mb-4">{user.email}</p>
+            
+            <div className="flex justify-center gap-2 mb-6">
+              <Badge variant={user.isActive !== false ? "success" : "danger"}>
+                {user.isActive !== false ? "Active" : "Blocked"}
+              </Badge>
+              <Badge variant={user.isEmailVerified ? "success" : "warning"}>
+                {user.isEmailVerified ? "Verified" : "Unverified"}
+              </Badge>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{user.fullName}</h1>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>{user.email}</span>
-                <span>•</span>
-                <Badge variant={user.role === 'admin' ? 'purple' : 'blue'}>{user.role}</Badge>
+
+            <div className="text-left space-y-3 pt-6 border-t border-gray-100">
+              <div>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Phone Number</p>
+                <p className="font-medium text-gray-900">{user.phone || "Not provided"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Joined Date</p>
+                <p className="font-medium text-gray-900">
+                  {new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
               </div>
             </div>
-          </div>
-
-          <div className="flex gap-3">
-            {user.role !== 'admin' && (
-              <Button 
-                variant={user.isActive ? "danger" : "success"}
-                onClick={() => setBlockModalOpen(true)}
-                icon={user.isActive ? NoSymbolIcon : ShieldExclamationIcon}
-              >
-                {user.isActive ? "Block User" : "Unblock User"}
-              </Button>
-            )}
           </div>
         </div>
 
-        {/* Details Grid */}
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Personal Info */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Contact Information</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between border-b border-gray-100 pb-2">
-                <span className="text-gray-500">Phone</span>
-                <span className="font-medium text-gray-900">{user.phone || "N/A"}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-2">
-                <span className="text-gray-500">Joined Date</span>
-                <span className="font-medium text-gray-900">{new Date(user.createdAt).toLocaleDateString()}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-2">
-                <span className="text-gray-500">Status</span>
-                <Badge variant={user.isActive ? 'success' : 'danger'}>
-                  {user.isActive ? 'Active' : 'Blocked'}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
+        {/* Right Col: Details */}
+        <div className="lg:col-span-2 space-y-6">
           {/* Addresses */}
-          <div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-4">
-              <MapPinIcon className="h-5 w-5 text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-800">Saved Addresses</h3>
+              <MapPinIcon className="w-5 h-5 text-gray-400" />
+              <h3 className="text-lg font-bold text-gray-900">Saved Addresses</h3>
             </div>
             
-            {user.addresses && user.addresses.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3">
+            {user.addresses?.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {user.addresses.map((addr, idx) => (
                   <div key={idx} className="p-3 border border-gray-100 rounded-lg bg-gray-50 text-sm">
                     <p className="font-medium text-gray-900 mb-1">{addr.name || user.fullName}</p>
                     <p className="text-gray-600">{addr.addressLine1}</p>
+                    {addr.addressLine2 && <p className="text-gray-600">{addr.addressLine2}</p>}
                     <p className="text-gray-600">{addr.city}, {addr.state} - {addr.pincode}</p>
                     <p className="text-gray-600 mt-1 text-xs">Phone: {addr.phone}</p>
                   </div>
@@ -149,18 +150,17 @@ const UserDetails = () => {
         </div>
       </div>
 
-      {/* Confirmation Dialog for Blocking */}
       <ConfirmDialog 
         isOpen={blockModalOpen}
         onClose={() => setBlockModalOpen(false)}
         onConfirm={toggleBlockStatus}
-        title={user.isActive === false ? "Unblock User?" : "Block User?"}
-        message={user.isActive === false 
+        title={user?.isActive === false ? "Unblock User?" : "Block User?"}
+        message={user?.isActive === false 
           ? "This will restore the user's access to the platform." 
           : "This will prevent the user from logging in or placing new orders."
         }
-        confirmText={user.isActive === false ? "Unblock" : "Block"}
-        variant={user.isActive ? "danger" : "primary"}
+        confirmText={user?.isActive === false ? "Unblock" : "Block"}
+        variant={user?.isActive !== false ? "danger" : "primary"}
         isLoading={actionLoading}
       />
     </div>

@@ -1,3 +1,4 @@
+// admin/src/store/userSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/axios";
 
@@ -9,7 +10,7 @@ export const fetchUsers = createAsyncThunk(
       const response = await api.get("/admin/users", {
         params: { page, limit, search }
       });
-      return response.data.data; // { users, total, pages }
+      return response.data.data; // { users, total }
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch users");
     }
@@ -42,27 +43,13 @@ export const updateUserStatus = createAsyncThunk(
   }
 );
 
-// 4. Delete User
-export const deleteUser = createAsyncThunk(
-  "users/delete",
-  async (id, { rejectWithValue }) => {
-    try {
-      await api.delete(`/admin/users/${id}`);
-      return id;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Delete failed");
-    }
-  }
-);
-
 const userSlice = createSlice({
   name: "users",
   initialState: {
     list: [],
-    currentUser: null,
     total: 0,
-    totalPages: 0,
-    currentPage: 1,
+    totalPages: 1,
+    currentUser: null,
     loading: false,
     error: null,
   },
@@ -74,35 +61,36 @@ const userSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Fetch List
-      .addCase(fetchUsers.pending, (state) => { state.loading = true; })
+      .addCase(fetchUsers.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(fetchUsers.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload.users;
-        state.total = action.payload.total;
-        state.totalPages = Math.ceil(action.payload.total / 10); // Approx if backend doesn't send pages
+        state.list = action.payload.users || [];
+        state.total = action.payload.total || 0;
+        state.totalPages = Math.ceil((action.payload.total || 0) / 10);
       })
       .addCase(fetchUsers.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+      
       // Fetch Details
-      .addCase(fetchUserDetails.pending, (state) => { state.loading = true; })
+      .addCase(fetchUserDetails.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(fetchUserDetails.fulfilled, (state, action) => {
         state.loading = false;
         state.currentUser = action.payload;
       })
-      // Update Status
+      .addCase(fetchUserDetails.rejected, (state, action) => {
+          state.loading = false;
+          state.error = action.payload;
+      })
+
+      // Update Status (Block/Unblock)
       .addCase(updateUserStatus.fulfilled, (state, action) => {
         if (state.currentUser?._id === action.payload._id) {
           state.currentUser = action.payload;
         }
         const index = state.list.findIndex(u => u._id === action.payload._id);
         if (index !== -1) state.list[index] = action.payload;
-      })
-      // Delete
-      .addCase(deleteUser.fulfilled, (state, action) => {
-        state.list = state.list.filter(user => user._id !== action.payload);
-        state.total -= 1;
       });
   },
 });

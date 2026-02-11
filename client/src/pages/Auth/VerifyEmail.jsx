@@ -1,59 +1,65 @@
 // client/src/pages/Auth/VerifyEmail.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { sendEmailVerification } from "firebase/auth";
-import { auth } from "../../config/firebase";
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { syncUser } from '../../store/authSlice';
+import { registerUser } from '../../store/authSlice';
+import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+  
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const user = auth.currentUser;
 
-  // Auto-check if email is verified
+  // Retrieve the data passed from the Register component
+  const registrationData = location.state;
+
+  // Protect the route: if someone directly types /verify-email in URL, send them back to register
   useEffect(() => {
-    if (!user) {
-        navigate('/login');
-        return;
+    if (!registrationData || !registrationData.formData?.email) {
+        navigate('/register');
     }
+  }, [navigate, registrationData]);
 
-    const interval = setInterval(async () => {
-      if (auth.currentUser) {
-        await auth.currentUser.reload(); 
-        if (auth.currentUser.emailVerified) {
-          clearInterval(interval);
-          // Crucial: Sync with backend so MongoDB sets isEmailVerified: true
-          await dispatch(syncUser()).unwrap(); 
-          toast.success("Email Verified! Redirecting...");
-          navigate('/'); 
-        }
-      }
-    }, 3000);
+  if (!registrationData) return null; // Prevent UI flicker before redirect
 
-    return () => clearInterval(interval);
-  }, [navigate, dispatch, user]);
+  const { formData, addressData } = registrationData;
 
-  const handleResend = async () => {
-    if (!user) return;
+  const handleVerifyAndRegister = async (e) => {
+    e.preventDefault();
+    if (otp.length !== 6) return toast.error("OTP must be exactly 6 digits.");
+    
     setLoading(true);
     try {
-      await sendEmailVerification(user);
-      toast.success("Verification link sent again!");
+        // 1. Verify OTP with Backend
+        await api.post('/auth/verify-otp', { email: formData.email, otp });
+        
+        // 2. If valid, actually create the Firebase & MongoDB Account
+        await dispatch(registerUser({ ...formData, addressData })).unwrap();
+        
+        toast.success("Account created successfully!");
+        navigate('/'); // Instantly redirect to home!
+    } catch (err) {
+        toast.error(err.response?.data?.message || err || "Invalid or Expired OTP.");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    try {
+      await api.post('/auth/send-otp', { email: formData.email });
+      toast.success("New verification code sent!");
     } catch (error) {
-      if (error.code === 'auth/too-many-requests') {
-        toast.error("Please wait a bit before requesting again.");
-      } else {
-        toast.error("Failed to send link.");
-      }
+      toast.error(error.response?.data?.message || "Failed to send code.");
     } finally {
       setLoading(false);
     }
   };
-
-  if (!user) return null; // Prevent flicker before redirect
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -67,23 +73,38 @@ const VerifyEmail = () => {
         
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Verify your email</h2>
         <p className="text-gray-500 mb-8">
-          We've sent a verification link to <br/>
-          <span className="font-semibold text-gray-800">{user.email}</span>
+          We've sent a 6-digit code to <br/>
+          <span className="font-semibold text-gray-800">{formData.email}</span>
         </p>
 
-        <div className="space-y-3">
-          <button disabled className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-bold">
-            Waiting for verification...
-          </button>
+        <form onSubmit={handleVerifyAndRegister} className="space-y-4">
+            <input 
+                type="text" 
+                maxLength="6" 
+                placeholder="000000" 
+                value={otp} 
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} // only allow numbers
+                required 
+                className="w-full p-3 border rounded-lg text-center tracking-[0.5em] text-2xl font-bold" 
+            />
+            
+            <button 
+                type="submit" 
+                disabled={loading || otp.length < 6} 
+                className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-bold"
+            >
+                {loading ? "Verifying..." : "Verify & Create Account"}
+            </button>
+        </form>
 
-          <button 
-            onClick={handleResend}
-            disabled={loading}
-            className="w-full bg-white text-blue-600 border border-blue-600 py-3 rounded-xl font-bold hover:bg-blue-50 transition-colors disabled:opacity-50"
-          >
-            {loading ? "Sending..." : "Resend Link"}
-          </button>
-        </div>
+        <button 
+            type="button" 
+            onClick={handleResend} 
+            disabled={loading} 
+            className="w-full mt-6 text-sm text-blue-600 hover:underline font-bold"
+        >
+            Didn't receive the code? Resend
+        </button>
       </div>
     </div>
   );
