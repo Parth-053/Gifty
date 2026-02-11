@@ -51,7 +51,8 @@ export const verifySeller = createAsyncThunk(
   "sellers/verify",
   async ({ id, status, reason }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/admin/approvals/sellers/${id}`, { 
+      // Note: adjust route if your backend expects PATCH vs PUT
+      const response = await api.patch(`/admin/approvals/sellers/${id}`, { 
         status, 
         reason 
       });
@@ -62,15 +63,42 @@ export const verifySeller = createAsyncThunk(
   }
 );
 
+// 5. Update Seller Status (Ban / Unban)
+export const updateSellerStatus = createAsyncThunk(
+  "sellers/updateStatus",
+  async ({ id, action }, { rejectWithValue }) => {
+    try {
+      const response = await api.patch(`/admin/sellers/${id}/status`, { action });
+      return response.data.data; // Returns updated seller object
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to update seller status");
+    }
+  }
+);
+
+// 6. Hard Delete Seller & Assets
+export const deleteSeller = createAsyncThunk(
+  "sellers/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`/admin/sellers/${id}`);
+      return id; // Return ID to remove from lists locally
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to delete seller");
+    }
+  }
+);
+
 // --- Slice ---
 
 const sellerSlice = createSlice({
   name: "sellers",
   initialState: {
-    sellers: [],        // <--- This was missing!
+    sellers: [],        
     pendingSellers: [],
     currentSeller: null,
     loading: false,
+    actionLoading: false, // Added for button spinners
     error: null,
   },
   reducers: {
@@ -120,15 +148,64 @@ const sellerSlice = createSlice({
       })
 
       // --- Verify Seller ---
+      .addCase(verifySeller.pending, (state) => {
+        state.actionLoading = true;
+      })
       .addCase(verifySeller.fulfilled, (state, action) => {
-        // Remove from pending
+        state.actionLoading = false;
+        // Remove from pending list
         state.pendingSellers = state.pendingSellers.filter(
           (seller) => seller._id !== action.payload.id
         );
-        // If approved, add to main list (optional, but good for UX)
+        // If approved, push to main list
         if (action.payload.status === 'approved') {
             state.sellers.push(action.payload.data);
         }
+      })
+      .addCase(verifySeller.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // --- Update Status (Ban/Unban) ---
+      .addCase(updateSellerStatus.pending, (state) => {
+        state.actionLoading = true;
+      })
+      .addCase(updateSellerStatus.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        // Update current viewed seller
+        if (state.currentSeller && state.currentSeller._id === action.payload._id) {
+            state.currentSeller = { ...state.currentSeller, ...action.payload };
+        }
+        // Update in sellers array
+        const index = state.sellers.findIndex(s => s._id === action.payload._id);
+        if (index !== -1) {
+            state.sellers[index] = action.payload;
+        }
+      })
+      .addCase(updateSellerStatus.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // --- Delete Seller ---
+      .addCase(deleteSeller.pending, (state) => {
+        state.actionLoading = true;
+      })
+      .addCase(deleteSeller.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        // Clear current view if we deleted the person we are looking at
+        if (state.currentSeller && state.currentSeller._id === action.payload) {
+            state.currentSeller = null;
+        }
+        // Remove from sellers list
+        state.sellers = state.sellers.filter((s) => s._id !== action.payload);
+        // Remove from pending list (just in case)
+        state.pendingSellers = state.pendingSellers.filter((s) => s._id !== action.payload);
+      })
+      .addCase(deleteSeller.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
       });
   },
 });

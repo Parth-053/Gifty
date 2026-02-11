@@ -1,29 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-// FIX: Changed 'updateSellerStatus' to 'verifySeller' to match the slice export
-import { fetchSellerDetails, verifySeller, clearCurrentSeller } from "../../store/sellerSlice";
-import Loader from "../../components/common/Loader";
 import { 
-  ArrowLeft, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Building, 
-  CreditCard, 
-  CheckCircle, 
-  XCircle,
-  AlertTriangle
-} from "lucide-react";
+  fetchSellerDetails, 
+  updateSellerStatus, 
+  deleteSeller, 
+  clearCurrentSeller 
+} from "../../store/sellerSlice";
 import { toast } from "react-hot-toast";
+
+import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
+import Badge from "../../components/common/Badge";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { 
+  NoSymbolIcon, 
+  TrashIcon, 
+  CheckCircleIcon,
+  ArrowLeftIcon 
+} from "@heroicons/react/24/outline";
 
 const SellerDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  
-  const { currentSeller: seller, loading, error } = useSelector((state) => state.sellers);
-  const [actionLoading, setActionLoading] = useState(false);
+
+  const { currentSeller, loading, actionLoading } = useSelector((state) => state.sellers);
+
+  const [banModalOpen, setBanModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     dispatch(fetchSellerDetails(id));
@@ -32,194 +37,143 @@ const SellerDetails = () => {
     };
   }, [dispatch, id]);
 
-  const handleStatusUpdate = async (status) => {
-    // For rejection or suspension, ask for a reason
-    let reason = "";
-    if (status === "rejected" || status === "suspended") {
-      reason = prompt(`Please enter a reason for marking this seller as ${status}:`);
-      if (!reason) return; // Cancel if no reason provided
-    }
+  if (loading || !currentSeller) {
+    return <div className="flex justify-center items-center h-[70vh]"><Loader size="lg" /></div>;
+  }
 
-    if (window.confirm(`Are you sure you want to update status to ${status.toUpperCase()}?`)) {
-      setActionLoading(true);
-      try {
-        // FIX: Using verifySeller action here
-        await dispatch(verifySeller({ id, status, reason })).unwrap();
-        toast.success(`Seller status updated to ${status}`);
-        // Refresh details
-        dispatch(fetchSellerDetails(id));
-      } catch (err) {
-        toast.error(err || "Failed to update status");
-      } finally {
-        setActionLoading(false);
-      }
+  // Check if seller is currently banned/suspended
+  const isBanned = currentSeller.status === "suspended" || currentSeller.status === "banned";
+
+  // Handlers
+  const handleBanToggle = async () => {
+    const actionType = isBanned ? "unban" : "ban";
+    const result = await dispatch(updateSellerStatus({ id: currentSeller._id, action: actionType }));
+    
+    if (!result.error) {
+      toast.success(`Seller ${actionType === 'ban' ? 'banned and products deactivated' : 'unbanned'} successfully.`);
+      setBanModalOpen(false);
+    } else {
+      toast.error(result.payload || "Action failed");
     }
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader /></div>;
-  if (error) return <div className="text-center p-10 text-red-500">Error: {error}</div>;
-  if (!seller) return <div className="text-center p-10">Seller not found</div>;
+  const handleDelete = async () => {
+    const result = await dispatch(deleteSeller(currentSeller._id));
+    
+    if (!result.error) {
+      toast.success("Seller and all associated products deleted permanently.");
+      navigate("/sellers"); // Redirect back to the sellers list
+    } else {
+      toast.error(result.payload || "Delete failed");
+    }
+  };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <button 
-          onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Back to List
-        </button>
-        <div className="flex space-x-3">
-          {seller.status === "pending" && (
-            <>
-              <button
-                disabled={actionLoading}
-                onClick={() => handleStatusUpdate("approved")}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Approve Application
-              </button>
-              <button
-                disabled={actionLoading}
-                onClick={() => handleStatusUpdate("rejected")}
-                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Reject Application
-              </button>
-            </>
+    <div className="max-w-6xl mx-auto space-y-6">
+      
+      {/* HEADER SECTION */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate("/sellers")} className="p-2 hover:bg-gray-100 rounded-full transition-colors mr-2">
+             <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
+          </button>
+          <div className="h-16 w-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl font-bold uppercase shrink-0">
+            {currentSeller.storeName?.charAt(0) || "S"}
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{currentSeller.storeName}</h1>
+            <p className="text-gray-500">{currentSeller.email}</p>
+            <div className="mt-2">
+              <Badge variant={isBanned ? "danger" : currentSeller.isActive ? "success" : "warning"}>
+                {isBanned ? "BANNED" : currentSeller.isActive ? "ACTIVE" : "PENDING / INACTIVE"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* ADMIN ACTION BUTTONS */}
+        <div className="flex flex-wrap gap-3">
+          {isBanned ? (
+             <Button variant="success" onClick={handleBanToggle} isLoading={actionLoading}>
+                <CheckCircleIcon className="h-5 w-5 mr-2" /> Unban Seller
+             </Button>
+          ) : (
+             <Button variant="warning" onClick={() => setBanModalOpen(true)}>
+                <NoSymbolIcon className="h-5 w-5 mr-2" /> Ban Seller
+             </Button>
           )}
-          {seller.status === "approved" && (
-            <button
-              disabled={actionLoading}
-              onClick={() => handleStatusUpdate("suspended")}
-              className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
-            >
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              Suspend Account
-            </button>
-          )}
-          {seller.status === "suspended" && (
-            <button
-              disabled={actionLoading}
-              onClick={() => handleStatusUpdate("approved")}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Re-activate Account
-            </button>
-          )}
+
+          <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>
+             <TrashIcon className="h-5 w-5 mr-2" /> Delete Account
+          </Button>
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* INFO GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* Left Column: Basic Info */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Store Card */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                <Building className="w-5 h-5 mr-2 text-indigo-500" />
-                Store Information
-              </h2>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide
-                ${seller.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                  seller.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                  'bg-red-100 text-red-800'}`}>
-                {seller.status}
-              </span>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-gray-500">Store Name</p>
-                <p className="font-medium text-gray-900 mt-1">{seller.storeName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">GSTIN</p>
-                <p className="font-medium text-gray-900 mt-1">{seller.gstin || "Not Provided"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Owner Name</p>
-                <p className="font-medium text-gray-900 mt-1">{seller.fullName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Joined Date</p>
-                <p className="font-medium text-gray-900 mt-1">{new Date(seller.createdAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bank Details */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                <CreditCard className="w-5 h-5 mr-2 text-indigo-500" />
-                Bank Details
-              </h2>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-gray-500">Account Holder</p>
-                <p className="font-medium text-gray-900 mt-1">{seller.bankDetails?.accountHolderName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Bank Name</p>
-                <p className="font-medium text-gray-900 mt-1">{seller.bankDetails?.bankName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Account Number</p>
-                <p className="font-medium text-gray-900 mt-1">{seller.bankDetails?.accountNumber}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">IFSC Code</p>
-                <p className="font-medium text-gray-900 mt-1">{seller.bankDetails?.ifscCode}</p>
-              </div>
-            </div>
+        {/* Personal Details */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+          <h2 className="text-lg font-bold mb-4 border-b pb-2">Seller Details</h2>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500">Full Name</span><span className="font-medium text-gray-900">{currentSeller.fullName}</span></div>
+            <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500">Phone</span><span className="font-medium text-gray-900">{currentSeller.phone}</span></div>
+            <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500">Joined</span><span className="font-medium text-gray-900">{new Date(currentSeller.createdAt).toLocaleDateString()}</span></div>
+            <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500">Total Products Uploaded</span><span className="font-medium text-gray-900">{currentSeller.totalProducts || 0}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">GSTIN</span><span className="font-medium text-gray-900">{currentSeller.gstin || "N/A"}</span></div>
           </div>
         </div>
 
-        {/* Right Column: Contact & Address */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-800">Contact Info</h2>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-start">
-                <Mail className="w-5 h-5 text-gray-400 mt-0.5 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <a href={`mailto:${seller.email}`} className="text-indigo-600 hover:underline">{seller.email}</a>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <Phone className="w-5 h-5 text-gray-400 mt-0.5 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <a href={`tel:${seller.phone}`} className="text-gray-900 hover:text-indigo-600">{seller.phone}</a>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <MapPin className="w-5 h-5 text-gray-400 mt-0.5 mr-3" />
-                <div>
-                  <p className="text-sm text-gray-500">Address</p>
-                  <p className="text-gray-900 mt-1">
-                    {seller.address?.street}<br/>
-                    {seller.address?.city}, {seller.address?.state}<br/>
-                    {seller.address?.pincode}
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* Bank Details */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+          <h2 className="text-lg font-bold mb-4 border-b pb-2">Bank Details</h2>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500">Account Name</span><span className="font-medium text-gray-900">{currentSeller.bankDetails?.accountHolderName || "N/A"}</span></div>
+            <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500">Bank Name</span><span className="font-medium text-gray-900">{currentSeller.bankDetails?.bankName || "N/A"}</span></div>
+            <div className="flex justify-between border-b border-gray-50 pb-2"><span className="text-gray-500">Account No.</span><span className="font-medium text-gray-900">{currentSeller.bankDetails?.accountNumber || "N/A"}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">IFSC Code</span><span className="font-medium text-gray-900">{currentSeller.bankDetails?.ifscCode || "N/A"}</span></div>
           </div>
         </div>
 
+        {/* Address */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 md:col-span-2">
+          <h2 className="text-lg font-bold mb-4 border-b pb-2">Business Address</h2>
+          <p className="text-gray-700 text-sm leading-relaxed">
+             {currentSeller.address?.street ? (
+               <>
+                 {currentSeller.address.street},<br/>
+                 {currentSeller.address.city}, {currentSeller.address.state} - {currentSeller.address.pincode}<br/>
+                 {currentSeller.address.country}
+               </>
+             ) : "Address not provided."}
+          </p>
+        </div>
       </div>
+
+      {/* --- MODALS --- */}
+      
+      {/* Ban Modal */}
+      <ConfirmDialog
+        isOpen={banModalOpen}
+        onClose={() => setBanModalOpen(false)}
+        title="Ban Seller Account?"
+        message="Banning this seller will immediately deactivate their account and ALL of their products. Customers will no longer be able to view or buy their items."
+        onConfirm={handleBanToggle}
+        confirmText="Yes, Ban Seller"
+        variant="warning"
+      />
+
+      {/* Delete Modal */}
+      <ConfirmDialog
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Permanently Delete Seller?"
+        message={`WARNING: This will permanently delete ${currentSeller.storeName} and ALL of their uploaded products from the database, including product images. This action CANNOT be undone.`}
+        onConfirm={handleDelete}
+        confirmText="Permanently Delete"
+        variant="danger"
+      />
+
     </div>
   );
 };

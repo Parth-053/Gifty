@@ -34,11 +34,14 @@ const SellerTable = ({ sellers, onView, isPending = false }) => {
                 <Badge 
                   variant={
                     seller.status === "approved" ? "success" :
-                    seller.status === "suspended" ? "danger" :
+                    (seller.status === "suspended" || seller.status === "banned") ? "danger" :
                     seller.status === "rejected" ? "danger" : "warning"
                   }
                 >
-                  {seller.status.toUpperCase()}
+                  {/* Display "BANNED" if the status is suspended/banned */}
+                  {(seller.status === "suspended" || seller.status === "banned") 
+                    ? "BANNED" 
+                    : seller.status.toUpperCase()}
                 </Badge>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

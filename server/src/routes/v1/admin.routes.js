@@ -19,7 +19,9 @@ import {
   getUserDetails, 
   updateUserStatus,
   getAllSellers,
-  getSellerDetails
+  getSellerDetails,
+  updateSellerStatusAdmin,
+  deleteSellerAdmin
 } from "../../controllers/admin/users.controller.js";
 import { 
   getAllOrders, 
@@ -88,6 +90,8 @@ router.patch("/users/:id/status", updateUserStatus);
 
 router.get("/sellers", getAllSellers);
 router.get("/sellers/:id", getSellerDetails);
+router.patch("/sellers/:id/status", updateSellerStatusAdmin);
+router.delete("/sellers/:id", deleteSellerAdmin);
 
 // --- Order Management ---
 router.get("/orders", getAllOrders);
