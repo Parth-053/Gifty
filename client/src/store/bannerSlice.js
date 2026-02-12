@@ -1,16 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api/axios';
 
-// Backend se Active Banners lana
 export const fetchBanners = createAsyncThunk(
-  'banners/fetchActive',
+  "banners/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      // API call: GET /api/v1/banners (Assume public endpoint exists)
-      const response = await api.get('/banners'); 
-      return response.data.data;
+      const response = await api.get("/banners");  
+      return response.data.data; 
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch banners');
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch banners");
     }
   }
 );
@@ -18,19 +16,20 @@ export const fetchBanners = createAsyncThunk(
 const bannerSlice = createSlice({
   name: 'banners',
   initialState: {
-    items: [],
+    list: [],  
     loading: false,
-    error: null,
+    error: null
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(fetchBanners.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchBanners.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload;
+        state.list = action.payload || []; // Fallback to empty array if payload is null
       })
       .addCase(fetchBanners.rejected, (state, action) => {
         state.loading = false;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -17,15 +17,25 @@ import { addToCart } from '../../store/cartSlice';
 const Customize = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { items: products, loading } = useSelector((state) => state.products);
+
+  // 1. Correct State Selection
+  const { list, loading } = useSelector((state) => state.products || {});
+
+  // 2. FIX: Memoize 'products' to satisfy ESLint and prevent infinite loops
+  const products = useMemo(() => {
+    if (Array.isArray(list)) return list;
+    if (list?.products) return list.products;
+    if (list?.docs) return list.docs;
+    return [];
+  }, [list]);
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [layers, setLayers] = useState([]); 
   const [saving, setSaving] = useState(false);
 
-  // Fetch only products available for customization (assuming backend has this filter or just fetch all for now)
+  // Fetch products
   useEffect(() => {
-    dispatch(fetchProducts()); 
+    dispatch(fetchProducts({ limit: 20, sort: 'newest' })); 
   }, [dispatch]);
 
   // Set default product
@@ -60,11 +70,9 @@ const Customize = () => {
 
     setSaving(true);
     try {
-      // Save customization metadata to cart
       await dispatch(addToCart({ 
         productId: selectedProduct._id, 
         quantity: 1,
-        // Backend 'cartItem' schema must support a 'customization' object or similar
         variant: 'Custom Design', 
         customization: { layers } 
       })).unwrap();
@@ -72,21 +80,38 @@ const Customize = () => {
       toast.success("Design saved to cart!");
       navigate('/cart');
     } catch (error) {
+      console.error(error);
       toast.error("Failed to add to cart");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading && !products.length) return <Loader fullScreen />;
+  // Loading State
+  if (loading && products.length === 0) return <Loader fullScreen />;
 
   return (
     <div className="flex flex-col h-screen bg-white">
       <CustomizeHeader onReset={handleReset} onSave={handleSave} loading={saving} />
-      <ProductGrid products={products} selectedProduct={selectedProduct} onSelect={setSelectedProduct} />
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        <LivePreview baseProduct={selectedProduct} layers={layers} onRemoveLayer={handleRemoveLayer} />
-        <div className="h-[40vh] md:h-full md:w-[350px] flex-shrink-0 z-20 shadow-lg md:shadow-none">
+      
+      {/* Product Grid Area */}
+      <div className="h-40 border-b border-gray-100 flex-shrink-0">
+         <ProductGrid 
+            products={products} 
+            selectedProduct={selectedProduct} 
+            onSelect={setSelectedProduct} 
+         />
+      </div>
+
+      {/* Workspace */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-gray-50">
+        <LivePreview 
+            baseProduct={selectedProduct} 
+            layers={layers} 
+            onRemoveLayer={handleRemoveLayer} 
+        />
+        
+        <div className="h-[40vh] md:h-full md:w-[350px] flex-shrink-0 z-20 shadow-lg md:shadow-none bg-white border-l border-gray-100">
           <ToolsPanel onAddText={handleAddText} onAddImage={handleAddImage} />
         </div>
       </div>

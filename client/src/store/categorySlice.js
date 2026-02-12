@@ -8,7 +8,8 @@ export const fetchCategories = createAsyncThunk(
     try {
       // API call: GET /api/v1/categories
       const response = await api.get('/categories');
-      return response.data.data; // Database wale categories
+      // Return empty array if data is missing to prevent .map crashes
+      return response.data.data || []; 
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch categories');
     }
@@ -18,7 +19,7 @@ export const fetchCategories = createAsyncThunk(
 const categorySlice = createSlice({
   name: 'categories',
   initialState: {
-    items: [], // Yahan real data aayega
+    items: [], // Ensures .map always works initially
     loading: false,
     error: null,
   },
@@ -27,14 +28,19 @@ const categorySlice = createSlice({
     builder
       .addCase(fetchCategories.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = action.payload; // Data set ho gaya
+        // Fix: Use 'items' to match component selector
+        state.items = action.payload || []; 
       })
       .addCase(fetchCategories.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        // Keep existing items if fetch fails, or set to empty array? 
+        // Better to keep existing to avoid UI flash, or [] if strict.
+        // state.items = []; 
       });
   },
 });

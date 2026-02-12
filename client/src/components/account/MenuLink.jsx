@@ -15,11 +15,20 @@ const MenuLink = ({ to, icon: Icon, label, end = false }) => {
         }
       `}
     >
-      <div className="flex items-center gap-3">
-        <Icon size={20} className={({ isActive }) => isActive ? 'text-blue-400' : 'text-gray-400'} />
-        <span className="font-bold text-sm">{label}</span>
-      </div>
-      <ChevronRight size={16} className="opacity-50 group-hover:translate-x-1 transition-transform" />
+      {/* FIX: Use a render function to access isActive state for children */}
+      {({ isActive }) => (
+        <>
+          <div className="flex items-center gap-3">
+            <Icon 
+              size={20} 
+              // Now passing a STRING, not a function
+              className={isActive ? 'text-blue-400' : 'text-gray-400'} 
+            />
+            <span className="font-bold text-sm">{label}</span>
+          </div>
+          <ChevronRight size={16} className="opacity-50 group-hover:translate-x-1 transition-transform" />
+        </>
+      )}
     </NavLink>
   );
 };

@@ -2,21 +2,22 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Grid, Wand2, Package, User } from 'lucide-react';
 
-const BottomNavbar = () => {
+const BottomNav = () => {
   const navItems = [
     { name: 'Home', icon: Home, path: '/' },
-    { name: 'Categories', icon: Grid, path: '/categories' },
+    { name: 'Shop', icon: Grid, path: '/categories' },
     { 
       name: 'Customize', 
       icon: Wand2, 
       path: '/customize', 
       isSpecial: true 
     },
-    { name: 'MyOrders', icon: Package, path: '/orders' },
-    { name: 'Account', icon: User, path: '/account' },
+    { name: 'Orders', icon: Package, path: '/my-orders' }, 
+    { name: 'Profile', icon: User, path: '/user/profile' }, 
   ];
 
   return (
+    /* Removed 'lg:hidden' so it shows on all screens */
     <div className="fixed bottom-0 left-0 w-full bg-white z-50 rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] border-t border-gray-100 h-[65px]">
       
       <div className="flex justify-between items-center px-6 h-full pb-1">
@@ -25,7 +26,8 @@ const BottomNavbar = () => {
           <NavLink
             key={item.name}
             to={item.path}
-            className={({ isActive }) => `
+            // Fix: Removed unused isActive parameter from className
+            className={`
               relative flex flex-col items-center justify-center w-full h-full
               ${item.isSpecial ? '' : ''} 
             `}
@@ -40,13 +42,13 @@ const BottomNavbar = () => {
                       w-12 h-12 rounded-full flex items-center justify-center shadow-lg
                       ring-4 ring-white
                       transition-transform duration-200 active:scale-95
-                      ${isActive ? 'bg-[#FF6B6B]' : 'bg-[#FF6B6B]'} 
+                      bg-gradient-to-r from-blue-600 to-purple-600
                     `}>
                       <item.icon size={20} color="white" strokeWidth={2.5} />
                     </div>
 
-                    {/* Text Label (Pushed down to sit on the navbar line) */}
-                    <span className={`text-[10px] font-semibold mt-7 ${isActive ? 'text-[#FF6B6B]' : 'text-gray-500'}`}>
+                    {/* Text Label */}
+                    <span className={`text-[10px] font-semibold mt-7 ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
                       {item.name}
                     </span>
                   </>
@@ -56,9 +58,9 @@ const BottomNavbar = () => {
                     <item.icon 
                       size={22} 
                       strokeWidth={isActive ? 2.5 : 2} 
-                      className={`transition-colors duration-200 ${isActive ? 'text-[#FF6B6B]' : 'text-gray-400'}`}
+                      className={`transition-colors duration-200 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}
                     />
-                    <span className={`text-[10px] font-medium transition-colors duration-200 ${isActive ? 'text-[#FF6B6B]' : 'text-gray-400'}`}>
+                    <span className={`text-[10px] font-medium transition-colors duration-200 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
                       {item.name}
                     </span>
                   </div>
@@ -73,4 +75,4 @@ const BottomNavbar = () => {
   );
 };
 
-export default BottomNavbar;
+export default BottomNav;

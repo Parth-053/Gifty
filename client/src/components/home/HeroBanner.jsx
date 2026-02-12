@@ -1,119 +1,93 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { fetchBanners } from '../../store/bannerSlice';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, Pagination } from 'swiper/modules'; // Removed Navigation module
+import { Link } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
+import 'swiper/css';
+import 'swiper/css/pagination';
 
 const HeroBanner = () => {
   const dispatch = useDispatch();
-  const { items: banners, loading } = useSelector((state) => state.banners);
-  const [current, setCurrent] = useState(0);
+  
+  // FIX: Safely access state with fallbacks to prevent "undefined" errors
+  const { list, loading } = useSelector((state) => state.banners || {});
+  const banners = list || []; // Default to empty array if list is undefined
 
-  // 1. Fetch Data on Mount
   useEffect(() => {
     dispatch(fetchBanners());
   }, [dispatch]);
 
-  // 2. Auto-Slide Logic
-  useEffect(() => {
-    if (!banners || banners.length === 0) return;
-    const timer = setInterval(() => {
-      setCurrent((prev) => (prev === banners.length - 1 ? 0 : prev + 1));
-    }, 5000); // 5 Seconds
-    return () => clearInterval(timer);
-  }, [banners]);
+  // Combine AI Slide + Admin Banners
+  const allSlides = [
+    { type: 'AI_BANNER', id: 'ai-fixed' }, 
+    ...banners.filter(b => b.isActive) // Now safe because 'banners' is guaranteed to be an array
+  ];
 
-  const prevSlide = () => setCurrent(current === 0 ? banners.length - 1 : current - 1);
-  const nextSlide = () => setCurrent(current === banners.length - 1 ? 0 : current + 1);
-
-  // Loading State
-  if (loading && banners.length === 0) {
-    return (
-      <div className="w-full h-[200px] sm:h-[400px] bg-gray-100 rounded-3xl animate-pulse flex items-center justify-center">
-        <Loader2 className="animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  // Empty State
-  if (!banners || banners.length === 0) return null;
+  if (loading && banners.length === 0) return (
+    <div className="w-full h-48 sm:h-64 md:h-80 bg-gray-100 animate-pulse rounded-xl my-4 mx-4" />
+  );
 
   return (
-    <div className="relative w-full overflow-hidden bg-gray-100 rounded-2xl sm:rounded-3xl shadow-sm group mb-8">
-      
-      {/* Slides Container */}
-      <div 
-        className="flex transition-transform duration-700 ease-in-out h-[200px] sm:h-[400px] md:h-[450px]" 
-        style={{ transform: `translateX(-${current * 100}%)` }}
+    <div className="px-4 py-4">
+      <Swiper
+        modules={[Autoplay, Pagination]} 
+        spaceBetween={16}
+        slidesPerView={1}
+        pagination={{ clickable: true }}
+        grabCursor={true} // <--- Enables "Hand" cursor and manual swiping logic
+        autoplay={{ delay: 5000, disableOnInteraction: false }}
+        className="w-full rounded-2xl overflow-hidden shadow-sm"
       >
-        {banners.map((banner) => (
-          <div key={banner._id} className="min-w-full relative h-full">
-            {/* Dark Overlay for better text readability */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent z-10" />
+        {allSlides.map((slide) => (
+          <SwiperSlide key={slide._id || slide.id}>
             
-            {/* Dynamic Image */}
-            <img 
-              src={banner.image?.url} 
-              alt={banner.title} 
-              className="w-full h-full object-cover"
-            />
-
-            {/* Content Overlay */}
-            <div className="absolute inset-0 z-20 flex flex-col justify-center text-white px-8 sm:px-12 md:px-16 max-w-2xl">
-              <span className="inline-block py-1 px-3 bg-white/20 backdrop-blur-md rounded-lg text-xs font-bold uppercase tracking-wider mb-3 w-fit">
-                Featured
-              </span>
-              <h2 className="text-3xl md:text-5xl font-black mb-2 md:mb-4 tracking-tight drop-shadow-lg leading-tight">
-                {banner.title}
-              </h2>
-              <p className="text-sm md:text-lg font-medium mb-6 opacity-90 line-clamp-2">
-                {banner.subtitle}
-              </p>
-              
-              {/* Call to Action */}
-              {banner.link && (
-                <Link 
-                  to={banner.link}
-                  className="bg-white text-gray-900 px-6 py-2.5 md:px-8 md:py-3.5 rounded-full text-sm md:text-base font-bold hover:bg-blue-600 hover:text-white transition-all transform hover:scale-105 shadow-xl w-fit flex items-center gap-2"
-                >
-                  Shop Now <ChevronRight size={16} />
-                </Link>
-              )}
-            </div>
-          </div>
+            {/* --- 1. FIXED AI BANNER --- */}
+            {slide.type === 'AI_BANNER' ? (
+              <div className="relative w-full h-48 sm:h-64 md:h-80 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 flex items-center px-6 sm:px-12 md:px-16 text-white overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3"></div>
+                <div className="relative z-10 max-w-lg">
+                  <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold mb-4 border border-white/20">
+                    <Sparkles size={14} className="text-yellow-300" />
+                    <span>AI Powered</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-4xl font-black leading-tight mb-4">
+                    Can't Decide? <br/> Let AI Find the Perfect Gift.
+                  </h2>
+                  <p className="text-purple-100 mb-6 text-sm sm:text-base hidden sm:block">
+                    Tell us about the occasion and relationship, and our AI will generate personalized suggestions instantly.
+                  </p>
+                  <Link 
+                    to="/customize" 
+                    className="inline-block bg-white text-purple-600 px-6 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  >
+                    Generate Now ✨
+                  </Link>
+                </div>
+                <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 opacity-20 sm:opacity-100">
+                   <Sparkles size={120} className="text-white/20 rotate-12" />
+                </div>
+              </div>
+            ) : (
+              /* --- 2. ADMIN UPLOADED BANNERS --- */
+              <Link to={slide.link || '/categories'} className="block w-full h-full relative">
+                <img
+                  src={slide.image?.url}
+                  alt={slide.title}
+                  className="w-full h-48 sm:h-64 md:h-80 object-cover object-center"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6">
+                  <div className="text-white">
+                    <h3 className="text-xl sm:text-3xl font-bold">{slide.title}</h3>
+                    {slide.subtitle && <p className="text-gray-200 mt-1">{slide.subtitle}</p>}
+                  </div>
+                </div>
+              </Link>
+            )}
+          </SwiperSlide>
         ))}
-      </div>
-
-      {/* Navigation Buttons (Desktop) */}
-      {banners.length > 1 && (
-        <>
-          <button 
-            onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur-md p-2 md:p-3 rounded-full text-white z-20 hidden sm:flex items-center justify-center transition-all"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <button 
-            onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur-md p-2 md:p-3 rounded-full text-white z-20 hidden sm:flex items-center justify-center transition-all"
-          >
-            <ChevronRight size={24} />
-          </button>
-        </>
-      )}
-
-      {/* Dots Indicators */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-        {banners.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => setCurrent(idx)}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              current === idx ? "w-6 bg-white" : "w-1.5 bg-white/50"
-            }`}
-          />
-        ))}
-      </div>
+      </Swiper>
     </div>
   );
 };
