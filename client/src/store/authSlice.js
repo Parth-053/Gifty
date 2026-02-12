@@ -14,8 +14,10 @@ export const syncUser = createAsyncThunk(
   "auth/syncUser",
   async (_, { rejectWithValue }) => {
     try {
+      // Safety check: accessing currentUser here is safe because App.jsx waits for onAuthStateChanged
       if (!auth.currentUser) return rejectWithValue("No user logged in");
 
+      // Force refresh token to ensure it's valid
       const token = await auth.currentUser.getIdToken(true);
       localStorage.setItem("token", token);
 
@@ -36,6 +38,7 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { dispatch, rejectWithValue }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // After Firebase login, sync with backend immediately
       const result = await dispatch(syncUser()).unwrap();
       return result;
     } catch (error) {
@@ -46,31 +49,29 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-// 3. Register User (Now handles Address internally & assumes OTP is already verified)
+// 3. Register User
 export const registerUser = createAsyncThunk(
   "auth/register",
   async ({ fullName, email, password, phone, addressData }, { dispatch, rejectWithValue }) => {
     try {
-      // 1. Create Firebase account
+      // Create Firebase account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Set Display Name
       await updateProfile(user, { displayName: fullName });
 
-      // 3. Get token to securely sync with backend
       const token = await user.getIdToken();
       localStorage.setItem("token", token);
 
-      // 4. Sync with backend to create MongoDB User record AND Address
+      // Sync with backend to create MongoDB User record & Address
       await api.post('/auth/sync/user', 
         { fullName, phone, addressData }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // 5. Fetch and return full user profile
       return await dispatch(syncUser()).unwrap();
     } catch (error) {
+      // Rollback if MongoDB sync fails
       if (auth.currentUser) {
         try { await auth.currentUser.delete(); } catch (e) { console.warn("Rollback failed:", e); }
       }
@@ -114,6 +115,7 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Sync User
       .addCase(syncUser.pending, (state) => { state.error = null; })
       .addCase(syncUser.fulfilled, (state, action) => {
         state.loading = false;
@@ -129,18 +131,21 @@ const authSlice = createSlice({
           state.error = action.payload;
         }
       })
+      // Login
       .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(loginUser.fulfilled, () => {  }) 
+      .addCase(loginUser.fulfilled, () => {}) 
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+      // Register
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(registerUser.fulfilled, (state) => { state.loading = false; })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+      // Logout
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
