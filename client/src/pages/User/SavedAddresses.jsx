@@ -1,162 +1,97 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, ArrowLeft, Loader2 } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Plus, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+// Actions
+import { fetchAddresses, deleteAddress, setDefaultAddress } from '../../store/addressSlice';
+
+// Components
 import AddressCard from '../../components/user/AddressCard';
-import Modal from '../../components/common/Modal';
-import Input from '../../components/common/Input';
-import Button from '../../components/common/Button';
-import api from '../../api/axios';
-import toast from 'react-hot-toast';
 
 const SavedAddresses = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [addresses, setAddresses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  
+  // FIX: Select state directly. Handle undefined/null in the variable assignment below.
+  // This prevents the "Selector unknown returned a different result" warning.
+  const addressState = useSelector((state) => state.addresses);
+  
+  const addresses = addressState?.items || [];
+  const loading = addressState?.loading || false;
 
-  // Form State
-  const [form, setForm] = useState({
-    name: '',
-    street: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    phone: '',
-    type: 'Home',
-    isDefault: false
-  });
-
-  const fetchAddresses = async () => {
-    try {
-      const response = await api.get('/user/addresses');
-      setAddresses(response.data.data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch on mount
   useEffect(() => {
-    fetchAddresses();
-  }, []);
+    dispatch(fetchAddresses());
+  }, [dispatch]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingId) {
-        await api.put(`/user/addresses/${editingId}`, form);
-        toast.success("Address updated");
-      } else {
-        await api.post('/user/addresses', form);
-        toast.success("Address added");
-      }
-      setIsModalOpen(false);
-      setEditingId(null);
-      setForm({ name: '', street: '', city: '', state: '', postalCode: '', phone: '', type: 'Home', isDefault: false });
-      fetchAddresses();
-    } catch {
-      toast.error("Failed to save address");
+  // Handlers
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this address?")) {
+      dispatch(deleteAddress(id));
     }
   };
 
-  const handleEdit = (addr) => {
-    setForm(addr);
-    setEditingId(addr._id);
-    setIsModalOpen(true);
+  const handleSetDefault = (id) => {
+    dispatch(setDefaultAddress(id));
   };
 
-  const handleDelete = async (id) => {
-    if(!window.confirm("Delete this address?")) return;
-    try {
-      await api.delete(`/user/addresses/${id}`);
-      toast.success("Address deleted");
-      fetchAddresses();
-    } catch  {
-      toast.error("Failed to delete");
-    }
+  const handleEdit = (address) => {
+    navigate(`/user/addresses/edit/${address._id}`);
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-2xl font-black text-gray-900">Saved Addresses</h1>
+    <div className="max-w-5xl mx-auto p-4 md:p-8 min-h-screen">
+      
+      {/* --- Header --- */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+           <h1 className="text-2xl font-black text-gray-900">Saved Addresses</h1>
+           <p className="text-gray-500 text-sm mt-1">Manage your delivery locations and preferences</p>
         </div>
         <button 
-          onClick={() => { setEditingId(null); setIsModalOpen(true); }}
-          className="bg-blue-600 text-white p-3 rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2"
+          onClick={() => navigate('/user/addresses/add')} 
+          className="flex items-center justify-center gap-2 bg-gray-900 text-white px-5 py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition-all active:scale-95"
         >
-          <Plus size={20} /> <span className="hidden sm:inline font-bold">Add New</span>
+          <Plus size={18} />
+          <span>Add New Address</span>
         </button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" /></div>
+      {/* --- Content --- */}
+      {loading && addresses.length === 0 ? (
+        // Loading Skeleton
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-48 bg-gray-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
       ) : addresses.length === 0 ? (
-        <div className="text-center py-20 bg-gray-50 rounded-2xl border border-gray-100">
-          <p className="text-gray-500 font-bold mb-4">No addresses saved yet</p>
-          <Button onClick={() => setIsModalOpen(true)} size="sm">Add Address</Button>
+        // Empty State
+        <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+          <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mx-auto mb-4">
+            <MapPin size={32} className="text-gray-400" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">No Addresses Found</h3>
+          <p className="text-gray-500 mb-6 max-w-xs mx-auto">
+            You haven't added any addresses yet. Add one to speed up your checkout process.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {addresses.map(addr => (
+        // Address Grid
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 pb-20">
+          {addresses.map((addr) => (
             <AddressCard 
-              key={addr._id} 
-              address={addr} 
-              onEdit={handleEdit} 
-              onDelete={handleDelete} 
+              key={addr._id}
+              address={addr}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onSetDefault={handleSetDefault}
+              selected={addr.isDefault} 
             />
           ))}
         </div>
       )}
-
-      {/* Add/Edit Modal */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title={editingId ? "Edit Address" : "Add New Address"}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input label="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
-          <Input label="Phone Number" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} required />
-          <Input label="Address (House No, Street)" value={form.street} onChange={e => setForm({...form, street: e.target.value})} required />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="City" value={form.city} onChange={e => setForm({...form, city: e.target.value})} required />
-            <Input label="Pincode" value={form.postalCode} onChange={e => setForm({...form, postalCode: e.target.value})} required />
-          </div>
-          <Input label="State" value={form.state} onChange={e => setForm({...form, state: e.target.value})} required />
-          
-          <div className="flex gap-4 pt-2">
-            {['Home', 'Work', 'Other'].map(type => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setForm({...form, type})}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-all ${form.type === type ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200'}`}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-
-          <label className="flex items-center gap-3 pt-2 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={form.isDefault} 
-              onChange={e => setForm({...form, isDefault: e.target.checked})}
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm font-bold text-gray-700">Make this my default address</span>
-          </label>
-
-          <Button type="submit" fullWidth className="mt-4">Save Address</Button>
-        </form>
-      </Modal>
     </div>
   );
 };

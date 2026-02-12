@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { MapPin, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+// Components
 import HeroBanner from '../../components/home/HeroBanner';
 import CategoryRail from '../../components/home/CategoryRail';
 import ProductGrid from '../../components/product/ProductGrid';
@@ -20,14 +22,14 @@ const Home = () => {
   return (
     <div className="bg-white min-h-screen pb-20">
       
-      {/* Location Bar */}
-      <div className="bg-gray-900 text-white text-xs py-2 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 truncate max-w-[80%]">
-          <MapPin size={12} className="text-blue-400" />
-          <span className="font-medium text-gray-300">Deliver to:</span>
-          <span className="font-bold truncate">Select Location</span>
-        </div>
-        <button className="text-blue-400 font-bold hover:underline">Change</button>
+      {/* --- LOCATION BAR (UPDATED) --- */}
+      <div 
+        onClick={() => navigate('/user/addresses')}
+        className="bg-[#2e1065] text-white text-xs py-2.5 px-4 flex items-center gap-2 cursor-pointer hover:bg-[#311a7f] transition-colors"
+      >
+        <MapPin size={14} className="text-purple-300" />
+        <span className="font-medium text-purple-200">Deliver to:</span>
+        <span className="font-bold truncate">Select Location</span>
       </div>
 
       {/* Search Bar */}
@@ -39,26 +41,29 @@ const Home = () => {
             placeholder="Search for gifts, brands and more..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-gray-900 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border-none rounded-xl text-gray-900 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
           />
         </form>
       </div>
 
+      {/* Hero Banner */}
       <HeroBanner />
+
+      {/* Categories */}
       <CategoryRail />
 
-      {/* --- TRENDING (Uses 'trendingList' in Redux) --- */}
+      {/* --- TRENDING SECTION --- */}
       <ProductGrid 
-        type="trending" // <--- IMPORTANT
+        type="trending" 
         title="Trending Now" 
         seeAllLink="/trending" 
         limit={12} 
         mode="horizontal" 
       />
 
-      {/* --- SUGGESTED (Uses 'suggestedList' in Redux) --- */}
+      {/* --- SUGGESTED SECTION --- */}
       <ProductGrid 
-        type="suggested" // <--- IMPORTANT
+        type="suggested" 
         title="Suggested for You" 
         limit={8} 
         mode="vertical" 

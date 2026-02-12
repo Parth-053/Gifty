@@ -29,6 +29,7 @@ import OrderSuccess from '../pages/Checkout/OrderSuccess';
 // --- USER DASHBOARD PAGES ---
 import EditProfile from '../pages/User/EditProfile';
 import SavedAddresses from '../pages/User/SavedAddresses';
+import ManageAddress from '../pages/User/ManageAddress';
 import OrderDetails from '../pages/User/OrderDetails';
 import MyCoupons from '../pages/User/MyCoupons';
 import Notifications from '../pages/User/Notifications';
@@ -38,9 +39,8 @@ import Settings from '../pages/User/Settings';
 // --- UTILITY PAGES ---
 import About from '../pages/Utility/About';
 import Contact from '../pages/Utility/Contact';
-
-// --- ERROR PAGE ---
-import NotFound from '../pages/Utility/NotFound'; // Ensure correct path
+import Terms from '../pages/Utility/Terms';
+import NotFound from '../pages/Utility/NotFound'; 
 
 const AppRoutes = () => {
   return (
@@ -54,14 +54,14 @@ const AppRoutes = () => {
       {/* 2. App Layout Routes (Navbar, Footer, etc.) */}
       <Route element={<AppLayout />}>
         
-        {/* === HOME PAGE (Now Protected) === */}
+        {/* === HOME PAGE (Protected) === */}
         <Route path="/" element={
           <ProtectedRoute>
             <Home />
           </ProtectedRoute>
         } />
 
-        {/* Public Browsing Pages inside Layout (Optional: Wrap these in ProtectedRoute too if you want the ENTIRE app locked down) */}
+        {/* Public Browsing Pages inside Layout */}
         <Route path="/categories" element={<Categories />} />
         <Route path="/customize" element={<Customize />} />
         <Route path="/search" element={<Search />} />
@@ -71,6 +71,7 @@ const AppRoutes = () => {
         {/* Utility Pages */}
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/terms" element={<Terms />} />
 
         {/* --- PROTECTED ROUTES --- */}
         <Route path="/wishlist" element={
@@ -93,7 +94,12 @@ const AppRoutes = () => {
 
         {/* User Dashboard Sub-pages */}
         <Route path="/user/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
+        
+        {/* FIX: Explicit routes for Address Management to match SavedAddresses.jsx buttons */}
         <Route path="/user/addresses" element={<ProtectedRoute><SavedAddresses /></ProtectedRoute>} />
+        <Route path="/user/addresses/add" element={<ProtectedRoute><ManageAddress /></ProtectedRoute>} />
+        <Route path="/user/addresses/edit/:id" element={<ProtectedRoute><ManageAddress /></ProtectedRoute>} />
+
         <Route path="/user/orders/:id" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
         <Route path="/user/coupons" element={<ProtectedRoute><MyCoupons /></ProtectedRoute>} />
         <Route path="/user/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />

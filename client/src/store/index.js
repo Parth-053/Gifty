@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 
 // Import Reducers
+import addressReducer from './addressSlice';
 import authReducer from './authSlice';
 import cartReducer from './cartSlice';
 import productReducer from './productSlice';
@@ -8,10 +9,11 @@ import wishlistReducer from './wishlistSlice';
 import categoryReducer from './categorySlice';
 import bannerReducer from './bannerSlice';
 import orderReducer from './orderSlice';
-import uiReducer from './uiSlice'; // Ensure you have this or remove if not using sidebar
+import uiReducer from './uiSlice';
 
 const store = configureStore({
   reducer: {
+    addresses: addressReducer,
     auth: authReducer,
     cart: cartReducer,
     products: productReducer,
