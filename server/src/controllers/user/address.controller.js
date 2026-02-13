@@ -1,5 +1,5 @@
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { ApiResponse } from "../../utils/ApiResponse.js";
+import { ApiResponse } from "../../utils/apiResponse.js";
 import * as addressService from "../../services/address.service.js";
 import { httpStatus } from "../../constants/httpStatus.js";
 
@@ -7,8 +7,7 @@ import { httpStatus } from "../../constants/httpStatus.js";
  * @desc    Add New Address
  * @route   POST /api/v1/user/address
  */
-export const createAddress = asyncHandler(async (req, res) => {
-  // Pass 'User' as the ownerModel to differentiate from Seller addresses
+export const addAddress = asyncHandler(async (req, res) => {
   const address = await addressService.addAddress(req.user._id, "User", req.body);
   
   return res
@@ -38,6 +37,18 @@ export const updateAddress = asyncHandler(async (req, res) => {
   return res
     .status(httpStatus.OK)
     .json(new ApiResponse(httpStatus.OK, address, "Address updated successfully"));
+});
+
+/**
+ * @desc    Set Address as Default
+ * @route   PATCH /api/v1/user/address/:id/default
+ */
+export const setDefaultAddress = asyncHandler(async (req, res) => {
+  const address = await addressService.setDefaultAddress(req.user._id, req.params.id);
+  
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, address, "Default address updated"));
 });
 
 /**

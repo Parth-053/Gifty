@@ -1,74 +1,114 @@
-import { Address } from "../models/Address.model.js";
-import { ApiError } from "../utils/ApiError.js";
+import {Address} from "../models/Address.model.js";
+import {ApiError} from "../utils/apiError.js";
 
 /**
  * Add New Address
- * @param {String} ownerId - ID of User or Seller
- * @param {String} ownerModel - "User" or "Seller"
- * @param {Object} addressData
+ * - Automatically sets as default if it's the first one.
+ * - If user marks as default, unsets previous default.
  */
-export const addAddress = async (ownerId, ownerModel, addressData) => {
-  // Check if this is the first address for this owner
-  const addressCount = await Address.countDocuments({ ownerId });
+export const addAddress = async (userId, ownerModel, addressData) => {
+  // 1. Check if this is the user's first address
+  const count = await Address.countDocuments({ user: userId });
   
-  // If first address, force default
-  if (addressCount === 0) {
+  if (count === 0) {
     addressData.isDefault = true;
   }
 
-  // If new address is marked default, unset previous default
+  // 2. If new address is Default, unset all others first
   if (addressData.isDefault) {
     await Address.updateMany(
-      { ownerId, isDefault: true },
-      { isDefault: false }
+      { user: userId, isDefault: true },
+      { $set: { isDefault: false } }
     );
   }
 
+  // 3. Create the address
   const address = await Address.create({
     ...addressData,
-    ownerId,
-    ownerModel // Dynamic reference
+    user: userId,
   });
 
   return address;
 };
 
 /**
- * Get All Addresses for Owner
+ * Get Address List
+ * - Sorts by Default first, then by latest updated
  */
-export const getAddressList = async (ownerId) => {
-  return await Address.find({ ownerId })
-    .sort({ isDefault: -1, createdAt: -1 }); // Default first
+export const getAddressList = async (userId) => {
+  return await Address.find({ user: userId })
+    .sort({ isDefault: -1, updatedAt: -1 });
 };
 
 /**
  * Update Address
+ * - Handles switching default status
  */
-export const updateAddress = async (ownerId, addressId, updateData) => {
-  const address = await Address.findOne({ _id: addressId, ownerId });
+export const updateAddress = async (userId, addressId, updateData) => {
+  // If setting to default, unset others first
+  if (updateData.isDefault === true) {
+    await Address.updateMany(
+      { user: userId, _id: { $ne: addressId } }, // $ne means "not equal"
+      { $set: { isDefault: false } }
+    );
+  }
+
+  const address = await Address.findOneAndUpdate(
+    { _id: addressId, user: userId },
+    updateData,
+    { new: true, runValidators: true }
+  );
 
   if (!address) {
     throw new ApiError(404, "Address not found");
   }
 
-  // If setting as default, unset others
-  if (updateData.isDefault === true) {
-    await Address.updateMany(
-      { ownerId, _id: { $ne: addressId } },
-      { isDefault: false }
-    );
+  return address;
+};
+
+/**
+ * Set Specific Address as Default
+ */
+export const setDefaultAddress = async (userId, addressId) => {
+  // 1. Unset all addresses for this user
+  await Address.updateMany(
+    { user: userId },
+    { $set: { isDefault: false } }
+  );
+
+  // 2. Set the requested one as true
+  const address = await Address.findOneAndUpdate(
+    { _id: addressId, user: userId },
+    { $set: { isDefault: true } },
+    { new: true }
+  );
+
+  if (!address) {
+    throw new ApiError(404, "Address not found");
   }
 
-  Object.assign(address, updateData);
-  await address.save();
   return address;
 };
 
 /**
  * Delete Address
+ * - If default is deleted, assigns default to the most recently updated address
  */
-export const deleteAddress = async (ownerId, addressId) => {
-  const address = await Address.findOneAndDelete({ _id: addressId, ownerId });
-  if (!address) throw new ApiError(404, "Address not found");
-  return true;
+export const deleteAddress = async (userId, addressId) => {
+  const address = await Address.findOneAndDelete({ _id: addressId, user: userId });
+
+  if (!address) {
+    throw new ApiError(404, "Address not found");
+  }
+
+  // Smart Fail-over: If we deleted the default address, promote another one
+  if (address.isDefault) {
+    const latestAddress = await Address.findOne({ user: userId }).sort({ updatedAt: -1 });
+    if (latestAddress) {
+      latestAddress.isDefault = true;
+      await latestAddress.save();
+    }
+  }
+
+  return address;
 };
