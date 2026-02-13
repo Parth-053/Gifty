@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { registerUser } from '../../store/authSlice';
-import api from '../../api/axios';
+import { useDispatch, useSelector } from 'react-redux';
+import { verifyOtp, registerUser, sendOtp, clearAuthError } from '../../store/authSlice';
 import toast from 'react-hot-toast';
 
 const VerifyEmail = () => {
@@ -10,14 +9,12 @@ const VerifyEmail = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   
+  const { loading, error } = useSelector((state) => state.auth);
   const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  // Safe Access: Check if state exists before accessing properties
-  const registrationData = location.state;
-  const email = registrationData?.formData?.email; // Safely get email
+  const registrationData = location.state?.registrationData;
+  const email = registrationData?.formData?.email;
 
-  // 1. REDIRECT CHECK: If no email found (e.g., page refresh), go back to register
   useEffect(() => {
     if (!email) {
         toast.error("Session expired. Please register again.");
@@ -25,36 +22,37 @@ const VerifyEmail = () => {
     }
   }, [email, navigate]);
 
-  // 2. STOP RENDER: Don't render anything if email is missing to prevent crash
-  if (!email) return null; 
+  useEffect(() => {
+    if (error) toast.error(error);
+    return () => dispatch(clearAuthError());
+  }, [dispatch, error]);
 
-  const { formData, addressData } = registrationData;
+  if (!email) return null; 
 
   const handleVerifyAndRegister = async (e) => {
     e.preventDefault();
     if (otp.length !== 6) return toast.error("OTP must be exactly 6 digits.");
     
-    setLoading(true);
     try {
-        await api.post('/auth/verify-otp', { email, otp });
+        await dispatch(verifyOtp({ email, otp })).unwrap();
+        
+        const { formData, addressData } = registrationData;
         await dispatch(registerUser({ ...formData, addressData })).unwrap();
         
         toast.success("Account verified! Logging you in...");
         navigate('/');
-    } catch (error) {
-        console.error("Verification failed:", error);
-        toast.error(typeof error === 'string' ? error : "Verification failed");
-    } finally {
-        setLoading(false);
+    } catch (err) {
+        console.error("Verification failed", err);
     }
   };
 
   const handleResend = async () => {
     try {
-        await api.post('/auth/send-otp', { email });
+        await dispatch(sendOtp({ email })).unwrap();
         toast.success("New code sent!");
-    } catch (error) {
-        toast.error("Failed to resend code.");
+    } catch {
+        // Fix: Removed 'err' variable since it was unused
+        // Error is handled by the useEffect watching redux state 'error'
     }
   };
 
@@ -70,7 +68,6 @@ const VerifyEmail = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Verify your email</h2>
         <p className="text-gray-500 mb-8">
           We've sent a 6-digit code to <br/>
-          {/* 3. FIX: Use the safely extracted 'email' variable */}
           <span className="font-semibold text-gray-800">{email}</span>
         </p>
 
@@ -90,7 +87,7 @@ const VerifyEmail = () => {
                 disabled={loading || otp.length < 6} 
                 className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-bold"
             >
-                {loading ? "Verifying..." : "Verify & Create Account"}
+                {loading ? "Processing..." : "Verify & Create Account"}
             </button>
         </form>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { registerUser, clearAuthError } from '../../store/authSlice';
+import { sendOtp, clearAuthError } from '../../store/authSlice';
 import toast from 'react-hot-toast';
 import { User, Mail, Lock, Phone, ArrowRight, Loader2 } from 'lucide-react';
 
@@ -35,16 +35,17 @@ const Register = () => {
         }
 
         try {
-            // Unwrap allows us to catch the rejected value (errorMessage from slice)
-            await dispatch(registerUser(formData)).unwrap();
+            await dispatch(sendOtp({ email: formData.email })).unwrap();
             
-            toast.success("Registration successful! Please verify your email.");
-            navigate('/verify-email', { state: { email: formData.email } });
+            toast.success("Verification code sent!");
+            
+            navigate('/verify-email', { 
+                state: { 
+                    registrationData: { formData: formData } 
+                } 
+            });
         } catch (err) {
-            console.error("Registration Error:", err);
-            // The err here is the payload from rejectWithValue, usually a string
-            // No need to toast here if we use the useEffect above, but safe to keep for immediate feedback
-            // toast.error(err || "Registration failed"); 
+            console.error("OTP Error:", err);
         }
     };
 
@@ -77,7 +78,7 @@ const Register = () => {
                     </div>
 
                     <button type="submit" disabled={loading} className="group relative w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-all disabled:opacity-70">
-                        {loading ? <><Loader2 className="animate-spin" size={18} /> Creating Account...</> : <>Create Account <ArrowRight size={18} /></>}
+                        {loading ? <><Loader2 className="animate-spin" size={18} /> Sending Code...</> : <>Create Account <ArrowRight size={18} /></>}
                     </button>
 
                     <div className="text-center mt-4">

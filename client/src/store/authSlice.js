@@ -8,45 +8,33 @@ import {
 import { auth } from '../config/firebase';
 import api from '../api/axios';
 
-// 1. Sync User
-export const syncUser = createAsyncThunk(
-  "auth/syncUser",
-  async (_, { rejectWithValue }) => {
+// --- 1. Send OTP Action ---
+export const sendOtp = createAsyncThunk(
+  "auth/sendOtp",
+  async ({ email }, { rejectWithValue }) => {
     try {
-      if (!auth.currentUser) return rejectWithValue("No user logged in");
-      
-      const token = await auth.currentUser.getIdToken(true);
-      localStorage.setItem("token", token);
-      
-      const response = await api.get("/auth/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data.data;
+      const response = await api.post("/auth/send-otp", { email });
+      return response.data;
     } catch (error) {
-      if (error.response && error.response.status === 404) {
-        return rejectWithValue("Profile not found");
-      }
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch profile");
+      return rejectWithValue(error.response?.data?.message || "Failed to send code");
     }
   }
 );
 
-// 2. Login User
-export const loginUser = createAsyncThunk(
-  "auth/login",
-  async ({ email, password }, { dispatch, rejectWithValue }) => {
+// --- 2. Verify OTP Action ---
+export const verifyOtp = createAsyncThunk(
+  "auth/verifyOtp",
+  async ({ email, otp }, { rejectWithValue }) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      return await dispatch(syncUser()).unwrap();
+      const response = await api.post("/auth/verify-otp", { email, otp });
+      return response.data;
     } catch (error) {
-      let errorMessage = error.message;
-      if (error.code === 'auth/invalid-credential') errorMessage = 'Invalid email or password';
-      return rejectWithValue(errorMessage);
+      return rejectWithValue(error.response?.data?.message || "Invalid code");
     }
   }
 );
 
-// 3. Register User (FIXED)
+// --- 3. Register User (Creates Account) ---
 export const registerUser = createAsyncThunk(
   "auth/register",
   async ({ fullName, email, password, phone, addressData }, { rejectWithValue }) => {
@@ -61,24 +49,21 @@ export const registerUser = createAsyncThunk(
       localStorage.setItem("token", token);
       
       // C. Sync with MongoDB
-      // The backend creates the user and RETURNS the new user object in 'response.data.data'
       const response = await api.post('/auth/sync/user', 
         { fullName, phone, addressData }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      // FIX: Return the data directly. Do NOT call syncUser() here.
-      // This prevents the "404 Not Found" race condition.
       return response.data.data; 
 
     } catch (error) {
-      // Cleanup if failed
+      // Cleanup: Delete Firebase user if MongoDB sync fails
       if (auth.currentUser) {
-        try { await auth.currentUser.delete(); } catch (e) { console.warn("Rollback failed:", e); }
+        try { await auth.currentUser.delete(); } catch (e) { console.error(e); }
       }
       
       let errorMessage = error.message;
-      if (error.code === 'auth/email-already-in-use') errorMessage = 'This email is already registered';
+      if (error.code === 'auth/email-already-in-use') errorMessage = 'Email already registered';
       if (error.response?.data?.message) errorMessage = error.response.data.message;
       
       return rejectWithValue(errorMessage);
@@ -86,88 +71,97 @@ export const registerUser = createAsyncThunk(
   }
 );
 
-// 4. Logout User
-export const logoutUser = createAsyncThunk(
-  "auth/logout",
-  async () => {
+// --- 4. Login User ---
+export const loginUser = createAsyncThunk(
+  "auth/login",
+  async ({ email, password }, { dispatch, rejectWithValue }) => {
     try {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          await api.post('/auth/logout'); 
-        } catch { /* Ignore backend errors */ }
-      }
-      await signOut(auth);
-      localStorage.removeItem("token");
-      return true;
-    } catch {
-      return true; 
+      await signInWithEmailAndPassword(auth, email, password);
+      return await dispatch(syncUser()).unwrap();
+    } catch (error) {
+      // Fix: error was defined but unused if we just return a string
+      console.error("Login failed:", error); 
+      return rejectWithValue("Invalid email or password");
     }
   }
 );
 
-const initialState = {
-  user: null,
-  isAuthenticated: false,
-  loading: true, 
-  error: null,
-};
+// --- 5. Sync User ---
+export const syncUser = createAsyncThunk(
+  "auth/syncUser",
+  async (_, { rejectWithValue }) => {
+    try {
+      if (!auth.currentUser) return rejectWithValue("No user");
+      const token = await auth.currentUser.getIdToken(true);
+      localStorage.setItem("token", token);
+      
+      const response = await api.get("/auth/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Sync failed");
+    }
+  }
+);
+
+// --- 6. Logout ---
+export const logoutUser = createAsyncThunk(
+  "auth/logout",
+  async () => {
+    // Fix: Added comment to empty catch block
+    try { await api.post('/auth/logout'); } catch { /* ignore backend errors on logout */ }
+    await signOut(auth);
+    localStorage.removeItem("token");
+    return true;
+  }
+);
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: { user: null, isAuthenticated: false, loading: false, error: null },
   reducers: {
-    clearAuthError: (state) => {
-      state.error = null;
-    },
+    clearAuthError: (state) => { state.error = null; },
   },
   extraReducers: (builder) => {
     builder
-      // Sync
-      .addCase(syncUser.pending, (state) => { state.error = null; })
+      // Handle OTP Loading States
+      .addCase(sendOtp.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(sendOtp.fulfilled, (state) => { state.loading = false; })
+      .addCase(sendOtp.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+      
+      // Handle Register
+      .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(registerUser.fulfilled, (state, action) => { 
+        state.loading = false; 
+        state.isAuthenticated = true; 
+        state.user = action.payload; 
+      })
+      .addCase(registerUser.rejected, (state, action) => { 
+        state.loading = false; 
+        state.error = action.payload; 
+      })
+
+      // Handle Login
+      .addCase(loginUser.fulfilled, (state) => { state.loading = false; })
+      .addCase(loginUser.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+
+      // Handle Sync
       .addCase(syncUser.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
       })
-      .addCase(syncUser.rejected, (state, action) => {
+      .addCase(syncUser.rejected, (state) => {
         state.loading = false;
         state.isAuthenticated = false;
         state.user = null;
-        if (action.payload && action.payload !== "No user logged in") {
-           state.error = action.payload;
-        }
       })
-      // Login
-      .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(loginUser.fulfilled, (state) => { state.loading = false; })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Register (UPDATED STATE UPDATE)
-      .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(registerUser.fulfilled, (state, action) => { 
-        state.loading = false; 
-        state.isAuthenticated = true; // Mark as logged in immediately
-        state.user = action.payload;  // Use the returned data
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Logout
+
+      // Handle Logout
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
-        state.loading = false;
-        state.error = null;
-      })
-      .addCase(logoutUser.rejected, (state) => {
-        state.user = null;
-        state.isAuthenticated = false;
-        state.loading = false;
-        state.error = null;
       });
   },
 });
