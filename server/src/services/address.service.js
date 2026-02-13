@@ -3,29 +3,29 @@ import {ApiError} from "../utils/apiError.js";
 
 /**
  * Add New Address
- * - Automatically sets as default if it's the first one.
- * - If user marks as default, unsets previous default.
  */
-export const addAddress = async (userId, ownerModel, addressData) => {
-  // 1. Check if this is the user's first address
-  const count = await Address.countDocuments({ user: userId });
+export const addAddress = async (ownerId, ownerModel, addressData) => {
+  // 1. Check existing addresses for this owner
+  const count = await Address.countDocuments({ ownerId });
   
+  // 2. Force default if it's the first one
   if (count === 0) {
     addressData.isDefault = true;
   }
 
-  // 2. If new address is Default, unset all others first
+  // 3. If new address is Default, unset previous defaults
   if (addressData.isDefault) {
     await Address.updateMany(
-      { user: userId, isDefault: true },
+      { ownerId, isDefault: true },
       { $set: { isDefault: false } }
     );
   }
 
-  // 3. Create the address
+  // 4. Create with correct field names (ownerId)
   const address = await Address.create({
     ...addressData,
-    user: userId,
+    ownerId: ownerId,     // Matches Schema
+    ownerModel: ownerModel // Matches Schema
   });
 
   return address;
@@ -33,28 +33,27 @@ export const addAddress = async (userId, ownerModel, addressData) => {
 
 /**
  * Get Address List
- * - Sorts by Default first, then by latest updated
+ * Uses ownerId to find addresses
  */
-export const getAddressList = async (userId) => {
-  return await Address.find({ user: userId })
+export const getAddressList = async (ownerId) => {
+  return await Address.find({ ownerId })
     .sort({ isDefault: -1, updatedAt: -1 });
 };
 
 /**
  * Update Address
- * - Handles switching default status
  */
-export const updateAddress = async (userId, addressId, updateData) => {
+export const updateAddress = async (ownerId, addressId, updateData) => {
   // If setting to default, unset others first
   if (updateData.isDefault === true) {
     await Address.updateMany(
-      { user: userId, _id: { $ne: addressId } }, // $ne means "not equal"
+      { ownerId, _id: { $ne: addressId } },
       { $set: { isDefault: false } }
     );
   }
 
   const address = await Address.findOneAndUpdate(
-    { _id: addressId, user: userId },
+    { _id: addressId, ownerId },
     updateData,
     { new: true, runValidators: true }
   );
@@ -67,18 +66,18 @@ export const updateAddress = async (userId, addressId, updateData) => {
 };
 
 /**
- * Set Specific Address as Default
+ * Set Default Address
  */
-export const setDefaultAddress = async (userId, addressId) => {
-  // 1. Unset all addresses for this user
+export const setDefaultAddress = async (ownerId, addressId) => {
+  // 1. Unset all
   await Address.updateMany(
-    { user: userId },
+    { ownerId },
     { $set: { isDefault: false } }
   );
 
-  // 2. Set the requested one as true
+  // 2. Set specific one
   const address = await Address.findOneAndUpdate(
-    { _id: addressId, user: userId },
+    { _id: addressId, ownerId },
     { $set: { isDefault: true } },
     { new: true }
   );
@@ -92,21 +91,20 @@ export const setDefaultAddress = async (userId, addressId) => {
 
 /**
  * Delete Address
- * - If default is deleted, assigns default to the most recently updated address
  */
-export const deleteAddress = async (userId, addressId) => {
-  const address = await Address.findOneAndDelete({ _id: addressId, user: userId });
+export const deleteAddress = async (ownerId, addressId) => {
+  const address = await Address.findOneAndDelete({ _id: addressId, ownerId });
 
   if (!address) {
     throw new ApiError(404, "Address not found");
   }
 
-  // Smart Fail-over: If we deleted the default address, promote another one
+  // If deleted was default, make newest one default
   if (address.isDefault) {
-    const latestAddress = await Address.findOne({ user: userId }).sort({ updatedAt: -1 });
-    if (latestAddress) {
-      latestAddress.isDefault = true;
-      await latestAddress.save();
+    const latest = await Address.findOne({ ownerId }).sort({ updatedAt: -1 });
+    if (latest) {
+      latest.isDefault = true;
+      await latest.save();
     }
   }
 

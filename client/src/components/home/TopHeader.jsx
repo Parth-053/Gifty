@@ -1,13 +1,13 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { MapPin, Bell, ChevronDown } from 'lucide-react';
-import { fetchAddresses } from '../../store/addressSlice';
 import { Link } from 'react-router-dom';
+import { fetchAddresses } from '../../store/addressSlice';
 
 const TopHeader = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { items: addresses } = useSelector((state) => state.addresses);
+  const { items: addresses, selectedId } = useSelector((state) => state.addresses);
 
   useEffect(() => {
     if (user) {
@@ -15,15 +15,19 @@ const TopHeader = () => {
     }
   }, [dispatch, user]);
 
-  // Logic: Find the address marked as default. 
-  // If no default exists (rare), fallback to the first one.
-  const defaultAddress = addresses?.find(addr => addr.isDefault) || addresses?.[0];
+  // PRIORITY LOGIC:
+  // 1. The address the user explicitly clicked (selectedId)
+  // 2. The address marked as default in database (isDefault)
+  // 3. The first address in the list
+  const activeAddress = addresses.find(addr => addr._id === selectedId) 
+                        || addresses.find(addr => addr.isDefault) 
+                        || addresses[0];
 
   return (
     <div className="bg-white py-2 px-4 shadow-sm border-b border-gray-100 sticky top-0 z-40">
       <div className="container mx-auto flex items-center justify-between">
         
-        {/* --- LOCATION BAR --- */}
+        {/* --- Location Bar --- */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center shrink-0">
             <MapPin size={18} className="text-purple-600" />
@@ -36,8 +40,8 @@ const TopHeader = () => {
             
             <Link to="/user/addresses" className="flex items-center gap-1 group cursor-pointer">
               <span className="text-sm font-bold text-gray-900 group-hover:text-purple-600 transition-colors truncate max-w-[150px] sm:max-w-xs">
-                {defaultAddress 
-                  ? `${defaultAddress.city} - ${defaultAddress.pincode}` 
+                {activeAddress 
+                  ? `${activeAddress.city} - ${activeAddress.pincode}` 
                   : "Add Address"
                 }
               </span>
@@ -46,10 +50,11 @@ const TopHeader = () => {
           </div>
         </div>
 
-        {/* --- RIGHT ICONS --- */}
+        {/* --- Right Actions --- */}
         <div className="flex items-center gap-3">
           <button className="relative p-2 rounded-full hover:bg-gray-50 transition-all">
             <Bell size={22} className="text-gray-700" />
+            {/* Notification Dot */}
             <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
           </button>
         </div>

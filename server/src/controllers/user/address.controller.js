@@ -5,9 +5,10 @@ import { httpStatus } from "../../constants/httpStatus.js";
 
 /**
  * @desc    Add New Address
- * @route   POST /api/v1/user/address
+ * @route   POST /api/v1/address
  */
 export const addAddress = asyncHandler(async (req, res) => {
+  // Pass 'User' as ownerModel to differentiate from potentially Seller addresses
   const address = await addressService.addAddress(req.user._id, "User", req.body);
   
   return res
@@ -17,7 +18,7 @@ export const addAddress = asyncHandler(async (req, res) => {
 
 /**
  * @desc    Get My Addresses
- * @route   GET /api/v1/user/address
+ * @route   GET /api/v1/address
  */
 export const getAddresses = asyncHandler(async (req, res) => {
   const list = await addressService.getAddressList(req.user._id);
@@ -29,7 +30,7 @@ export const getAddresses = asyncHandler(async (req, res) => {
 
 /**
  * @desc    Update Address
- * @route   PUT /api/v1/user/address/:id
+ * @route   PUT /api/v1/address/:id
  */
 export const updateAddress = asyncHandler(async (req, res) => {
   const address = await addressService.updateAddress(req.user._id, req.params.id, req.body);
@@ -40,8 +41,8 @@ export const updateAddress = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Set Address as Default
- * @route   PATCH /api/v1/user/address/:id/default
+ * @desc    Set Default Address
+ * @route   PATCH /api/v1/address/:id/default
  */
 export const setDefaultAddress = asyncHandler(async (req, res) => {
   const address = await addressService.setDefaultAddress(req.user._id, req.params.id);
@@ -53,7 +54,7 @@ export const setDefaultAddress = asyncHandler(async (req, res) => {
 
 /**
  * @desc    Delete Address
- * @route   DELETE /api/v1/user/address/:id
+ * @route   DELETE /api/v1/address/:id
  */
 export const deleteAddress = asyncHandler(async (req, res) => {
   await addressService.deleteAddress(req.user._id, req.params.id);
