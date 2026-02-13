@@ -1,138 +1,89 @@
-// client/src/pages/Auth/Register.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { clearAuthError } from '../../store/authSlice';
-import useAuth from '../../hooks/useAuth';
-import api from '../../api/axios';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser, clearAuthError } from '../../store/authSlice';
 import toast from 'react-hot-toast';
+import { User, Mail, Lock, Phone, ArrowRight, Loader2 } from 'lucide-react';
 
 const Register = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const { error } = useAuth();
+    
+    const { loading, error } = useSelector((state) => state.auth);
 
-    const [step, setStep] = useState(1);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Step 1 Data
     const [formData, setFormData] = useState({ 
-        fullName: '', email: '', password: '', phone: '' 
-    });
-
-    // Step 2 Data
-    const [addressData, setAddressData] = useState({
-        addressLine1: '', addressLine2: '', city: '', state: '', pincode: '', type: 'Home'
+        fullName: '', 
+        email: '', 
+        password: '', 
+        phone: '' 
     });
 
     useEffect(() => {
+        if (error) toast.error(error);
         return () => dispatch(clearAuthError());
-    }, [dispatch]);
+    }, [dispatch, error]);
 
-    const handleFormChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const handleAddressChange = (e) => setAddressData({ ...addressData, [e.target.name]: e.target.value });
-
-    // Move to Step 2
-    const handleNextStep = (e) => {
-        e.preventDefault();
-        if (!formData.fullName || !formData.email || !formData.password) {
-            return toast.error("Please fill in all required fields.");
-        }
-        setStep(2);
+    const handleFormChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Send OTP and Navigate to Verification Page
-    const handleSendOtpAndProceed = async (e, isSkip = false) => {
-        if (e) e.preventDefault();
-        setIsSubmitting(true);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
         
+        if (!formData.fullName || !formData.email || !formData.password || !formData.phone) {
+            return toast.error("Please fill all fields");
+        }
+
         try {
-            await api.post('/auth/send-otp', { email: formData.email });
-            toast.success(`OTP sent to ${formData.email}`);
+            // Unwrap allows us to catch the rejected value (errorMessage from slice)
+            await dispatch(registerUser(formData)).unwrap();
             
-            // Pass the form data directly to the verify-email page
-            navigate('/verify-email', { 
-                state: { 
-                    formData, 
-                    addressData: isSkip ? null : addressData 
-                } 
-            });
+            toast.success("Registration successful! Please verify your email.");
+            navigate('/verify-email', { state: { email: formData.email } });
         } catch (err) {
-            toast.error(err.response?.data?.message || "Failed to send OTP. Please try again.");
-            setStep(1); // Go back to step 1 in case email exists
-        } finally {
-            setIsSubmitting(false);
+            console.error("Registration Error:", err);
+            // The err here is the payload from rejectWithValue, usually a string
+            // No need to toast here if we use the useEffect above, but safe to keep for immediate feedback
+            // toast.error(err || "Registration failed"); 
         }
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
-            <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md relative">
-                
-                {error && <div className="bg-red-50 text-red-500 p-3 mb-4 rounded text-sm text-center">{error}</div>}
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl">
+                <div className="text-center">
+                    <h2 className="text-3xl font-extrabold text-gray-900">Create Account</h2>
+                    <p className="mt-2 text-sm text-gray-600">Join us to find the perfect gifts</p>
+                </div>
 
-                {/* --- STEP 1: Basic Information --- */}
-                {step === 1 && (
-                    <>
-                        <h2 className="text-2xl font-bold mb-6 text-center">Join Gifty</h2>
-                        <form onSubmit={handleNextStep} className="space-y-4">
-                            <input type="text" name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleFormChange} required className="w-full p-3 border rounded-lg" />
-                            <input type="email" name="email" placeholder="Email Address *" value={formData.email} onChange={handleFormChange} required className="w-full p-3 border rounded-lg" />
-                            <input type="tel" name="phone" placeholder="Phone Number (Optional)" value={formData.phone} onChange={handleFormChange} className="w-full p-3 border rounded-lg" />
-                            <input type="password" name="password" placeholder="Password *" value={formData.password} onChange={handleFormChange} required className="w-full p-3 border rounded-lg" />
-                            
-                            <button type="submit" className="w-full bg-gray-900 text-white p-3 rounded-lg hover:bg-black font-bold mt-2">
-                                Continue to Address ➔
-                            </button>
-                        </form>
+                <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                    <div className="space-y-4">
+                        <div className="relative">
+                            <User className="absolute left-3 top-3 text-gray-400" size={20} />
+                            <input name="fullName" type="text" required className="appearance-none rounded-xl block w-full px-10 py-3 border border-gray-300 focus:ring-purple-500 focus:border-purple-500 sm:text-sm" placeholder="Full Name" value={formData.fullName} onChange={handleFormChange} />
+                        </div>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
+                            <input name="email" type="email" required className="appearance-none rounded-xl block w-full px-10 py-3 border border-gray-300 focus:ring-purple-500 focus:border-purple-500 sm:text-sm" placeholder="Email address" value={formData.email} onChange={handleFormChange} />
+                        </div>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-3 text-gray-400" size={20} />
+                            <input name="phone" type="tel" required className="appearance-none rounded-xl block w-full px-10 py-3 border border-gray-300 focus:ring-purple-500 focus:border-purple-500 sm:text-sm" placeholder="Phone Number" value={formData.phone} onChange={handleFormChange} />
+                        </div>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+                            <input name="password" type="password" required className="appearance-none rounded-xl block w-full px-10 py-3 border border-gray-300 focus:ring-purple-500 focus:border-purple-500 sm:text-sm" placeholder="Password" value={formData.password} onChange={handleFormChange} />
+                        </div>
+                    </div>
 
-                        <p className="mt-6 text-center text-sm">
-                            Already have an account? <Link to="/login" className="text-blue-600 font-bold hover:underline">Login</Link>
-                        </p>
-                    </>
-                )}
+                    <button type="submit" disabled={loading} className="group relative w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-all disabled:opacity-70">
+                        {loading ? <><Loader2 className="animate-spin" size={18} /> Creating Account...</> : <>Create Account <ArrowRight size={18} /></>}
+                    </button>
 
-                {/* --- STEP 2: Address Information (Optional) --- */}
-                {step === 2 && (
-                    <>
-                        <button 
-                            type="button"
-                            onClick={(e) => handleSendOtpAndProceed(e, true)} 
-                            disabled={isSubmitting}
-                            className="absolute top-6 right-6 text-sm font-bold text-gray-500 hover:text-gray-900"
-                        >
-                            Skip
-                        </button>
-                        
-                        <h2 className="text-2xl font-bold mb-2">Delivery Address</h2>
-                        <p className="text-sm text-gray-500 mb-6">Where should we deliver your gifts?</p>
-                        
-                        <form onSubmit={(e) => handleSendOtpAndProceed(e, false)} className="space-y-4">
-                            <input type="text" name="addressLine1" placeholder="Flat, House no., Building, Company *" value={addressData.addressLine1} onChange={handleAddressChange} required className="w-full p-3 border rounded-lg" />
-                            <input type="text" name="addressLine2" placeholder="Area, Street, Sector, Village" value={addressData.addressLine2} onChange={handleAddressChange} className="w-full p-3 border rounded-lg" />
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                                <input type="text" name="city" placeholder="Town/City *" value={addressData.city} onChange={handleAddressChange} required className="w-full p-3 border rounded-lg" />
-                                <input type="text" name="state" placeholder="State *" value={addressData.state} onChange={handleAddressChange} required className="w-full p-3 border rounded-lg" />
-                            </div>
-                            
-                            <input type="text" name="pincode" placeholder="Pincode *" value={addressData.pincode} onChange={handleAddressChange} required className="w-full p-3 border rounded-lg" />
-                            
-                            <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-bold mt-4">
-                                {isSubmitting ? "Sending Code..." : "Send Verification Code"}
-                            </button>
-                        </form>
-
-                        <button 
-                            type="button" 
-                            onClick={() => setStep(1)} 
-                            disabled={isSubmitting}
-                            className="w-full mt-3 text-sm text-gray-500 hover:text-gray-900"
-                        >
-                            ← Back to Info
-                        </button>
-                    </>
-                )}
+                    <div className="text-center mt-4">
+                        <Link to="/login" className="font-medium text-purple-600 hover:text-purple-500">Already have an account? Sign in</Link>
+                    </div>
+                </form>
             </div>
         </div>
     );

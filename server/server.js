@@ -17,7 +17,7 @@ process.on("uncaughtException", (err) => {
  
 connectDB()
   .then(() => {
-    const server = app.listen(envConfig.port, () => {
+    const server = app.listen(envConfig.port,'0.0.0.0', () => {
       logger.info(`🚀 Server running in ${envConfig.env} mode on port ${envConfig.port}`);
       logger.info(`🔗 URL: http://localhost:${envConfig.port}`);
     });

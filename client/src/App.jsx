@@ -1,8 +1,7 @@
-// client/src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useLocation } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth'; 
+import { onAuthStateChanged, signOut } from 'firebase/auth'; // Import signOut directly
 import { auth } from './config/firebase'; 
 
 // Components & Routes
@@ -25,35 +24,41 @@ const ScrollToTop = () => {
 
 const App = () => {
   const dispatch = useDispatch();
-  const [isAuthChecking, setIsAuthChecking] = useState(true); // Block rendering until auth is checked
+  const [isAuthChecking, setIsAuthChecking] = useState(true); 
 
   useEffect(() => {
-    // LISTENER: Waits for Firebase to restore the session from localStorage
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // User session found! Now sync with MongoDB
+          // Attempt to sync Firebase user with MongoDB
           await dispatch(syncUser()).unwrap();
           
-          // Fetch data immediately after sync
+          // Only fetch data if sync succeeds
           dispatch(fetchCart());
           dispatch(fetchWishlist());
         } catch (error) {
-          console.error("Auto-login sync failed:", error);
+          console.warn("Auto-login sync failed:", error);
+          
+          // CRITICAL FIX: If Sync fails (User deleted in DB but exists in Firebase),
+          // DO NOT dispatch logoutUser() which calls the API. 
+          // Just manually kill the session locally.
+          await signOut(auth);
+          localStorage.removeItem('token');
+          // Update Redux state to reflect logout
+          dispatch(logoutUser.fulfilled()); 
         }
       } else {
-        // No session found
-        dispatch(logoutUser());
+        // No session found, ensure Redux state is clear
+        // We dispatch the fulfilled action directly to clear state without API call
+        dispatch(logoutUser.fulfilled());
       }
       
-      // Stop loading once we know the status (LoggedIn or LoggedOut)
       setIsAuthChecking(false); 
     });
 
     return () => unsubscribe();
   }, [dispatch]);
 
-  // Show a full-screen loader while checking session
   if (isAuthChecking) {
      return <Loader fullScreen text="Starting Gifty..." />;
   }
