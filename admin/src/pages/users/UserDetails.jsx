@@ -1,4 +1,3 @@
-// admin/src/pages/users/UserDetails.jsx
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
@@ -129,21 +128,37 @@ const UserDetails = () => {
               <h3 className="text-lg font-bold text-gray-900">Saved Addresses</h3>
             </div>
             
-            {user.addresses?.length > 0 ? (
+            {user.addresses && user.addresses.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {user.addresses.map((addr, idx) => (
                   <div key={idx} className="p-3 border border-gray-100 rounded-lg bg-gray-50 text-sm">
-                    <p className="font-medium text-gray-900 mb-1">{addr.name || user.fullName}</p>
-                    <p className="text-gray-600">{addr.addressLine1}</p>
-                    {addr.addressLine2 && <p className="text-gray-600">{addr.addressLine2}</p>}
-                    <p className="text-gray-600">{addr.city}, {addr.state} - {addr.pincode}</p>
-                    <p className="text-gray-600 mt-1 text-xs">Phone: {addr.phone}</p>
+                    <div className="flex justify-between items-start mb-1">
+                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                            addr.type === 'Home' ? 'bg-blue-100 text-blue-700' : 
+                            addr.type === 'Work' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                            {addr.type || 'HOME'}
+                        </span>
+                    </div>
+                    {/* Fixed: Matches Address.model.js field 'fullName' */}
+                    <p className="font-medium text-gray-900 mb-0.5">{addr.fullName || user.fullName}</p>
+                    
+                    <p className="text-gray-600 leading-tight">
+                      {addr.addressLine1}
+                    </p>
+                    {addr.addressLine2 && <p className="text-gray-600 leading-tight">{addr.addressLine2}</p>}
+                    
+                    <p className="text-gray-600 mt-0.5">
+                      {addr.city}, {addr.state} - <span className="font-medium">{addr.pincode}</span>
+                    </p>
+                    
+                    <p className="text-gray-500 mt-1 text-xs">Phone: {addr.phone}</p>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-gray-500 text-sm italic border border-dashed border-gray-200 p-4 rounded-lg text-center">
-                No addresses saved.
+                No addresses saved for this user.
               </p>
             )}
           </div>

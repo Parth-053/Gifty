@@ -1,6 +1,7 @@
 import { User } from "../../models/User.model.js";
 import { Seller } from "../../models/Seller.model.js"; 
-import { Product } from "../../models/Product.model.js";  
+import { Product } from "../../models/Product.model.js";
+import { Address } from "../../models/Address.model.js"; 
 import * as imageService from "../../services/image.service.js";  
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
@@ -8,6 +9,7 @@ import { ApiError } from "../../utils/ApiError.js";
 import { httpStatus } from "../../constants/httpStatus.js";
 
 // --- User Management ---
+
 export const getAllUsers = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
@@ -30,44 +32,68 @@ export const getAllUsers = asyncHandler(async (req, res) => {
     .skip(skip)
     .limit(limit);
 
-  // FIXED: Returned as { users, total } to match what Redux expects
   return res.status(httpStatus.OK).json(
     new ApiResponse(httpStatus.OK, { users, total }, "Users fetched successfully")
   );
 });
 
 export const getUserDetails = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id)
-    .select("-password")
-    .populate("addresses"); 
-    
+  const { id } = req.params;
+
+  // 1. Fetch User
+  const user = await User.findById(id).select("-password");
   if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
-  return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, user, "User details fetched"));
+
+  // 2. Explicitly Fetch Addresses using 'ownerId' (Matches your Model)
+  const addresses = await Address.find({ ownerId: id });
+
+  // 3. Merge them
+  const userData = { 
+    ...user.toObject(), 
+    addresses: addresses || [] 
+  };
+
+  return res.status(httpStatus.OK).json(
+    new ApiResponse(httpStatus.OK, userData, "User details fetched")
+  );
 });
 
 export const updateUserStatus = asyncHandler(async (req, res) => {
   const { isActive, status } = req.body; 
+  const { id } = req.params;
   
   let newStatus;
   if (isActive !== undefined) {
-      newStatus = isActive; // From Admin Panel
+      newStatus = isActive; 
   } else {
-      newStatus = status === 'active'; // Fallback
+      newStatus = status === 'active'; 
   }
 
+  // 1. Update User
   const user = await User.findByIdAndUpdate(
-    req.params.id, 
+    id, 
     { isActive: newStatus }, 
     { new: true }
-  ).select("-password").populate("addresses");
+  ).select("-password");
 
-  return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, user, "User status updated"));
+  if (!user) throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+
+  // 2. Re-fetch addresses using 'ownerId' so they don't disappear
+  const addresses = await Address.find({ ownerId: id });
+
+  // 3. Return merged data
+  const userData = { 
+    ...user.toObject(), 
+    addresses: addresses || [] 
+  };
+
+  return res.status(httpStatus.OK).json(
+    new ApiResponse(httpStatus.OK, userData, "User status updated")
+  );
 });
 
-// --- Seller Management ---
-
+// --- Seller Management --- (Kept as is)
 export const getAllSellers = asyncHandler(async (req, res) => {
-  // Fetch all sellers who are NOT pending (Approved, Rejected, Suspended)
   const sellers = await Seller.find({})
     .select("-firebaseUid")
     .sort({ createdAt: -1 });
@@ -81,7 +107,6 @@ export const getSellerDetails = asyncHandler(async (req, res) => {
   const seller = await Seller.findById(req.params.id);
   if (!seller) throw new ApiError(httpStatus.NOT_FOUND, "Seller not found");
   
-  // Also get total products to display on the Seller Details page
   const totalProducts = await Product.countDocuments({ sellerId: seller._id });
   
   return res
@@ -89,33 +114,25 @@ export const getSellerDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(httpStatus.OK, { ...seller.toObject(), totalProducts }, "Seller details fetched"));
 });
 
-
-/**
- * @desc    BAN / UNBAN SELLER (Admin Action)
- * @route   PATCH /api/v1/admin/sellers/:id/status
- */
 export const updateSellerStatusAdmin = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { action } = req.body; // Expects "ban" or "unban"
+  const { action } = req.body; 
 
   const seller = await Seller.findById(id);
   if (!seller) throw new ApiError(httpStatus.NOT_FOUND, "Seller not found");
 
   if (action === "ban") {
-    // 1. Suspend Seller Account
     seller.status = "suspended"; 
     seller.isActive = false;
     seller.isVerified = false;
     await seller.save();
 
-    // 2. IMMEDIATELY Deactivate all products belonging to this seller
     await Product.updateMany(
       { sellerId: seller._id },
       { $set: { isActive: false, verificationStatus: "rejected" } }
     );
     
   } else if (action === "unban") {
-    // 1. Un-suspend Seller Account
     seller.status = "approved";
     seller.isActive = true;
     seller.isVerified = true;
@@ -134,11 +151,6 @@ export const updateSellerStatusAdmin = asyncHandler(async (req, res) => {
   );
 });
 
-
-/**
- * @desc    HARD DELETE SELLER & ALL ASSOCIATED ASSETS (Admin Action)
- * @route   DELETE /api/v1/admin/sellers/:id
- */
 export const deleteSellerAdmin = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -147,10 +159,8 @@ export const deleteSellerAdmin = asyncHandler(async (req, res) => {
     throw new ApiError(httpStatus.NOT_FOUND, "Seller not found");
   }
 
-  // 1. Find all products of the seller
   const products = await Product.find({ sellerId: seller._id });
 
-  // 2. Delete ALL images for ALL products from Cloudinary
   for (const product of products) {
     if (product.images && product.images.length > 0) {
       try {
@@ -161,10 +171,7 @@ export const deleteSellerAdmin = asyncHandler(async (req, res) => {
     }
   }
 
-  // 3. Delete all products from Database
   await Product.deleteMany({ sellerId: seller._id });
-
-  // 4. Finally, Delete Seller from Database
   await seller.deleteOne();
 
   return res.status(httpStatus.OK).json(
