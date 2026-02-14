@@ -8,7 +8,7 @@ const Navbar = () => {
   const { items } = useSelector((state) => state.wishlist);
 
   return (
-    <nav className="sticky top-0 z-50 transition-all duration-300 shadow-lg bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600">
+    <nav className="sticky top-0 z-50 transition-all duration-300 shadow-lg bg-gradient-to-r from-blue-600 to-purple-600 to-indigo-600">
       
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         
