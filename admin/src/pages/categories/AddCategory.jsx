@@ -1,19 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { createCategory } from "../../store/categorySlice";
+import { createCategory, clearCategoryErrors } from "../../store/categorySlice";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import CategoryForm from "../../components/categories/CategoryForm";
 
 const AddCategory = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error } = useSelector((state) => state.categories);
+  
+  // Use actionLoading for create operations
+  const { actionLoading, error } = useSelector((state) => state.categories);
+  
+  // Local state to force button disable immediately on click
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Clear errors on mount
+  useEffect(() => {
+    dispatch(clearCategoryErrors());
+  }, [dispatch]);
 
   const handleSubmit = async (formData) => {
-    const resultAction = await dispatch(createCategory(formData));
-    if (createCategory.fulfilled.match(resultAction)) {
+    if (isSubmitting) return; // Prevent double clicks
+    
+    setIsSubmitting(true);
+    try {
+      // unwrap() throws an error if the action is rejected, allowing us to catch it
+      await dispatch(createCategory(formData)).unwrap();
+      
+      // Only navigate if successful
       navigate("/categories");
+    } catch (err) {
+      console.error("Failed to create category:", err);
+      // Stay on page to show error
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -34,11 +55,17 @@ const AddCategory = () => {
 
       {error && (
         <div className="bg-red-50 text-red-700 p-4 rounded border border-red-200">
-          {error}
+          {typeof error === 'string' ? error : "An error occurred"}
         </div>
       )}
 
-      <CategoryForm onSubmit={handleSubmit} loading={loading} />
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        {/* Pass the loading state to the form to disable the submit button */}
+        <CategoryForm 
+          onSubmit={handleSubmit} 
+          loading={actionLoading || isSubmitting} 
+        />
+      </div>
     </div>
   );
 };

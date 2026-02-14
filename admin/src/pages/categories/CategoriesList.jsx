@@ -19,6 +19,7 @@ const CategoriesList = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
 
+  // Always fetch on mount to ensure fresh data, but rely on Redux state for instant transitions
   useEffect(() => {
     dispatch(fetchCategories());
   }, [dispatch]);
@@ -40,14 +41,6 @@ const CategoriesList = () => {
     }
   };
 
-  if (loading && categories.length === 0) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <Loader size="lg" text="Loading categories..." />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -68,20 +61,22 @@ const CategoriesList = () => {
         </div>
       )}
 
-      {categories.length > 0 ? (
+      {loading && categories.length === 0 ? (
+        <div className="flex h-64 items-center justify-center">
+          <Loader />
+        </div>
+      ) : categories.length > 0 ? (
         <CategoryTable 
           categories={categories} 
           onEdit={handleEdit} 
           onDelete={handleDeleteClick} 
         />
       ) : (
-        !loading && (
-          <EmptyState
-            title="No categories found"
-            description="Create categories to organize your products."
-            action={<Button onClick={() => navigate("/categories/add")}>Create First Category</Button>}
-          />
-        )
+        <EmptyState
+          title="No categories found"
+          description="Create categories to organize your products."
+          action={<Button onClick={() => navigate("/categories/add")}>Create First Category</Button>}
+        />
       )}
 
       <ConfirmDialog
@@ -90,7 +85,7 @@ const CategoriesList = () => {
         onConfirm={confirmDelete}
         title="Delete Category?"
         message={`Are you sure you want to delete "${selectedCategory?.name}"? This might affect products linked to this category.`}
-        isLoading={loading}
+        isLoading={loading} // Reuse main loading or add specific delete loading state
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { updateCategory, fetchCategories } from "../../store/categorySlice";
+import { updateCategory, fetchCategories, clearCategoryErrors } from "../../store/categorySlice";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import CategoryForm from "../../components/categories/CategoryForm";
 import Loader from "../../components/common/Loader";
@@ -11,29 +11,45 @@ const EditCategory = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  const { categories, loading, error } = useSelector((state) => state.categories);
+  const { categories, loading, actionLoading, error } = useSelector((state) => state.categories);
   const [currentCategory, setCurrentCategory] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Ensure categories are loaded so we can find the current one
   useEffect(() => {
+    dispatch(clearCategoryErrors());
     if (categories.length === 0) {
       dispatch(fetchCategories());
-    } else {
+    }
+  }, [dispatch, categories.length]);
+
+  useEffect(() => {
+    if (categories.length > 0) {
       const cat = categories.find((c) => c._id === id);
       if (cat) setCurrentCategory(cat);
-      else navigate("/categories"); // Invalid ID
+      // Don't navigate away automatically in useEffect, might cause loops. Just show not found if missing.
     }
-  }, [categories, id, dispatch, navigate]);
+  }, [categories, id]);
 
   const handleSubmit = async (formData) => {
-    const resultAction = await dispatch(updateCategory({ id, formData }));
-    if (updateCategory.fulfilled.match(resultAction)) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      await dispatch(updateCategory({ id, formData })).unwrap();
       navigate("/categories");
+    } catch (err) {
+      console.error("Failed to update category:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!currentCategory) {
+  if (loading && !currentCategory) {
     return <div className="flex h-screen items-center justify-center"><Loader /></div>;
+  }
+
+  if (!loading && !currentCategory && categories.length > 0) {
+    return <div className="p-6">Category not found.</div>;
   }
 
   return (
@@ -53,16 +69,19 @@ const EditCategory = () => {
 
       {error && (
         <div className="bg-red-50 text-red-700 p-4 rounded border border-red-200">
-          {error}
+          {typeof error === 'string' ? error : "An error occurred"}
         </div>
       )}
 
-      <CategoryForm 
-        initialData={currentCategory} 
-        onSubmit={handleSubmit} 
-        loading={loading} 
-        isEdit={true}
-      />
+      {currentCategory && (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+          <CategoryForm 
+            initialData={currentCategory} 
+            onSubmit={handleSubmit} 
+            loading={actionLoading || isSubmitting} 
+          />
+        </div>
+      )}
     </div>
   );
 };

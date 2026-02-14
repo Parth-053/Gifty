@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Grid, Wand2, Package, User } from 'lucide-react';
+import { Home, LayoutGrid, Wand2, Package, User } from 'lucide-react';
 
 const BottomNav = () => {
   const navItems = [
     { name: 'Home', icon: Home, path: '/' },
-    { name: 'Shop', icon: Grid, path: '/categories' },
+    { name: 'Categories', icon: LayoutGrid, path: '/categories' },
     { 
       name: 'Customize', 
       icon: Wand2, 

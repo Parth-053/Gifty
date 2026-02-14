@@ -1,28 +1,35 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import BottomNav from './BottomNav';
 import Navbar from './Navbar';
-import BottomNavbar from './BottomNav'; // Updated Import
 
 const AppLayout = () => {
   const location = useLocation();
-  
-  // Hide layouts on checkout/auth pages if needed
-  const isCheckout = location.pathname.includes('/checkout');
-  const isAuth = location.pathname.includes('/auth');
+
+  // List of routes where we want the BottomNav visible, but NO Top Navbar.
+  // (Because these pages have their own specific headers)
+  const noNavbarRoutes = [
+    '/categories',
+    '/customize',
+    '/my-orders',
+    '/user' // Covers /user/profile, /user/orders, etc.
+  ];
+
+  // Check if current path starts with any of the routes above
+  const shouldHideNavbar = noNavbarRoutes.some(route => location.pathname.startsWith(route));
 
   return (
-    <div className="min-h-screen flex flex-col bg-white font-sans text-gray-900 pb-[80px]"> {/* Added padding-bottom for fixed navbar */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Conditionally render Top Navbar */}
+      {!shouldHideNavbar && <Navbar />}
       
-      {/* 1. Top Navbar (Hide on specific pages if desired) */}
-      {!isCheckout && !isAuth && <Navbar />}
-      
-      {/* 2. Main Content */}
-      <main className="flex-1 w-full max-w-full">
+      {/* Main Content (Always has padding for bottom nav) */}
+      <main className="pb-20">
         <Outlet />
       </main>
 
-      {/* 3. New Bottom Navbar (Fixed) */}
-      {!isCheckout && !isAuth && <BottomNavbar />}
+      {/* Bottom Nav is always visible in this Layout */}
+      <BottomNav />
     </div>
   );
 };

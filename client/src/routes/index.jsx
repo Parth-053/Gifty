@@ -11,7 +11,7 @@ import VerifyEmail from '../pages/Auth/VerifyEmail';
 
 // --- MAIN PAGES ---
 import Home from '../pages/Main/Home';
-import Categories from '../pages/Main/Categories';
+import Categories from '../pages/Main/Categories'; 
 import Customize from '../pages/Main/Customize';
 import Wishlist from '../pages/Main/Wishlist';
 import Account from '../pages/Main/Account';
@@ -20,7 +20,7 @@ import MyOrders from '../pages/Main/MyOrders';
 // --- PRODUCT PAGES ---
 import ProductDetails from '../pages/Product/ProductDetails';
 import Search from '../pages/Product/Search';
-import SearchResults from '../pages/Product/SearchResults'; // <--- IMPORTED
+import SearchResults from '../pages/Product/SearchResults';
 
 // --- CHECKOUT PAGES ---
 import Cart from '../pages/Checkout/Cart';
@@ -55,7 +55,8 @@ const AppRoutes = () => {
       <Route path="/verify-email" element={<VerifyEmail />} /> 
 
       {/* =========================================================
-          2. LAYOUT ROUTES (Navbar & BottomBar ARE Visible)
+          2. LAYOUT ROUTES (BottomBar IS Visible)
+          (Navbar is conditionally hidden via AppLayout logic)
       ========================================================= */}
       <Route element={<AppLayout />}>
         
@@ -66,52 +67,51 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
 
-        {/* Public Browsing Pages */}
-        <Route path="/categories" element={<Categories />} />
+        {/* pages with BottomBar but NO Top Navbar (Handled in AppLayout) */}
+        <Route path="/categories" element={<Categories />} /> 
         <Route path="/customize" element={<Customize />} />
-        <Route path="/product/:id" element={<ProductDetails />} />
-        
-        {/* Utility Pages */}
-        <Route path="/about" element={<About />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/terms" element={<Terms />} />
-
-        {/* Protected User Routes (Account, Orders, Settings) */}
         <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+        
+        {/* User Profile & Settings */}
         <Route path="/user/profile" element={<ProtectedRoute><Account /></ProtectedRoute>} />
         <Route path="/user/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-        
         <Route path="/user/orders/:id" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
         <Route path="/user/coupons" element={<ProtectedRoute><MyCoupons /></ProtectedRoute>} />
         <Route path="/user/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/user/payment" element={<ProtectedRoute><PaymentMethods /></ProtectedRoute>} />
         <Route path="/user/privacy" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+
+        {/* Pages with standard Layout (Both Bars Visible) */}
+        <Route path="/product/:id" element={<ProductDetails />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/terms" element={<Terms />} />
       </Route>
 
       {/* =========================================================
-          3. NO LAYOUT ROUTES (Navbar/BottomBar REMOVED)
+          3. NO LAYOUT ROUTES (NO Navbar & NO BottomBar)
       ========================================================= */}
       
-      {/* Search Pages (Moved here to hide Navbar) */}
+      {/* Search Flow */}
       <Route path="/search" element={<Search />} />
       <Route path="/search/results" element={<SearchResults />} />
 
-      {/* Cart (Public based on your code) */}
+      {/* Cart */}
       <Route path="/cart" element={<Cart />} />
 
-      {/* Wishlist (Protected) */}
+      {/* Wishlist */}
       <Route path="/wishlist" element={
         <ProtectedRoute>
           <Wishlist />
         </ProtectedRoute>
       } />
 
-      {/* Address Management */}
+      {/* Address Management (Standalone) */}
       <Route path="/user/addresses" element={<ProtectedRoute><SavedAddresses /></ProtectedRoute>} />
       <Route path="/user/addresses/add" element={<ProtectedRoute><ManageAddress /></ProtectedRoute>} />
       <Route path="/user/addresses/edit/:id" element={<ProtectedRoute><ManageAddress /></ProtectedRoute>} />
 
-      {/* Checkout Flow (Protected) */}
+      {/* Checkout Flow */}
       <Route path="/checkout" element={
         <ProtectedRoute>
           <Checkout />

@@ -9,7 +9,7 @@ export const fetchCategories = createAsyncThunk(
       const response = await api.get("/categories");
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
@@ -19,13 +19,13 @@ export const createCategory = createAsyncThunk(
   "categories/create",
   async (formData, { rejectWithValue }) => {
     try {
-      // FIX: Override default JSON header to allow File Upload
+      // Force Content-Type header just in case, though axios usually handles FormData automatically
       const response = await api.post("/categories", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
@@ -35,13 +35,12 @@ export const updateCategory = createAsyncThunk(
   "categories/update",
   async ({ id, formData }, { rejectWithValue }) => {
     try {
-      // FIX: Override default JSON header to allow File Upload
       const response = await api.put(`/categories/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
@@ -54,7 +53,7 @@ export const deleteCategory = createAsyncThunk(
       await api.delete(`/categories/${id}`);
       return id;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   }
 );
@@ -65,12 +64,20 @@ const categorySlice = createSlice({
     categories: [],
     loading: false,
     error: null,
+    actionLoading: false, // New state specifically for Create/Update/Delete actions
   },
-  reducers: {},
+  reducers: {
+    clearCategoryErrors: (state) => {
+      state.error = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
-      // Fetch
-      .addCase(fetchCategories.pending, (state) => { state.loading = true; })
+      // --- Fetch ---
+      .addCase(fetchCategories.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.loading = false;
         state.categories = action.payload;
@@ -79,20 +86,43 @@ const categorySlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Create
-      .addCase(createCategory.fulfilled, (state, action) => {
-        state.categories.push(action.payload);
+
+      // --- Create ---
+      .addCase(createCategory.pending, (state) => {
+        state.actionLoading = true;
+        state.error = null;
       })
-      // Update
+      .addCase(createCategory.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        // Use unshift to add to the TOP of the list immediately
+        state.categories.unshift(action.payload); 
+      })
+      .addCase(createCategory.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // --- Update ---
+      .addCase(updateCategory.pending, (state) => {
+        state.actionLoading = true;
+        state.error = null;
+      })
       .addCase(updateCategory.fulfilled, (state, action) => {
+        state.actionLoading = false;
         const index = state.categories.findIndex(c => c._id === action.payload._id);
         if (index !== -1) state.categories[index] = action.payload;
       })
-      // Delete
+      .addCase(updateCategory.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // --- Delete ---
       .addCase(deleteCategory.fulfilled, (state, action) => {
         state.categories = state.categories.filter(c => c._id !== action.payload);
       });
   },
 });
 
+export const { clearCategoryErrors } = categorySlice.actions;
 export default categorySlice.reducer;
