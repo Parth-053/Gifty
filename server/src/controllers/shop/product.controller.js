@@ -54,3 +54,4 @@ export const getRelatedProducts = asyncHandler(async (req, res) => {
     .status(httpStatus.OK)
     .json(new ApiResponse(httpStatus.OK, products, "Related products fetched"));
 });
+

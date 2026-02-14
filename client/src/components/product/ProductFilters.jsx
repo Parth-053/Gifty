@@ -1,144 +1,48 @@
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { X, Filter } from 'lucide-react';
-import Button from '../common/Button';
-import { fetchCategories } from '../../store/categorySlice'; // Import Action
+import React, { useState } from 'react';
+import { ChevronDown, Check } from 'lucide-react';
 
-const ProductFilters = ({ isOpen, onClose, filters, setFilters }) => {
-  const dispatch = useDispatch();
-  
-  // Real Data from Redux
-  const { items: categories, loading } = useSelector((state) => state.categories);
-
-  // Auto-fetch categories if empty
-  useEffect(() => {
-    if (categories.length === 0) {
-      dispatch(fetchCategories());
-    }
-  }, [dispatch, categories.length]);
-
-  const handleCategoryChange = (catId) => {
-    setFilters(prev => ({
-      ...prev,
-      category: prev.category === catId ? '' : catId
-    }));
-  };
-
-  const handleSortChange = (e) => {
-    setFilters(prev => ({ ...prev, sort: e.target.value }));
-  };
+const FilterSection = ({ title, options }) => {
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <>
-      {/* Mobile Backdrop */}
+    <div className="border-b border-gray-100 py-4 px-5">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full mb-3"
+      >
+        <span className="font-bold text-gray-800 text-sm">{title}</span>
+        <ChevronDown size={16} className={`transition-transform duration-200 text-gray-400 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm lg:hidden"
-          onClick={onClose}
-        />
+        <div className="space-y-3">
+          {options.map((opt, idx) => (
+            <label key={idx} className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative flex items-center justify-center">
+                <input 
+                  type="checkbox" 
+                  className="peer w-5 h-5 border-2 border-gray-300 rounded checked:bg-purple-600 checked:border-purple-600 appearance-none transition-all cursor-pointer" 
+                />
+                <Check size={12} className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none transform scale-50 peer-checked:scale-100 transition-transform" />
+              </div>
+              <span className="text-sm text-gray-600 group-hover:text-purple-600 transition-colors">{opt}</span>
+            </label>
+          ))}
+        </div>
       )}
+    </div>
+  );
+};
 
-      {/* Sidebar Content */}
-      <aside className={`
-        fixed inset-y-0 right-0 w-[300px] bg-white shadow-2xl z-50 p-6 
-        transform transition-transform duration-300 ease-out overflow-y-auto
-        lg:relative lg:translate-x-0 lg:w-64 lg:shadow-none lg:p-0 lg:block lg:h-auto lg:z-0
-        ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-      `}>
-        
-        {/* Mobile Header */}
-        <div className="flex items-center justify-between lg:hidden mb-6">
-          <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Filter size={20} /> Filters
-          </h3>
-          <button onClick={onClose} className="p-2 bg-gray-50 rounded-full text-gray-500">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="space-y-8">
-          
-          {/* Sort Option */}
-          <div>
-            <h4 className="font-bold text-gray-900 mb-3 text-sm uppercase tracking-wider">Sort By</h4>
-            <select 
-              value={filters.sort} 
-              onChange={handleSortChange}
-              className="w-full bg-gray-50 border border-gray-200 text-gray-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer"
-            >
-              <option value="newest">Newest Arrivals</option>
-              <option value="price_low">Price: Low to High</option>
-              <option value="price_high">Price: High to Low</option>
-              <option value="rating">Top Rated</option>
-            </select>
-          </div>
-
-          {/* Categories (Fully Dynamic Now) */}
-          <div>
-            <h4 className="font-bold text-gray-900 mb-3 text-sm uppercase tracking-wider">Categories</h4>
-            
-            {loading ? (
-              <div className="space-y-2 animate-pulse">
-                {[1, 2, 3, 4].map(i => <div key={i} className="h-6 bg-gray-100 rounded w-3/4"></div>)}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input 
-                    type="checkbox" 
-                    checked={filters.category === ''}
-                    onChange={() => setFilters(prev => ({...prev, category: ''}))}
-                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-600 group-hover:text-blue-600 transition-colors">All Categories</span>
-                </label>
-                
-                {categories.map((cat) => (
-                  <label key={cat._id} className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={filters.category === cat._id}
-                      onChange={() => handleCategoryChange(cat._id)}
-                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-600 group-hover:text-blue-600 transition-colors">{cat.name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Price Range */}
-          <div>
-            <h4 className="font-bold text-gray-900 mb-3 text-sm uppercase tracking-wider">Price Range</h4>
-            <div className="flex gap-2">
-              <input 
-                type="number" 
-                placeholder="Min" 
-                value={filters.minPrice}
-                onChange={(e) => setFilters(prev => ({...prev, minPrice: e.target.value}))}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none"
-              />
-              <input 
-                type="number" 
-                placeholder="Max" 
-                value={filters.maxPrice}
-                onChange={(e) => setFilters(prev => ({...prev, maxPrice: e.target.value}))}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Mobile Footer Action */}
-          <div className="lg:hidden pt-4 border-t border-gray-100">
-            <Button fullWidth onClick={onClose}>
-              Show Results
-            </Button>
-          </div>
-
-        </div>
-      </aside>
-    </>
+const ProductFilters = () => {
+  return (
+    <div className="pb-4">
+      <FilterSection title="Price" options={["Under ₹500", "₹500 - ₹1000", "₹1000 - ₹5000", "Over ₹5000"]} />
+      <FilterSection title="Brand" options={["Nike", "Adidas", "Puma", "Reebok", "Zara", "H&M"]} />
+      <FilterSection title="Discount" options={["10% or more", "30% or more", "50% or more", "70% or more"]} />
+      <FilterSection title="Customer Ratings" options={["4★ & above", "3★ & above", "2★ & above"]} />
+      <FilterSection title="Availability" options={["Include Out of Stock"]} />
+    </div>
   );
 };
 

@@ -20,6 +20,7 @@ import MyOrders from '../pages/Main/MyOrders';
 // --- PRODUCT PAGES ---
 import ProductDetails from '../pages/Product/ProductDetails';
 import Search from '../pages/Product/Search';
+import SearchResults from '../pages/Product/SearchResults'; // <--- IMPORTED
 
 // --- CHECKOUT PAGES ---
 import Cart from '../pages/Checkout/Cart';
@@ -68,7 +69,6 @@ const AppRoutes = () => {
         {/* Public Browsing Pages */}
         <Route path="/categories" element={<Categories />} />
         <Route path="/customize" element={<Customize />} />
-        <Route path="/search" element={<Search />} />
         <Route path="/product/:id" element={<ProductDetails />} />
         
         {/* Utility Pages */}
@@ -81,8 +81,6 @@ const AppRoutes = () => {
         <Route path="/user/profile" element={<ProtectedRoute><Account /></ProtectedRoute>} />
         <Route path="/user/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
         
-        {/* Note: Address routes removed from here to hide navbar */}
-
         <Route path="/user/orders/:id" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
         <Route path="/user/coupons" element={<ProtectedRoute><MyCoupons /></ProtectedRoute>} />
         <Route path="/user/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
@@ -92,9 +90,12 @@ const AppRoutes = () => {
 
       {/* =========================================================
           3. NO LAYOUT ROUTES (Navbar/BottomBar REMOVED)
-          (Cart, Wishlist, Checkout, AND NOW ADDRESSES)
       ========================================================= */}
       
+      {/* Search Pages (Moved here to hide Navbar) */}
+      <Route path="/search" element={<Search />} />
+      <Route path="/search/results" element={<SearchResults />} />
+
       {/* Cart (Public based on your code) */}
       <Route path="/cart" element={<Cart />} />
 
@@ -105,7 +106,7 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
 
-      {/* Address Management (Moved here to hide Navbar/BottomBar) */}
+      {/* Address Management */}
       <Route path="/user/addresses" element={<ProtectedRoute><SavedAddresses /></ProtectedRoute>} />
       <Route path="/user/addresses/add" element={<ProtectedRoute><ManageAddress /></ProtectedRoute>} />
       <Route path="/user/addresses/edit/:id" element={<ProtectedRoute><ManageAddress /></ProtectedRoute>} />

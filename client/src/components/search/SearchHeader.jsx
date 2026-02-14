@@ -1,56 +1,60 @@
-import React from 'react';
-import { Filter, X } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { ArrowLeft, X, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const SearchHeader = ({ 
-  resultsCount, 
-  searchQuery, 
-  onClearSearch, 
-  onToggleFilters, 
-  sortValue, 
-  onSortChange 
-}) => {
-  if (!searchQuery) return null;
+const SearchHeader = ({ query, setQuery, onSubmit, autoFocus = false }) => {
+  const navigate = useNavigate();
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (onSubmit) onSubmit();
+    }
+  };
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-      
-      {/* Left: Result Text */}
-      <div>
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          Results for <span className="text-blue-600">"{searchQuery}"</span>
-          <button 
-            onClick={onClearSearch}
-            className="p-1 bg-gray-100 text-gray-500 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
-          >
-            <X size={14} />
-          </button>
-        </h2>
-        <p className="text-xs text-gray-500 font-medium mt-1">
-          Found {resultsCount} {resultsCount === 1 ? 'product' : 'products'}
-        </p>
-      </div>
-
-      {/* Right: Actions */}
-      <div className="flex items-center gap-3">
-        {/* Sort Dropdown */}
-        <select
-          value={sortValue}
-          onChange={(e) => onSortChange(e.target.value)}
-          className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
-        >
-          <option value="newest">Newest</option>
-          <option value="price_low">Price: Low to High</option>
-          <option value="price_high">Price: High to Low</option>
-          <option value="rating">Top Rated</option>
-        </select>
-
-        {/* Filter Toggle (Mobile) */}
+    // THEME FIX: Uses your Gifty Gradient (Blue -> Purple)
+    <div className="sticky top-0 z-50 bg-gradient-to-r from-blue-600 to-purple-600 shadow-md">
+      <div className="flex items-center gap-3 p-3">
+        
+        {/* Back Button (White) */}
         <button 
-          onClick={onToggleFilters}
-          className="lg:hidden p-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-colors"
+          onClick={() => navigate(-1)} 
+          className="p-2 -ml-2 text-white hover:bg-white/20 rounded-full transition-colors"
         >
-          <Filter size={18} />
+          <ArrowLeft size={22} />
         </button>
+        
+        <div className="flex-1 relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search for products..."
+            // Input is white text on transparent background with white placeholder for cleaner look on gradient
+            // OR kept as white box for high contrast. Kept as white box as per standard e-com.
+            className="w-full bg-white text-gray-900 text-[15px] font-medium rounded-lg py-2.5 pl-10 pr-10 border-none focus:ring-2 focus:ring-purple-300 transition-all placeholder-gray-400 shadow-inner"
+          />
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          
+          {query && (
+            <button 
+              onClick={() => setQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-600"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

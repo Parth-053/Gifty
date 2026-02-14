@@ -14,7 +14,8 @@ import aiRoutes from "./v1/ai.routes.js";
 import paymentRoutes from "./v1/payment.routes.js";
 import bannerRoutes from "./v1/banner.routes.js";
 import returnRoutes from "./v1/return.routes.js";  
-import notificationRoutes from "./v1/notification.routes.js";  
+import notificationRoutes from "./v1/notification.routes.js"; 
+import searchRoutes from "./v1/search.routes.js"; 
 
 const router = Router();
 
@@ -33,6 +34,7 @@ router.use("/ai", aiRoutes);
 router.use("/payment", paymentRoutes);
 router.use("/banners", bannerRoutes);
 router.use("/returns", returnRoutes);  
-router.use("/notifications", notificationRoutes);  
+router.use("/notifications", notificationRoutes); 
+router.use("/search", searchRoutes); // New search routes
 
 export default router;
