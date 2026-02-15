@@ -12,9 +12,9 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  const { categories } = useSelector((state) => state.categories);
+  // FIX 1: Select 'rootCategories' specifically for the dropdown
+  const { rootCategories } = useSelector((state) => state.categories);
 
-  // Initialize state directly from props (avoids useEffect setState error)
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     description: initialData?.description || "",
@@ -23,16 +23,13 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
   });
 
   const [imageFile, setImageFile] = useState(null);
-  // Initialize preview from existing url if available
   const [previewUrl, setPreviewUrl] = useState(initialData?.image?.url || null);
   const [validationError, setValidationError] = useState("");
 
+  // FIX 2: Always fetch root categories on mount so the dropdown is populated
   useEffect(() => {
-    // Fetch parents if not already loaded
-    if (categories.length === 0) {
-        dispatch(fetchRootCategories());
-    }
-  }, [dispatch, categories.length]);
+    dispatch(fetchRootCategories());
+  }, [dispatch]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -45,7 +42,7 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB Limit
+      if (file.size > 2 * 1024 * 1024) { 
         setValidationError("Image size must be less than 2MB");
         return;
       }
@@ -56,13 +53,10 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
   };
 
   const handleRemoveImage = () => {
-    // Clear the new file selection
     setImageFile(null);
-    // If editing, revert preview to the original existing image
     if (isEdit && initialData?.image?.url) {
         setPreviewUrl(initialData.image.url);
     } else {
-        // If creating, clear preview entirely
         setPreviewUrl(null);
     }
   };
@@ -76,9 +70,6 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
       return;
     }
 
-    // CRITICAL VALIDATION LOGIC:
-    // Only require image if we are NOT editing AND no new file is selected.
-    // If isEdit is true, this block is skipped.
     if (!isEdit && !imageFile) {
       setValidationError("Category Image is required");
       return;
@@ -93,7 +84,6 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
       data.append("parentId", formData.parentId);
     }
 
-    // Only append image if a NEW file is selected by the user
     if (imageFile) {
       data.append("image", imageFile);
     }
@@ -101,8 +91,8 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
     onSubmit(data);
   };
 
-  // Filter dropdown options
-  const parentOptions = categories
+  // FIX 3: Use 'rootCategories' for the options instead of all categories
+  const parentOptions = rootCategories
     .filter(cat => !isEdit || cat._id !== initialData?._id)
     .map(cat => ({ value: cat._id, label: cat.name }));
 
@@ -113,7 +103,6 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
           {/* Image Upload Section */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {/* Only show asterisk if NOT editing */}
               Category Image { !isEdit && <span className="text-red-500">*</span> }
             </label>
             <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md relative ${validationError && !imageFile && !isEdit ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-indigo-500'}`}>
@@ -122,7 +111,6 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
                 {previewUrl ? (
                   <div className="relative inline-block">
                     <img src={previewUrl} alt="Preview" className="h-32 w-32 object-contain rounded-md border border-gray-200" />
-                    {/* Only show X button if a NEW file is currently selected */}
                     {imageFile && (
                         <button
                         type="button"
@@ -179,6 +167,7 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
                 <option value="">None (Top Level)</option>
+                {/* FIX 3: This now maps over rootCategories */}
                 {parentOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
