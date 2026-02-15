@@ -34,7 +34,8 @@ export const createCategory = createAsyncThunk(
   "categories/create",
   async (formData, { rejectWithValue }) => {
     try {
-      // Axios automatically sets Content-Type to multipart/form-data when sending FormData
+      // FIX: Do NOT set "Content-Type": "multipart/form-data" manually!
+      // Axios detects FormData and adds the correct header with the boundary automatically.
       const response = await api.post("/categories", formData);
       return response.data.data;
     } catch (error) {
@@ -48,6 +49,7 @@ export const updateCategory = createAsyncThunk(
   "categories/update",
   async ({ id, formData }, { rejectWithValue }) => {
     try {
+      // FIX: Do NOT set headers manually here either.
       const response = await api.put(`/categories/${id}`, formData);
       return response.data.data;
     } catch (error) {
@@ -74,10 +76,10 @@ export const deleteCategory = createAsyncThunk(
 const categorySlice = createSlice({
   name: "categories",
   initialState: {
-    categories: [],      // All categories
-    rootCategories: [],  // Just root categories (for dropdowns etc)
-    loading: false,      // For fetching lists
-    actionLoading: false, // For Create/Update/Delete actions (prevents double clicks)
+    categories: [],      
+    rootCategories: [],  
+    loading: false,      
+    actionLoading: false, 
     error: null,
   },
   reducers: {
@@ -87,7 +89,7 @@ const categorySlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // --- Fetch All ---
+      // Fetch All
       .addCase(fetchCategories.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -101,21 +103,19 @@ const categorySlice = createSlice({
         state.error = action.payload;
       })
 
-      // --- Fetch Roots ---
+      // Fetch Roots
       .addCase(fetchRootCategories.fulfilled, (state, action) => {
         state.rootCategories = action.payload;
       })
 
-      // --- Create ---
+      // Create
       .addCase(createCategory.pending, (state) => {
         state.actionLoading = true;
         state.error = null;
       })
       .addCase(createCategory.fulfilled, (state, action) => {
         state.actionLoading = false;
-        // Add to top of list immediately
         state.categories.unshift(action.payload);
-        // If it's a root category, add to root list too
         if (!action.payload.parentId) {
             state.rootCategories.unshift(action.payload);
         }
@@ -125,29 +125,46 @@ const categorySlice = createSlice({
         state.error = action.payload;
       })
 
-      // --- Update ---
+      // Update
       .addCase(updateCategory.pending, (state) => {
         state.actionLoading = true;
         state.error = null;
       })
       .addCase(updateCategory.fulfilled, (state, action) => {
         state.actionLoading = false;
-        // Update in main list
-        const index = state.categories.findIndex((c) => c._id === action.payload._id);
+        const updatedCat = action.payload;
+
+        // 1. Update in main list
+        const index = state.categories.findIndex((c) => c._id === updatedCat._id);
         if (index !== -1) {
-          state.categories[index] = action.payload;
+          state.categories[index] = updatedCat;
         }
-        // Update in root list (complex logic skipped, simpler to just refetch or ignore if strict consistency needed)
+
+        // 2. Handle Root List Synchronization
+        const rootIndex = state.rootCategories.findIndex((c) => c._id === updatedCat._id);
+
+        if (!updatedCat.parentId) {
+          // It is a root category
+          if (rootIndex !== -1) {
+            state.rootCategories[rootIndex] = updatedCat;
+          } else {
+            state.rootCategories.unshift(updatedCat);
+          }
+        } else {
+          // It is now a child category, remove from roots if present
+          if (rootIndex !== -1) {
+            state.rootCategories.splice(rootIndex, 1);
+          }
+        }
       })
       .addCase(updateCategory.rejected, (state, action) => {
         state.actionLoading = false;
         state.error = action.payload;
       })
 
-      // --- Delete ---
+      // Delete
       .addCase(deleteCategory.pending, (state) => {
         state.actionLoading = true;
-        state.error = null;
       })
       .addCase(deleteCategory.fulfilled, (state, action) => {
         state.actionLoading = false;
