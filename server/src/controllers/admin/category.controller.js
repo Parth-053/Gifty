@@ -5,10 +5,6 @@ import { ApiError } from "../../utils/ApiError.js";
 import * as imageService from "../../services/image.service.js";  
 import { httpStatus } from "../../constants/httpStatus.js";
 
-/**
- * @desc    Get Categories
- * @route   GET /api/v1/categories
- */
 export const getCategories = asyncHandler(async (req, res) => {
   const filter = {};
   if (req.query.isActive) {
@@ -17,7 +13,7 @@ export const getCategories = asyncHandler(async (req, res) => {
 
   const categories = await Category.find(filter)
     .populate("parentId", "name")
-    .sort({ createdAt: -1 }); // Sort by newest first
+    .sort({ createdAt: -1 });
 
   return res
     .status(httpStatus.OK)
@@ -26,7 +22,6 @@ export const getCategories = asyncHandler(async (req, res) => {
 
 export const createCategory = asyncHandler(async (req, res) => {
   const { name } = req.body;
-  
   if (!name) throw new ApiError(httpStatus.BAD_REQUEST, "Category name is required");
 
   const existing = await Category.findOne({ name });
@@ -34,7 +29,6 @@ export const createCategory = asyncHandler(async (req, res) => {
 
   let image = { url: "", publicId: "" };
   
-  // Handle Image Upload
   if (req.file) {
     try {
       const uploaded = await imageService.uploadImages([req.file], "categories");
@@ -44,7 +38,6 @@ export const createCategory = asyncHandler(async (req, res) => {
     }
   }
 
-  // Handle boolean conversion for isActive (FormData sends strings 'true'/'false')
   const isActive = req.body.isActive === 'true' || req.body.isActive === true;
 
   const category = await Category.create({ 
@@ -56,26 +49,41 @@ export const createCategory = asyncHandler(async (req, res) => {
   return res.status(httpStatus.CREATED).json(new ApiResponse(httpStatus.CREATED, category, "Category created"));
 });
 
+// --- UPDATED UPDATE FUNCTION ---
 export const updateCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
   if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
 
+  // 1. Prepare Update Data
+  const updateData = { ...req.body };
+
+  // 2. Handle Image: ONLY update if a new file is provided
   if (req.file) {
-    // Delete old image if it exists
+    // Delete old image
     if (category.image?.publicId) {
         await imageService.deleteImages([{ publicId: category.image.publicId }]);
     }
-    // Upload new image
+    // Upload new
     const uploaded = await imageService.uploadImages([req.file], "categories");
-    if (uploaded && uploaded.length > 0) req.body.image = uploaded[0];
+    if (uploaded && uploaded.length > 0) {
+        updateData.image = uploaded[0];
+    }
+  } else {
+    // CRITICAL FIX: If no file, REMOVE 'image' from updateData.
+    // This prevents overwriting the DB object with "null" or "undefined" strings from FormData.
+    delete updateData.image; 
   }
 
-  // Handle boolean conversion if present in body
-  if (req.body.isActive !== undefined) {
-    req.body.isActive = req.body.isActive === 'true' || req.body.isActive === true;
+  // 3. Handle Boolean Conversion
+  if (updateData.isActive !== undefined) {
+    updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
   }
 
-  const updatedCategory = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const updatedCategory = await Category.findByIdAndUpdate(
+      req.params.id, 
+      updateData, 
+      { new: true }
+  );
   
   return res.status(httpStatus.OK).json(new ApiResponse(httpStatus.OK, updatedCategory, "Category updated"));
 });
