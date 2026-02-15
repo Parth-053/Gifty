@@ -80,7 +80,8 @@ const Home = () => {
       <ProductGrid 
         type="trending" 
         title="Trending Now" 
-        seeAllLink={`/search/results?q=${encodeURIComponent('trending')}&cat=trending`} 
+        // UPDATED: Pass 'sort' parameter, do NOT search for text "trending"
+        seeAllLink={`/search/results?sort=trending`} 
         limit={12} 
         mode="horizontal" 
       />
@@ -89,6 +90,8 @@ const Home = () => {
       <ProductGrid 
         type="suggested" 
         title="Suggested for You" 
+        // UPDATED: Pass 'sort' parameter
+        seeAllLink={`/search/results?sort=recommended`}
         limit={8} 
         mode="vertical" 
       />
