@@ -30,7 +30,8 @@ export const getRootCategories = asyncHandler(async (req, res) => {
     $or: [{ parentId: null }, { parentId: { $exists: false } }],
     isActive: true 
   })
-  .select("name _id") // Only return name and ID for the dropdown list
+  // UPDATED: Added 'image' to selection so it can be displayed in UI
+  .select("name _id image") 
   .sort({ name: 1 });
 
   return res
@@ -67,32 +68,24 @@ export const createCategory = asyncHandler(async (req, res) => {
   return res.status(httpStatus.CREATED).json(new ApiResponse(httpStatus.CREATED, category, "Category created"));
 });
 
-// --- UPDATED UPDATE FUNCTION ---
 export const updateCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
   if (!category) throw new ApiError(httpStatus.NOT_FOUND, "Category not found");
 
-  // 1. Prepare Update Data
   const updateData = { ...req.body };
 
-  // 2. Handle Image: ONLY update if a new file is provided
   if (req.file) {
-    // Delete old image
     if (category.image?.publicId) {
         await imageService.deleteImages([{ publicId: category.image.publicId }]);
     }
-    // Upload new
     const uploaded = await imageService.uploadImages([req.file], "categories");
     if (uploaded && uploaded.length > 0) {
         updateData.image = uploaded[0];
     }
   } else {
-    // CRITICAL FIX: If no file, REMOVE 'image' from updateData.
-    // This prevents overwriting the DB object with "null" or "undefined" strings from FormData.
     delete updateData.image; 
   }
 
-  // 3. Handle Boolean Conversion
   if (updateData.isActive !== undefined) {
     updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
   }

@@ -1,19 +1,19 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { fetchCategories } from '../../store/categorySlice';
+import { fetchRootCategories } from '../../store/categorySlice';
 import { Package } from 'lucide-react';
 
 const CategoryRail = () => {
   const dispatch = useDispatch();
   
-  // Safety check for state
-  const { items, loading } = useSelector((state) => state.categories || {});
-  const categories = items || []; 
+  // Use rootItems for the home rail
+  const { rootItems, loading } = useSelector((state) => state.categories || {});
+  const categories = rootItems || []; 
 
   useEffect(() => {
     if (categories.length === 0) {
-      dispatch(fetchCategories());
+      dispatch(fetchRootCategories());
     }
   }, [dispatch, categories.length]);
 
@@ -33,17 +33,16 @@ const CategoryRail = () => {
     );
   }
 
-  // Hide component completely if no categories
+  // Hide if no categories
   if (!categories || categories.length === 0) return null;
 
   return (
     <div className="py-6">
       <div className="px-4 mb-4">
-        {/* Removed "See All" button, only Title remains */}
         <h3 className="font-bold text-gray-900 text-lg">Shop by Category</h3>
       </div>
       
-      {/* Horizontal Scroll - Scrollbar Hidden */}
+      {/* Horizontal Scroll */}
       <div className="flex gap-5 overflow-x-auto px-4 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
         {categories.map((cat) => (
           <Link 
