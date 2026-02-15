@@ -146,7 +146,7 @@ const Categories = () => {
                     <div 
                       key={sub._id} 
                       // 3. Navigate to Shop Page with Category ID
-                      onClick={() => navigate(`/search/results?q=${encodeURIComponent(sub.name)}`)}
+                      onClick={() => navigate(`/search/results?category=${encodeURIComponent(sub.name)}`)}
                       className="flex flex-col items-center gap-2 group cursor-pointer"
                     >
                       <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center p-2 group-hover:border-purple-200 group-hover:bg-purple-50 transition-all overflow-hidden">
