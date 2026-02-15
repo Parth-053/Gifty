@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { 
   getCategories,
-  getRootCategories, 
+  getRootCategories,
+  getSubCategories, 
   createCategory, 
   updateCategory, 
   deleteCategory 
@@ -17,6 +18,7 @@ const router = Router();
 // This allows the product form to fetch the list
 router.get("/", getCategories);
 router.get("/root", getRootCategories);
+router.get("/sub", getSubCategories);
 
 // --- PROTECTED ROUTES (Admin Only) ---
 // All routes below this line require Admin Login

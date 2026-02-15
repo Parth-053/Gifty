@@ -30,13 +30,31 @@ export const getRootCategories = asyncHandler(async (req, res) => {
     $or: [{ parentId: null }, { parentId: { $exists: false } }],
     isActive: true 
   })
-  // UPDATED: Added 'image' to selection so it can be displayed in UI
   .select("name _id image") 
   .sort({ name: 1 });
 
   return res
     .status(httpStatus.OK)
     .json(new ApiResponse(httpStatus.OK, rootCategories, "Root categories fetched"));
+});
+
+/**
+ * @desc    Get Sub Categories Only (Has Parent)
+ * @route   GET /api/v1/categories/sub
+ */
+export const getSubCategories = asyncHandler(async (req, res) => {
+  // Find categories where parentId exists and is NOT null
+  const subCategories = await Category.find({
+    parentId: { $ne: null, $exists: true },
+    isActive: true
+  })
+  .populate("parentId", "name") // Useful to see which root it belongs to
+  .select("name _id image parentId")
+  .sort({ name: 1 });
+
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, subCategories, "Subcategories fetched"));
 });
 
 export const createCategory = asyncHandler(async (req, res) => {
