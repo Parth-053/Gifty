@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { fetchCategories } from "../../store/categorySlice";
+import { fetchRootCategories } from "../../store/categorySlice";
 import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 // Components
@@ -30,7 +30,7 @@ const CategoryForm = ({ initialData, onSubmit, isEdit = false, loading }) => {
   useEffect(() => {
     // Fetch parents if not already loaded
     if (categories.length === 0) {
-        dispatch(fetchCategories());
+        dispatch(fetchRootCategories());
     }
   }, [dispatch, categories.length]);
 

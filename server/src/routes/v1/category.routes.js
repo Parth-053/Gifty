@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { 
-  getCategories, 
+  getCategories,
+  getRootCategories, 
   createCategory, 
   updateCategory, 
   deleteCategory 
@@ -15,6 +16,7 @@ const router = Router();
 // --- PUBLIC ROUTES (Accessible by Seller & Shop) ---
 // This allows the product form to fetch the list
 router.get("/", getCategories);
+router.get("/root", getRootCategories);
 
 // --- PROTECTED ROUTES (Admin Only) ---
 // All routes below this line require Admin Login

@@ -20,6 +20,24 @@ export const getCategories = asyncHandler(async (req, res) => {
     .json(new ApiResponse(httpStatus.OK, categories, "Categories fetched"));
 });
 
+/**
+ * @desc    Get Root Categories Only (No Parent)
+ * @route   GET /api/v1/categories/root
+ */
+export const getRootCategories = asyncHandler(async (req, res) => {
+  // Find categories where parentId is null or doesn't exist
+  const rootCategories = await Category.find({
+    $or: [{ parentId: null }, { parentId: { $exists: false } }],
+    isActive: true 
+  })
+  .select("name _id") // Only return name and ID for the dropdown list
+  .sort({ name: 1 });
+
+  return res
+    .status(httpStatus.OK)
+    .json(new ApiResponse(httpStatus.OK, rootCategories, "Root categories fetched"));
+});
+
 export const createCategory = asyncHandler(async (req, res) => {
   const { name } = req.body;
   if (!name) throw new ApiError(httpStatus.BAD_REQUEST, "Category name is required");
