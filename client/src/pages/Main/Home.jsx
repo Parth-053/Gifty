@@ -80,7 +80,7 @@ const Home = () => {
       <ProductGrid 
         type="trending" 
         title="Trending Now" 
-        seeAllLink="/trending" 
+        seeAllLink={`/search/results?q=${encodeURIComponent('trending')}&cat=trending`} 
         limit={12} 
         mode="horizontal" 
       />
