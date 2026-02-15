@@ -17,9 +17,7 @@ const Navbar = () => {
           to="/" 
           className="group flex flex-col justify-center"
         >
-          <span className="text-2xl sm:text-3xl font-black tracking-tighter text-white drop-shadow-md">
-            GIFTY
-          </span>
+          <img src="/logo.png" alt="Gifty Logo" className="h-20 w-auto mx-0" />
         </Link>
 
         {/* 2. Icons - White Glassy Buttons */}
